@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal bounded local CWE import and exact-root inspection over unchanged SDK custody."""
+"""Internal local CWE custody, exact inspection and read-only lookup in verified originals."""
 
 from __future__ import annotations
 
@@ -22,7 +22,9 @@ from fuzzy1337.intelligence_commands import (
     ReadLocalIntel,
 )
 from fuzzy1337.intelligence_cwe_acquisition import (
+    RAW_ROLE,
     AcquireLocalCweSelection,
+    BoundedCweEvidenceStore,
     CweAcknowledgement,
     CweAcquiredSelection,
     CweAcquisitionOutcome,
@@ -30,8 +32,14 @@ from fuzzy1337.intelligence_cwe_acquisition import (
     CweLocalRequest,
     CweLocalSource,
     LoadAcquiredCweSelection,
+    ReadBounded,
 )
-from fuzzy1337.intelligence_cwe_selection import MAX_REQUESTED_IDS, RequestedIds
+from fuzzy1337.intelligence_cwe_selection import (
+    MAX_REQUESTED_IDS,
+    CweSelection,
+    ParseCweSelection,
+    RequestedIds,
+)
 from fuzzy1337.intelligence_cwe_zip import MAX_ZIP_BYTES
 from fuzzy1337.workspace import LocalWorkspaceStore
 
@@ -77,7 +85,7 @@ class CweTerminalBuffer:
 
 
 def CweIntelParser(action: str | None = None) -> argparse.ArgumentParser:
-    """Declare local import and immutable inspection after inherited global flag normalization.
+    """Declare local import, immutable inspection and read-only original-catalog lookup.
 
     Args:
         action: Optional exact known action for storage-independent focused help.
@@ -100,6 +108,11 @@ def CweIntelParser(action: str | None = None) -> argparse.ArgumentParser:
     inspect.add_argument("workspace", type=Path)
     inspect.add_argument("--selection", required=True)
     inspect.add_argument("--receipt", required=True)
+    lookup = actions.add_parser("lookup", add_help=False, allow_abbrev=False)
+    lookup.add_argument("workspace", type=Path)
+    lookup.add_argument("--selection", required=True)
+    lookup.add_argument("--receipt", required=True)
+    lookup.add_argument("--identifier", action="append", required=True)
 
     return actions.choices[action] if action in actions.choices else parser
 
@@ -156,6 +169,33 @@ def CweCustodyComplete(acquired: CweAcquisitionOutcome) -> bool:
     )
 
 
+def LookupCweOriginal(root: Path, envelope: CweAcquiredSelection,
+                      identifiers: tuple[str, ...]) -> CweSelection:
+    """Reparse a verified retained original for a new explicit read-only selection.
+
+    Args:
+        root: Existing owning workspace already verified by the custody loader.
+        envelope: Exact original envelope returned by LoadAcquiredCweSelection.
+        identifiers: One to 64 sorted unique canonical IDs, independent of the saved selection.
+
+    Returns:
+        Bounded source assertions with a content reference, without new acquisition or persistence.
+    """
+
+    RequestedIds(identifiers)
+    originals = BoundedCweEvidenceStore(
+        root / "evidence", RAW_ROLE, "application/zip", envelope.max_bytes,
+    )
+
+    if originals.Get(envelope.raw.evidence_id) != envelope.raw:
+        raise ValueError("CWE lookup requires the exact verified original acquisition")
+
+    return ParseCweSelection(
+        ReadBounded(originals, envelope.raw, envelope.max_bytes), identifiers,
+        catalog_version=envelope.source.catalog_version,
+    )
+
+
 def WriteCweMetadata(value: dict[str, object], output: CweTerminalBuffer, prefix: str) -> None:
     """Stage every fixed source/notice metadata leaf readably without interpreting its content.
 
@@ -177,6 +217,27 @@ def WriteCweMetadata(value: dict[str, object], output: CweTerminalBuffer, prefix
 
         else:
             output.Write(f"{label}: {IntelDisplay(item)}\n")
+
+
+def WriteCwePartitions(selected: CweSelection, output: CweTerminalBuffer) -> None:
+    """Stage the three original source partitions without relabeling unsupported or absent IDs.
+
+    Args:
+        selected: Complete decoder result after verified original ZIP/XML completion.
+        output: Finite terminal staging buffer, never the caller's live stdout.
+    """
+
+    for record in selected.records:
+        output.Write(f"{IntelDisplay(record.identifier)}: Weakness; "
+                     f"{IntelDisplay(record.name)}; source status {IntelDisplay(record.status)}\n")
+
+    for entry in selected.unsupported_entries:
+        output.Write(f"{IntelDisplay(entry.identifier)}: unsupported source kind "
+                     f"{IntelDisplay(entry.source_kind)}\n")
+
+    if selected.unmatched_ids:
+        output.Write("Not present in this selected source: "
+                     + ", ".join(selected.unmatched_ids) + "\n")
 
 
 def WriteCweDetails(envelope: CweAcquiredSelection, output: CweTerminalBuffer) -> None:
@@ -205,22 +266,12 @@ def WriteCweDetails(envelope: CweAcquiredSelection, output: CweTerminalBuffer) -
                  f"{IntelDisplay(selected.catalog_date)} (day precision)\n")
     output.Write(f"Original ZIP member: {IntelDisplay(selected.member_name)}\n")
 
-    for record in selected.records:
-        output.Write(f"{IntelDisplay(record.identifier)}: Weakness; "
-                     f"{IntelDisplay(record.name)}; source status {IntelDisplay(record.status)}\n")
-
-    for entry in selected.unsupported_entries:
-        output.Write(f"{IntelDisplay(entry.identifier)}: unsupported source kind "
-                     f"{IntelDisplay(entry.source_kind)}\n")
-
-    if selected.unmatched_ids:
-        output.Write("Not present in this selected source: "
-                     + ", ".join(selected.unmatched_ids) + "\n")
+    WriteCwePartitions(selected, output)
 
 
 def CweTerminal(
     outcome: dict[str, object], envelope: CweAcquiredSelection | None, *,
-    json_output: bool, maximum: int,
+    json_output: bool, maximum: int, lookup: CweSelection | None = None,
 ) -> str:
     """Stage complete JSON or escaped human output within its own UTF-8 byte ceiling.
 
@@ -229,6 +280,7 @@ def CweTerminal(
         envelope: Fully acknowledged or verified selected content for human presentation.
         json_output: Select lossless ASCII-escaped JSON rather than human lines.
         maximum: Separate terminal budget, including human formatting and escaping.
+        lookup: Separate on-demand result, never a replacement for the original saved selection.
 
     Returns:
         Complete bounded text, including the final JSON framing newline.
@@ -256,7 +308,15 @@ def CweTerminal(
             output.Write(f"{name}: {IntelDisplay(outcome[name])}\n")
 
     if outcome["status"] == "succeeded" and envelope is not None:
+        if lookup is not None:
+            output.Write("Original saved selection (verified; unchanged):\n")
+
         WriteCweDetails(envelope, output)
+
+        if lookup is not None:
+            output.Write("On-demand lookup (not stored; content reference only):\n")
+            output.Write(IntelDisplay(lookup.Reference()) + "\n")
+            WriteCwePartitions(lookup, output)
 
     return output.Text()
 
@@ -264,7 +324,7 @@ def CweTerminal(
 def RunCweIntelCommands(
     arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
 ) -> int:
-    """Execute local selected import or verified inspection with bounded truthful terminal output.
+    """Execute local import, exact inspection or original-catalog lookup with bounded output.
 
     Args:
         arguments: Forwarded local namespace arguments after inherited global normalization.
@@ -277,7 +337,8 @@ def RunCweIntelCommands(
     """
 
     if list(arguments) in (["--help"], ["-h"], ["import", "--help"], ["import", "-h"],
-                           ["inspect", "--help"], ["inspect", "-h"]):
+                           ["inspect", "--help"], ["inspect", "-h"],
+                           ["lookup", "--help"], ["lookup", "-h"]):
         helpOutput = StringIO()
         CweIntelParser(arguments[0]).print_help(file=helpOutput)
         output.write(helpOutput.getvalue())
@@ -285,7 +346,9 @@ def RunCweIntelCommands(
         return 0
 
     outcome: dict[str, object] = {
-        "schema_version": 1, "profile_version": 1, "profile": "cwe-local-selected-cli",
+        "schema_version": 1, "profile_version": 1,
+        "profile": ("cwe-local-original-lookup-cli" if list(arguments[:1]) == ["lookup"]
+                    else "cwe-local-selected-cli"),
         "command": "intel.cwe", "status": "failed", "failure": None,
         "transport": "local-bytes", "acquisition_state": None, "raw_id": None,
         "selection_id": None, "receipt_id": None, "raw_ack": "not-attempted",
@@ -299,6 +362,8 @@ def RunCweIntelCommands(
     status = 4
     phase = "configuration"
     envelope = None
+    lookup = None
+    lookupIds: tuple[str, ...] | None = None
 
     try:
         CweArguments(arguments)
@@ -345,6 +410,12 @@ def RunCweIntelCommands(
             envelope = acquired.envelope
 
         else:
+            if options.action == "lookup":
+                if not 1 <= len(options.identifier) <= MAX_REQUESTED_IDS:
+                    raise IntelFailure("configuration", 2)
+
+                lookupIds = RequestedIds(tuple(sorted(options.identifier)))
+
             CweRoot(options.selection)
             CweRoot(options.receipt)
             root = IntelPath(options.workspace)
@@ -361,12 +432,21 @@ def RunCweIntelCommands(
                 "source_sha256": envelope.raw.reference.sha256,
             })
 
+            if lookupIds is not None:
+                phase = "lookup"
+                lookup = LookupCweOriginal(root, envelope, lookupIds)
+
         if envelope is None:
             raise IntelFailure("acquisition")
 
         outcome.update({"source": envelope.source.ToDict(),
                         "selection": envelope.selection.ToDict(),
                         "selection_reference": envelope.Reference(), "status": "succeeded"})
+
+        if lookup is not None:
+            outcome["lookup"] = {"selection": lookup.ToDict(),
+                "selection_reference": lookup.Reference(), "persistence": "not-attempted"}
+
         status = 0
 
     except IntelFailure as error:
@@ -383,21 +463,30 @@ def RunCweIntelCommands(
 
     if status != 0:
         outcome = {key: value for key, value in outcome.items()
-                   if key not in ("source", "selection", "selection_reference")}
+                   if key not in ("source", "selection", "selection_reference", "lookup")}
         outcome["status"] = "failed"
 
     try:
-        text = CweTerminal(outcome, envelope, json_output=json_output, maximum=MAX_TERMINAL_BYTES)
+        if lookup is None:
+            text = CweTerminal(outcome, envelope, json_output=json_output,
+                               maximum=MAX_TERMINAL_BYTES)
+
+        else:
+            text = CweTerminal(outcome, envelope, json_output=json_output,
+                               maximum=MAX_TERMINAL_BYTES, lookup=lookup)
 
     except (KeyboardInterrupt, ValueError, OverflowError, RecursionError) as error:
         interrupted = isinstance(error, KeyboardInterrupt)
         outcome = {key: value for key, value in outcome.items()
-                   if key not in ("source", "selection", "selection_reference")}
+                   if key not in ("source", "selection", "selection_reference", "lookup")}
         outcome.update({"status": "failed", "failure": "interrupted" if interrupted
                                                       else "presentation-limit"})
         status = 130 if interrupted else 4
         text = CweTerminal(outcome, None, json_output=json_output, maximum=MAX_FALLBACK_BYTES)
 
-    output.write(text)
+    written = output.write(text)
+
+    if outcome["profile"] == "cwe-local-original-lookup-cli" and written != len(text):
+        raise OSError("CWE lookup output was not written completely")
 
     return status

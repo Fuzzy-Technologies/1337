@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal offline structural validation of one manifest against the installed Stable v1 schema."""
+"""Internal offline manifest schema validation and explicit data-only version profiles."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ MAX_MANIFEST_NODES = 4096
 MAX_MANIFEST_DEPTH = 32
 MAX_DIAGNOSTICS = 64
 SCHEMA_RESOURCE = "fuzzy1337/contracts/extension-manifest.schema.json"
+SEMVER_VERSION_PROFILE = "semver-2.0.0"
 
 
 class ManifestFailure(ValueError):
@@ -202,18 +203,61 @@ def StructuralDiagnostics(instance: object, schema: object) -> tuple[list[dict[s
     return diagnostics, len(errors) > MAX_DIAGNOSTICS
 
 
+def IsSemVer200(value: object) -> bool:
+    """Check the ASCII SemVer 2.0.0 version-string grammar without resolution or ordering.
+
+    Args:
+        value: Declared extension version; this function neither coerces nor rewrites metadata.
+
+    Returns:
+        True for the version-string grammar in specification sections 2, 9 and 10.
+        Numeric components remain strings, with no integer conversion or additional digit limit.
+    """
+
+    if type(value) is not str or not value.isascii():
+        return False
+
+    version, hasBuild, build = value.partition("+")
+    core, hasPrerelease, prerelease = version.partition("-")
+    numbers = core.split(".")
+
+    if len(numbers) != 3 or any(
+        not part.isdigit() or (len(part) > 1 and part.startswith("0")) for part in numbers
+    ):
+        return False
+
+    for suffix, present, allowLeadingZeros in (
+        (prerelease, hasPrerelease, False), (build, hasBuild, True),
+    ):
+        if not present:
+            continue
+
+        for identifier in suffix.split("."):
+            if not identifier or any(
+                not (character.isalnum() or character == "-") for character in identifier
+            ):
+                return False
+
+            if not allowLeadingZeros and identifier.isdigit() and (
+                len(identifier) > 1 and identifier.startswith("0")
+            ):
+                return False
+
+    return True
+
+
 def RunExtensionCommands(
     arguments: Sequence[str], output: TextIO, *, jsonOutput: bool = False,
 ) -> int:
     """Validate one explicit manifest locally without interpreting compatibility or activating it.
 
     Args:
-        arguments: Exact validate action and local filename, or action help.
+        arguments: Validate action, local filename and optional version profile, or action help.
         output: Caller-owned terminal stream.
-        jsonOutput: Emit the Experimental profile-one fixed diagnostic document.
+        jsonOutput: Emit profile-one fixed diagnostics with any explicitly selected version profile.
 
     Returns:
-        Zero for schema-valid, one for schema-invalid, two for input/setup refusal,
+        Zero for accepted metadata, one for invalid metadata, two for input/setup refusal,
         four for unavailable packaged schema, or 130 for interruption.
     """
 
@@ -221,6 +265,7 @@ def RunExtensionCommands(
     actions = parser.add_subparsers(dest="action", required=True, parser_class=ManifestParser)
     validate = actions.add_parser("validate", add_help=False, allow_abbrev=False)
     validate.add_argument("manifest", type=Path)
+    validate.add_argument("--version-profile", choices=(SEMVER_VERSION_PROFILE,))
 
     if list(arguments) in (["--help"], ["-h"], ["validate", "--help"], ["validate", "-h"]):
         validate.print_help(file=output)
@@ -239,6 +284,10 @@ def RunExtensionCommands(
 
     try:
         options = parser.parse_args(arguments)
+
+        if options.version_profile is not None:
+            outcome["version_profile"] = options.version_profile
+
         phase = "input-file"
         raw = ReadManifest(options.manifest)
         phase = "input-json"
@@ -249,6 +298,14 @@ def RunExtensionCommands(
         schema = json.loads(schemaRaw)
         outcome["schema_sha256"] = hashlib.sha256(schemaRaw).hexdigest()
         diagnostics, truncated = StructuralDiagnostics(instance, schema)
+
+        if options.version_profile == SEMVER_VERSION_PROFILE and not diagnostics:
+            extension = instance.get("extension") if isinstance(instance, dict) else None
+            version = extension.get("version") if isinstance(extension, dict) else None
+
+            if not IsSemVer200(version):
+                diagnostics = [{"code": SEMVER_VERSION_PROFILE, "path": "/extension/version"}]
+
         outcome.update(status="invalid" if diagnostics else "valid", diagnostics=diagnostics,
                        diagnostics_truncated=truncated)
         status = 1 if diagnostics else 0
@@ -270,6 +327,9 @@ def RunExtensionCommands(
 
     else:
         output.write(f"extension.validate: {outcome['status']}\n")
+
+        if "version_profile" in outcome:
+            output.write(f"Version profile: {outcome['version_profile']}\n")
 
         for item in diagnostics:
             output.write(f"{item['code']}: {json.dumps(item['path'], ensure_ascii=True)}\n")

@@ -1,9 +1,10 @@
 # `fuzzy1337.intelligence_cwe_commands`
 
 Internal local CWE CLI consumer over the unchanged Experimental custody SDK.
-`RunCweIntelCommands` accepts only explicit local import and exact immutable-root
-inspection after inherited top-level help/JSON normalization. It validates source,
-IDs, scope and budget before file reads and both root syntaxes before storage.
+`RunCweIntelCommands` accepts explicit local import, exact immutable-root
+inspection and read-only lookup after inherited top-level help/JSON normalization.
+It validates source, IDs, scope and budget before file reads and both root
+syntaxes before storage.
 
 `CweIntelParser`, `CweArguments` and `CweRoot` own forwarded grammar and preflight.
 `CweCustodyComplete` requires real succeeded state, complete bytes, three confirmed
@@ -22,3 +23,19 @@ partial prefixes. No model write, remote receiver, source discovery, legal-right
 authenticity, risk or applicability assessment is performed. Command examples are documented in `docs/CWE_LOCAL_CUSTODY.md`.
 
 ::: fuzzy1337.intelligence_cwe_commands
+
+## Retained-original on-demand lookup
+
+The separate Experimental `intel cwe lookup` action first verifies the same
+original selection/receipt and complete retained source through its existing
+custody owner. Internal `LookupCweOriginal` then calls the unchanged bounded
+decoder for a new explicit ID set; `WriteCwePartitions` preserves distinct
+Weakness/unsupported/absent source partitions in both human projections.
+No new source/provider, notice, acquisition time or stored family is created.
+
+The original top-level selection and acquisition-envelope reference stay
+unchanged. Only the nested `lookup` projection is on-demand and not persisted;
+its `cwe-selection:` reference binds decoder content, not acquisition custody.
+The terminal profile `cwe-local-original-lookup-cli` is separate from the
+unchanged default import/inspect family. It adds no public Python extension API.
+See the operator source guide and ADR 0155 for limits and refusal semantics.

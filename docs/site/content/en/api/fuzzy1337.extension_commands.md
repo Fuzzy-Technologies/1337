@@ -26,11 +26,25 @@ conformance, compatibility, registration or execution approval. The command
 does not write input files or open a workspace. The shell uses the same handler
 and excludes manifest arguments from its command history.
 
-Exit codes are 0 for schema-valid, 1 for schema-invalid, 2 for input/setup refusal,
+Exit codes are 0 for accepted metadata, 1 for invalid metadata, 2 for input/setup refusal,
 4 for unusable installed schema and 130 for interruption. The JSON output is
 Experimental profile one. See the
 [Compatibility Contract](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/COMPATIBILITY.md#extension-manifest)
 and [ADR 0153](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/adr/0153-offline-extension-validation.md)
 for the consumer boundary and optional wheel installation.
+
+An explicit `--version-profile semver-2.0.0` additionally checks the extension's
+own version-string grammar after canonical structural acceptance. Numeric
+prerelease identifiers forbid leading zeros; build metadata permits them.
+The Internal `IsSemVer200` helper uses ASCII string checks without integer
+conversion, precedence/range evaluation or an additional digit limit.
+The existing manifest bounds still apply. It does not trim whitespace.
+
+Only opt-in outcomes add `version_profile: "semver-2.0.0"`. A supplemental
+invalidity uses exit 1 and a fixed `semver-2.0.0` diagnostic at
+`/extension/version`, without rejected values. Unknown profiles fail
+configuration admission before input reads. Canonical errors, installed schema
+bytes, default command results and the optional validator requirement remain
+unchanged. This is an Experimental CLI policy, not a Stable Python SDK.
 
 ::: fuzzy1337.extension_commands
