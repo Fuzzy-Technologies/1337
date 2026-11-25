@@ -113,3 +113,13 @@ def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
     assert COMMAND_REGISTRY.Resolve("shell") is COMMAND_REGISTRY.Commands[3], (
         "core registry describes only currently available commands invariant failed."
     )
+    sbom = COMMAND_REGISTRY.Resolve("sbom")
+    assert sbom is not None and sbom.usage == (
+        "1337 sbom <image|import spdx-graph|import cyclonedx> <workspace>"
+    ), "SBOM discovery must advertise both implemented original inventory profiles"
+    assert "CycloneDX inventory" in sbom.summary and COMMAND_REGISTRY.Search("cyclonedx") == (
+        sbom,
+    ), "The existing command palette must discover the implemented CycloneDX operator profile"
+    assert sbom.capabilities == ("image.owned-spdx-graph-import",), (
+        "Discovery must not manufacture a new capability or execution registration"
+    )

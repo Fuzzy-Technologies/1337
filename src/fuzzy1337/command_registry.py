@@ -263,8 +263,9 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="sbom",
-            summary="Inspect verified saved image inventory or import an owned SPDX graph.",
-            usage="1337 sbom <image|import spdx-graph> <workspace>",
+            summary=("Inspect verified saved image inventory or import an owned SPDX graph "
+                     "or CycloneDX inventory."),
+            usage="1337 sbom <image|import spdx-graph|import cyclonedx> <workspace>",
             capabilities=("image.owned-spdx-graph-import",),
         ),
         CommandDescriptor(
