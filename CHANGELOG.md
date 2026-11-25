@@ -33,6 +33,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Add a severity-ordered index of retained findings to offline HTML reports.
 - Add row-range links to long indexes of findings by saved severity.
 - Paginate long saved-severity indexes with native page disclosures.
+- Page large asset tables by object kind and reveal the page for linked assets.
 - Link retained assets to finding cards by their exact saved subject references.
 - Filter offline HTML assets by direct saved finding subjects.
 - Show assets without retained findings for manual review.

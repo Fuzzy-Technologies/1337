@@ -34,6 +34,15 @@ from fuzzy1337.reporting import (
 )
 
 __all__ = ["RenderHtml", "SerializeJson", "SerializeSarif", "SerializeJunit"]
+_ASSET_TABLE_PAGE_SIZE = 50
+_ASSET_TABLE_GROUPS = (
+    (ObjectKind.HOST, "Hosts", (("Address", ("address",)), ("Reported state", ("state",)))),
+    (ObjectKind.PORT, "Ports", (("Protocol", ("protocol",)), ("Number", ("number",)),
+                               ("Reported state", ("state",)))),
+    (ObjectKind.SERVICE, "Services", (("Name", ("name",)), ("Version", ("version",)))),
+    (ObjectKind.ENDPOINT, "Web addresses", (("Method", ("method",)),
+                                           ("HTTP status", ("status",)))),
+)
 _FINDING_INDEX_RANGE_SIZE = 50
 _FINDING_INDEX_PRINT_CSS = (
     "@media print {.findings-severity-index[data-paginated] {display:none}}\n"
@@ -92,6 +101,23 @@ _ASSET_FINDINGS_CSS = (
     ".asset-findings-selection[hidden]:target {display:block}\n"
     f"{_ASSET_FINDINGS_SELECTOR} {{display:none}}\n"
     f"{_ASSET_NO_FINDINGS_SELECTOR} {{display:none}}\n"
+    "}\n}\n"
+)
+_ASSET_UNFILTERED_VIEW = "#model:not(:has(> .asset-findings-selection:target))"
+_ASSET_PAGE_TARGET = "> .asset-table-page:target, > .asset-table-page > tr:target"
+_ASSET_SELECTED_PAGE_TABLE = f"{_ASSET_UNFILTERED_VIEW} table:has({_ASSET_PAGE_TARGET})"
+_ASSET_PAGE_CSS = (
+    ".asset-page-links[hidden] {display:none}\n"
+    "@media screen {\n"
+    f"@supports selector({_ASSET_SELECTED_PAGE_TABLE}) {{\n"
+    f"{_ASSET_UNFILTERED_VIEW} .asset-page-links[hidden] {{display:flex}}\n"
+    f"{_ASSET_UNFILTERED_VIEW} table:not(:has({_ASSET_PAGE_TARGET}))"
+    " > .asset-table-page ~ .asset-table-page {display:none}\n"
+    f"{_ASSET_SELECTED_PAGE_TABLE}"
+    " > .asset-table-page:not(:target):not(:has(> tr:target)) {display:none}\n"
+    ".asset-table-page:focus-visible > tr:first-child > th[scope=\"row\"],"
+    ".asset-table-page > tr:target > th[scope=\"row\"]"
+    " {outline:2px solid var(--cyan);outline-offset:-2px}\n"
     "}\n}\n"
 )
 _FINDING_SEVERITY_SELECTOR = (
@@ -440,21 +466,13 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         '<p>These are saved model objects. A listed address or service is not itself a '
         'vulnerability, and its presence does not establish current reachability.</p>',
     ]
-    groups = (
-        (ObjectKind.HOST, "Hosts", (("Address", ("address",)), ("Reported state", ("state",)))),
-        (ObjectKind.PORT, "Ports", (("Protocol", ("protocol",)), ("Number", ("number",)),
-                                   ("Reported state", ("state",)))),
-        (ObjectKind.SERVICE, "Services", (("Name", ("name",)), ("Version", ("version",)))),
-        (ObjectKind.ENDPOINT, "Web addresses", (("Method", ("method",)),
-                                               ("HTTP status", ("status",)))),
-    )
     sortOptions = {
         ObjectKind.PORT: ("number", "ascending"),
         ObjectKind.ENDPOINT: ("status", "descending"),
     }
     inventory = []
 
-    for kind, heading, fields in groups:
+    for kind, heading, fields in _ASSET_TABLE_GROUPS:
         entities = rows.assetsByKind.get(kind, ())
         sortField, sortDirection = sortOptions.get(kind, ("", ""))
 
@@ -467,7 +485,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         inventory.append((headingId, f"{heading} ({len(entities)})", fields, entities,
                           sortField, sortDirection))
 
-    primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
+    primary = {kind for kind, _, _ in _ASSET_TABLE_GROUPS} | {ObjectKind.FINDING}
     others = [(reference, entity) for reference, entity in rows.objects.items()
               if entity.identity.kind not in primary]
     otherGroup = ("model-other-objects-heading", f"Other retained objects ({len(others)})")
@@ -522,6 +540,21 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
             continue
 
+        pageRanges = []
+
+        if len(entities) > _ASSET_TABLE_PAGE_SIZE:
+            lines.append(f'<nav class="asset-page-links" aria-label="Rows in {Html(label)}" '
+                         'hidden="hidden">')
+
+            for first in range(1, len(entities) + 1, _ASSET_TABLE_PAGE_SIZE):
+                last = min(first + _ASSET_TABLE_PAGE_SIZE - 1, len(entities))
+                fragment = f'{headingId.removesuffix("-heading")}-rows-{first}'
+                rangeLabel = f"Rows {first}–{last}" if first < last else f"Row {first}"
+                pageRanges.append((fragment, rangeLabel))
+                lines.append(f'<a href="#{fragment}">{rangeLabel}</a>')
+
+            lines.append("</nav>")
+
         lines.append(_TableStart(headingId, assetFindingsMarker=marker)
                      + '<th scope="col">Saved identity</th>')
 
@@ -530,14 +563,24 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
             lines.append(f'<th scope="col"{sort}>{Html(column)}</th>')
 
         lines.append('<th scope="col">Findings</th>'
-                     '<th scope="col">Details</th></tr></thead><tbody>')
+                     '<th scope="col">Details</th></tr></thead>'
+                     + ("" if pageRanges else "<tbody>"))
+        focusTarget = ' tabindex="-1"' if pageRanges else ""
 
-        for reference, entity in entities:
+        for index, (reference, entity) in enumerate(entities):
+            if pageRanges and index % _ASSET_TABLE_PAGE_SIZE == 0:
+                if index:
+                    lines.append("</tbody>")
+
+                fragment, rangeLabel = pageRanges[index // _ASSET_TABLE_PAGE_SIZE]
+                lines.append(f'<tbody class="asset-table-page" id="{fragment}" '
+                             f'tabindex="-1" aria-label="{rangeLabel}">')
+
             findings = findingsBySubject.get(reference)
             marker = (
                 _ASSET_WITH_FINDINGS if findings else _ASSET_WITHOUT_FINDINGS
             ) if includeFilter else ""
-            lines.append(f'<tr id="object-{reference[7:]}"{marker}>'
+            lines.append(f'<tr id="object-{reference[7:]}"{marker}{focusTarget}>'
                          f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
             lines.append(f"<td>{_FindingLinks(findings) if findings else 'None retained'}</td>")
@@ -849,6 +892,11 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
     rows = _ProjectRetainedReportRows(report.state)
+    paginatedAssets = any(
+        len(rows.assetsByKind.get(kind, ())) > _ASSET_TABLE_PAGE_SIZE
+        for kind, _, _ in _ASSET_TABLE_GROUPS
+    )
+    assetPageCss = _ASSET_PAGE_CSS if paginatedAssets else ""
     paginatedFindings = len(rows.findings) > _FINDING_INDEX_RANGE_SIZE
     findingIndexPrintCss = _FINDING_INDEX_PRINT_CSS if paginatedFindings else ""
     evidenceNumbers = {
@@ -862,7 +910,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; '
         'style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">',
         f"<title>1337 Evidence report</title><style>{_CSS}{findingIndexPrintCss}"
-        f"{_ASSET_FINDINGS_CSS}{_FINDING_SEVERITY_CSS}</style>"
+        f"{_ASSET_FINDINGS_CSS}{assetPageCss}{_FINDING_SEVERITY_CSS}</style>"
         "</head><body><main>",
         '<p class="brand">Fuzzy Technologies · Security Workbench</p>'
         '<h1>Security assessment report</h1>',

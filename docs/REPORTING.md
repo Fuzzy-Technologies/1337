@@ -84,7 +84,10 @@ order. Missing values show Not recorded.
 Use the Asset types links to jump to populated inventory groups. Each link and
 heading show the count in the retained snapshot. Each table uses its visible
 heading as its accessible name. The scroll region shares that name and supports
-keyboard focus.
+keyboard focus. Groups with more than 50 rows open on the first page. Row-range
+links focus a page within the same table. A link to an individual asset opens
+its page. While a findings filter is active, all matching rows are shown across
+the group's pages. The printed report includes every retained row.
 
 Follow a link in the inventory's Findings column to open the corresponding
 finding card. Other retained objects show links when a finding names them as its

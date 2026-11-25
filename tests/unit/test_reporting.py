@@ -968,6 +968,79 @@ def test_HtmlPortsOrderRetainedIntegersWithCanonicalTies():
     assert f'id="{fragment}"' in rendered
 
 
+def test_HtmlAssetPagesPreserveSortedRowsAndLinkedTargets():
+    """Page a native inventory table while preserving late targets and asset filters."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    ports = tuple(SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.PORT, f"127.0.0.1/tcp/{number}"),
+        {"protocol": "tcp", "number": number}, host.provenance,
+    ) for number in range(50, 0, -1))
+    state, _ = report.state.Apply(objects=ports)
+    atLimit = RenderHtml(replace(report, state=state))
+    assert b"asset-page-links" not in atLimit
+    assert b"asset-table-page" not in atLimit
+
+    latePort = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.PORT, "127.0.0.1/tcp/unknown"),
+        {"protocol": "tcp"}, host.provenance,
+    )
+    state, _ = state.Apply(objects=(latePort,))
+    finding = Finding(latePort.Reference(), "synthetic.asset-page", "saved",
+                      "Finding on late port", host.provenance)
+    state, _ = ApplyFindings(state, (finding,))
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    modelHtml = rendered.split('<section id="model">', 1)[1].split("</section>", 1)[0]
+    model = ElementTree.fromstring(f"<section>{modelHtml}</section>")
+    links, = model.findall('nav[@class="asset-page-links"]')
+    table, = model.findall('.//table[@aria-labelledby="model-port-table-heading"]')
+    pages = table.findall("tbody")
+    assert links.get("hidden") == "hidden"
+    assert [len(page.findall("tr")) for page in pages] == [50, 1]
+    assert [(link.get("href"), link.text) for link in links.findall("a")] == [
+        ("#model-port-table-rows-1", "Rows 1–50"), ("#model-port-table-rows-51", "Row 51"),
+    ]
+    for page, link in zip(pages, links.findall("a"), strict=True):
+        assert (page.get("id"), page.get("tabindex"), page.get("aria-label")) == (
+            link.attrib["href"][1:], "-1", link.text,
+        )
+
+    assert table.findtext('thead/tr/th[@aria-sort="ascending"]') == "Number"
+    orderedRows = pages[0].findall("tr")
+    assert [row.findall("td")[1].text for row in orderedRows] == [
+        str(number) for number in range(1, 51)
+    ]
+    assert {row.get("data-asset-findings") for row in orderedRows} == {"none"}
+    lateRow, = pages[1].findall("tr")
+    objectId = f"object-{latePort.Reference()[7:]}"
+    assert (lateRow.get("id"), lateRow.get("tabindex"),
+            lateRow.get("data-asset-findings"), lateRow.findall("td")[1].text) == (
+        objectId, "-1", "present", "Not recorded",
+    )
+
+    findingId = f"finding-{finding.ToObject(state.workspace_id).Reference()[7:]}"
+    assert lateRow.find("td/ul/li/a").get("href") == f"#{findingId}"
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    card, = findings.findall(f'article[@id="{findingId}"]')
+    assert card.find("p/a").get("href") == f"#{objectId}"
+
+    screen = "#model:not(:has(> .asset-findings-selection:target))"
+    target = "> .asset-table-page:target, > .asset-table-page > tr:target"
+    chosen = f"{screen} table:has({target})"
+    expect = (
+        f"@media screen {{\n@supports selector({chosen}) {{\n"
+        f"{screen} .asset-page-links[hidden] {{display:flex}}\n"
+        f"{screen} table:not(:has({target})) > .asset-table-page ~ .asset-table-page "
+        "{display:none}\n"
+        f"{chosen} > .asset-table-page:not(:target):not(:has(> tr:target)) {{display:none}}\n"
+    )
+    style = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert ".asset-page-links[hidden] {display:none}\n" + expect in style
+    assert style.count(".asset-page-links[hidden]") == 2
+
+
 def test_HtmlWebAddressesOrderSavedHttpStatuses():
     """Bring recorded HTTP errors together while preserving unknowns and finding links."""
 
