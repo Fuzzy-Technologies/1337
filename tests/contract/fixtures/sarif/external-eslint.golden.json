@@ -1,0 +1,44 @@
+{
+  "sarif_version": "2.1.0",
+  "runs": [
+    {
+      "run_index": 0,
+      "tool_name": "ESLint",
+      "tool_version": null,
+      "tool_semantic_version": null,
+      "column_kind": null,
+      "invocations": null,
+      "results": [
+        {
+          "result_index": 0,
+          "rule_id": "no-unused-vars",
+          "declared_rule_id": "no-unused-vars",
+          "rule_index": 0,
+          "descriptor_id": "no-unused-vars",
+          "message_text": "'x' is assigned a value but never used.",
+          "message_markdown": null,
+          "message_id": null,
+          "source_level": "error",
+          "source_kind": null,
+          "baseline_state": null,
+          "suppressions": null,
+          "locations": [
+            {
+              "uri": "file:///C:/dev/sarif/sarif-tutorials/samples/Introduction/simple-example.js",
+              "declared_uri": "file:///C:/dev/sarif/sarif-tutorials/samples/Introduction/simple-example.js",
+              "uri_base_id": null,
+              "declared_uri_base_id": null,
+              "artifact_index": 0,
+              "start_line": 1,
+              "start_column": 5,
+              "end_line": null,
+              "end_column": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "inline_result_count": 1,
+  "validation_scope": "consumed-fields-only"
+}

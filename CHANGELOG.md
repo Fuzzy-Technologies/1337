@@ -8,6 +8,27 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 66 — v0.4.66 — 2026-11-25
+
+#### Digest
+
+- Read existing external SARIF reports with exact original custody and portable source facts.
+
+#### Added
+
+- Add explicit `bridge sarif import|inspect` over caller-owned SARIF 2.1.0 files,
+  the existing bounded physical-file reader and immutable evidence owner.
+- Preserve source rule/tool/severity/position declarations, order, duplicates and
+  unknown fields without canonical Finding, target, execution or risk inference.
+- Reopen exact original/receipt/SHA pins after source deletion and workspace copy;
+  keep source URI/path/schema/help strings inert and owning state unchanged.
+
+#### Security
+
+- Bound complete source/projection/receipt/output, preflight original context
+  before body reads, retain independent publication acknowledgements and refuse
+  unsupported external properties or failed verification without partial facts.
+
 ### Patch 65 — v0.4.65 — 2026-11-25
 
 #### Digest
@@ -24,6 +45,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   parallel/serial execution and strict changed-production coverage.
 - Record actual selected files, measured case counts, source identities and the
   limited coverage claim without accepting PR-supplied selectors.
+
+### Patch 64 — v0.4.64 — 2026-11-25
+
+#### Digest
+
+- Reopen an explicitly owned saved RFC 5424 log from exact retained bytes after
+  source removal or workspace relocation.
+
+#### Added
+
+- Add bounded source-only RFC 5424 v1 parsing and `trace syslog import|inspect`,
+  reusing the existing artifact/evidence owners. Preserve original header fields,
+  source timestamps/offset knowledge, NILs, ordered structured data, provenance
+  and byte coordinates behind independent original receipt and SHA-256 pins.
+- Keep raw and receipt acknowledgements independent; reproduce parser refusals
+  without partial records. Default output withholds SD values; explicit JSON
+  record export includes them. MSG content stays only in the retained original.
+  No live input, Core Event/Identity, incident, authentication or scoring follows.
+
 
 ### Patch 63 — v0.4.63 — 2026-11-25
 
