@@ -582,6 +582,19 @@ in `fuzzy1337.sbom_commands`, including `SbomParser` and `RunSbomCommands`, and
 its schema-one terminal summary remain Internal. No SDK/Core schema, native
 authorization, read-grant default, remote retrieval or scanner contract changes.
 
+ADR 0154 adds Experimental `sbom import cyclonedx` over the unchanged verified
+CycloneDX 1.6 inventory SDK. Its original file mode uses the same explicit
+owner/read-consent/source metadata and saved revision bases, plus a mandatory
+source SHA-256 checked before evidence publication. It creates its own
+profile-tagged original product read custody. Retained replay accepts only that
+exact acquisition and context; arbitrary SDK raw-only evidence stays refused
+even when referenced by the workspace or already normalized through the SDK.
+Source assertions, operator image/run mapping and independent save acknowledgements
+remain separate. Existing SPDX calls, SDK semantics, digest domains, storage
+schemas and generic SBOM bounds are unchanged. See
+`docs/SBOM_CYCLONEDX_IMPORT.md`. The command adds no scanner, network, layer
+attribution, compliance verdict or new public SDK.
+
 ## Version compatibility rules
 
 `fuzzy1337.demo` and `fuzzy1337.demo_commands` are Experimental schema-version-1

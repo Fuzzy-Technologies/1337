@@ -1,7 +1,8 @@
 # fuzzy1337.sbom_commands
 
 The installed CLI and interactive shell expose Experimental contract-version-one
-`sbom import spdx-graph` and the verified read-only `sbom image` view. This module
+`sbom import spdx-graph`, `sbom import cyclonedx` and the verified read-only
+`sbom image` view. This module
 is their Internal implementation. All classes,
 functions, methods and helpers, including `SbomParser`, `RunSbomCommands`,
 `SbomFailure`, `SbomArgumentParser`, `SbomEvidenceStore`, `SbomPath`,
@@ -13,7 +14,8 @@ Import requires an existing workspace/model and workspace-local offline scope,
 an explicit run reference, image SHA-256 digest and `config`/`manifest` digest
 kind, and current model/workspace revision bases. Digest kind is never inferred
 from checksum equality, an archive or source bytes. The unchanged
-`ApplyVerifiedSpdxGraph` SDK creates the image and canonical package linkage.
+`ApplyVerifiedSpdxGraph` or `ApplyVerifiedCycloneDx` SDK creates the image and
+canonical package linkage according to the explicitly selected source profile.
 Scope attributes offline evidence and grants no collection or execution authority.
 
 File mode requires explicit `--file`, `--owner`, `--read-consent-reference`,
@@ -27,6 +29,14 @@ tolerance applies only across path/handle views, preserving same-view checks.
 Original bytes remain complete unredacted evidence; choose owned non-secret
 exports suitable for retention.
 
+CycloneDX file mode additionally requires a lowercase `--expected-sha256` of
+the complete original file. Its pin grammar validates before source reads, and
+its digest must match before evidence publication. The unchanged finite SDK
+admits only its existing CycloneDX 1.6 inventory; no wider schema, license policy
+or file/layer attribution is inferred. Its profile-tagged original read fact is
+created only by that actual product operation. Repeated scalar flags and option
+abbreviations are refused in this new profile.
+
 Retained mode requires `--evidence` naming the exact original acquisition
 manifest, independently bound to a known `sbom-import-source` custody observation.
 Original source/version/provider/time, image digest/kind, run, scope and read
@@ -34,6 +44,8 @@ descriptions remain unchanged. Content SHA-256 is distinct from manifest identit
 same-byte different acquisitions and changed context cannot borrow original
 custody. File-mode overrides and unknown SDK raw-only acquisitions fail before
 selected raw reads. A different image kind needs its own original file acquisition.
+CycloneDX replay also refuses a replacement source hash. Workspace references or
+already normalized SDK objects cannot substitute missing product read custody.
 
 Before generic owning evidence reads in either import mode or the saved image
 view, `CheckKnownSbomSources`
@@ -79,5 +91,7 @@ before saved owners are read; default output remains unchanged without policy.
 
 See [Owned SPDX graph import](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/SBOM_IMPORT.md)
 and [ADR 0082](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/adr/0082-owned-offline-spdx-graph-import.md).
+The separate [owned CycloneDX import](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/SBOM_CYCLONEDX_IMPORT.md)
+is defined by [ADR 0154](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/adr/0154-owned-offline-cyclonedx-import.md).
 
 ::: fuzzy1337.sbom_commands

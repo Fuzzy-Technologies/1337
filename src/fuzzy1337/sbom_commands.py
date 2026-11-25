@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal original SPDX graph import and read-only verified image inventory commands."""
+"""Internal owned offline SBOM import and read-only verified image inventory commands."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from fuzzy1337.evidence import (
     ParseEvidenceManifest,
     RequireEvidenceDigest,
 )
-from fuzzy1337.images import IMAGE_IMPORT_MAX_BYTES, ImageIdentity
+from fuzzy1337.images import IMAGE_IMPORT_MAX_BYTES, ApplyVerifiedCycloneDx, ImageIdentity
 from fuzzy1337.model import (
     CanonicalModelJson,
     LocalModelStore,
@@ -273,10 +273,17 @@ def SbomParser() -> argparse.ArgumentParser:
   image WORKSPACE --image-digest sha256:DIGEST --image-digest-kind {config,manifest}
     [--license-policy ID [--allow-license ATOM]... [--deny-license ATOM]...]
 Retained replay requires known original product custody.
-It accepts no context or read overrides.""")
+It accepts no context or read overrides.
+  import cyclonedx WORKSPACE
+    (--file FILE --owner ACTOR --read-consent-reference REFERENCE
+      --source-id SOURCE --source-version VERSION --expected-sha256 SHA256
+      [--provider-version DECLARED] | --evidence sha256:ORIGINAL_MANIFEST)
+    --image-digest sha256:DIGEST --image-digest-kind {config,manifest}
+    --scope SCOPE --run RUN --expected-revision MODEL --expected-workspace-revision WORKSPACE
+CycloneDX uses the same original-read custody; SDK raw-only records are not product replay.""")
     actions = parser.add_subparsers(dest="action", required=True, parser_class=SbomArgumentParser)
     importer = actions.add_parser("import", add_help=False)
-    importer.add_argument("profile", choices=("spdx-graph",))
+    importer.add_argument("profile", choices=("spdx-graph", "cyclonedx"))
     importer.add_argument("workspace", type=Path)
     selection = importer.add_mutually_exclusive_group(required=True)
     selection.add_argument("--file", type=Path)
@@ -289,6 +296,7 @@ It accepts no context or read overrides.""")
 
     importer.add_argument("--expected-revision", type=int, required=True)
     importer.add_argument("--expected-workspace-revision", type=int, required=True)
+    importer.add_argument("--expected-sha256")
 
     for name in ("owner", "read-consent-reference", "source-id", "source-version",
                  "provider-version"):
@@ -395,7 +403,12 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
         attribution = ModelProvenance(source.source_id, fact.provenance.run_reference,
             source.finished_at, source.scope_reference, imageReference,
             source.tool_version, (original.reference,))
-        SourceFact(model, original, attribution, image, None)
+        profile = fact.attributes.get("profile")
+
+        if type(profile) is not str:
+            raise SbomFailure("source-context")
+
+        SourceFact(model, original, attribution, image, None, profile=profile)
 
     if len(scopes) > MAX_EXPORT_SCOPES:
         raise SbomFailure("limit")
@@ -467,7 +480,8 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
 
 
 def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProvenance,
-               image: ImageIdentity, consent: ArtifactReadConsent | None) -> Observation:
+               image: ImageIdentity, consent: ArtifactReadConsent | None, *,
+               profile: str = "spdx-graph") -> Observation:
     """Bind known product custody to the independently selected original acquisition manifest.
 
     Args:
@@ -476,6 +490,7 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         provenance: Exact original source/time/scope plus explicit image/run interpretation.
         image: Explicit config/manifest semantics retained separately from checksum equality.
         consent: Explicit file acquisition description, or None for known original replay.
+        profile: Original product profile; another profile cannot borrow its read custody.
 
     Returns:
         Original unchanged custody fact, or first file-mode custody observation.
@@ -484,7 +499,10 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         SbomFailure: Unknown retained custody, original context or read description changes.
     """
 
-    fields = {"profile": "spdx-graph", "evidence_id": record.evidence_id,
+    if profile not in {"spdx-graph", "cyclonedx"}:
+        raise SbomFailure("source-context")
+
+    fields = {"profile": profile, "evidence_id": record.evidence_id,
         "source_sha256": record.reference.sha256, "source_id": record.provenance.source_id,
         "source_version": record.provenance.source_version, "image_digest": image.digest,
         "image_digest_kind": image.digest_kind}
@@ -571,7 +589,7 @@ def ReferenceProposal(workspace: WorkspaceState, model: ModelState, record: Evid
 
 def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
                     clock: Callable[[], datetime] = UtcNow) -> int:
-    """Dispatch saved image viewing or bounded original graph acquisition and independent CAS saves.
+    """Dispatch saved viewing or bounded original inventory acquisition and independent CAS saves.
 
     Args:
         arguments: Explicit source, image semantics, offline scope/run and both revision bases.
@@ -597,7 +615,9 @@ def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
 
         return RunImageSbomView(arguments, output, json_output=json_output)
 
-    outcome: dict[str, object] = {"schema_version": 1, "command": "sbom.import.spdx-graph",
+    command = ("sbom.import.cyclonedx" if list(arguments[:2]) == ["import", "cyclonedx"]
+               else "sbom.import.spdx-graph")
+    outcome: dict[str, object] = {"schema_version": 1, "command": command,
         "status": "failed", "source_selection": None, "evidence_id": None,
         "source_sha256": None, "received_bytes": None, "started_at": None, "finished_at": None,
         "acquisition_commit": "not-attempted", "model_commit": "not-attempted",
@@ -608,6 +628,27 @@ def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
 
     try:
         options = parser.parse_args(arguments)
+        outcome["command"] = "sbom.import." + options.profile
+
+        if options.profile == "cyclonedx":
+            flags = [value.split("=", 1)[0] for value in arguments if value.startswith("--")]
+            allowed = {"--file", "--evidence", "--image-digest", "--image-digest-kind", "--scope",
+                       "--run", "--expected-revision", "--expected-workspace-revision",
+                       "--owner", "--read-consent-reference", "--source-id", "--source-version",
+                       "--provider-version", "--expected-sha256"}
+
+            if len(flags) != len(set(flags)) or not set(flags) <= allowed:
+                raise SbomFailure("configuration", 2)
+
+            if options.file is not None:
+                RequireEvidenceDigest(options.expected_sha256)
+
+            elif options.expected_sha256 is not None:
+                raise SbomFailure("configuration", 2)
+
+        elif options.expected_sha256 is not None:
+            raise SbomFailure("configuration", 2)
+
         RequireWorkspaceInteger(options.expected_revision, "expected_revision")
         RequireWorkspaceInteger(options.expected_workspace_revision, "expected_workspace_revision")
         RequireWorkspaceText(options.run, "run_reference")
@@ -654,6 +695,10 @@ def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
                 options.source_id, options.source_version, options.provider_version,
                 started, finished)
             digest = hashlib.sha256(raw).hexdigest()
+
+            if options.profile == "cyclonedx" and digest != options.expected_sha256:
+                raise SbomFailure("source-digest")
+
             expected = EvidenceRecord(EvidenceReference("sbom", "blobs/sha256/" + digest,
                 digest, "application/json", len(raw)), source)
             record = expected
@@ -667,7 +712,7 @@ def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
 
         provenance = ModelProvenance(source.source_id, options.run, source.finished_at,
             scope.Reference(), target, source.tool_version, (record.reference,))
-        fact = SourceFact(basis, record, provenance, image, consent)
+        fact = SourceFact(basis, record, provenance, image, consent, profile=options.profile)
         CheckBases(root, workspace, basis, scope)
         CheckKnownSbomSources(evidence, record.reference, workspace, basis)
         original = OpenReportInput(root)
@@ -689,7 +734,9 @@ def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
             "source_sha256": record.reference.sha256, "received_bytes": record.reference.size_bytes,
             "started_at": source.started_at, "finished_at": source.finished_at})
         phase = "normalization"
-        proposed, delta = ApplyVerifiedSpdxGraph(basis, record, provenance, image, root)
+        normalize = (ApplyVerifiedSpdxGraph if options.profile == "spdx-graph"
+                     else ApplyVerifiedCycloneDx)
+        proposed, delta = normalize(basis, record, provenance, image, root)
         proposed, delta = ApplySourceFact(proposed, delta, fact)
         phase = "model-verification"
         CheckBases(root, workspace, basis, scope)

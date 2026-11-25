@@ -14,7 +14,58 @@ import pytest
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.workspace import LocalWorkspaceStore
-from tests.sbom_helpers import Arguments, Context, OwnedSbom, Value
+from tests.e2e.test_intelligence_cli import Files
+from tests.sbom_helpers import (
+    Arguments,
+    Context,
+    CycloneDxArguments,
+    CycloneDxContext,
+    OwnedSbom,
+    Value,
+    ViewArguments,
+)
+
+
+@pytest.mark.parametrize("kind", ["config", "manifest"])
+def test_InstalledCycloneDxAcquiresOwnedFileAndReplaysOriginalAfterRelocation(tmp_path, kind):
+    """The actual console creates profile custody and later consumes only that retained original."""
+
+    owned = CycloneDxContext(tmp_path)
+    raw = owned.source.read_bytes()
+    status, acquired = Console(CycloneDxArguments(owned, kind=kind), tmp_path)
+    assert status == 0 and acquired["command"] == "sbom.import.cyclonedx", (
+        "Installed original file import must enter the existing CycloneDX inventory profile"
+    )
+    assert acquired["model_revision"] == acquired["workspace_revision"] == 1 and acquired[
+        "source_selection"
+    ] == "file", "Actual original operation must acknowledge its file read and one saved transition"
+    evidence = LocalEvidenceStore(owned.root / "evidence")
+    record = evidence.Get(acquired["evidence_id"])
+    assert evidence.Read(record.reference) == raw, "The console must retain complete original bytes"
+    moved = tmp_path / "relocated"
+    owned.root.rename(moved)
+    owned.source.unlink()
+    relocated = OwnedSbom(moved, owned.source)
+    before = Files(moved)
+    status, replay = Console(CycloneDxArguments(relocated, evidenceId=record.evidence_id,
+                                               kind=kind), tmp_path)
+    assert status == 0 and replay["created"] == replay["updated"] == 0, (
+        "Installed original replay after relocation must not create duplicate inventory or custody"
+    )
+    status, view = Console(ViewArguments(relocated, kind=kind), tmp_path)
+    assert status == 0 and view["inventory_status"] == "observed" and len(
+        view["package_references"],
+    ) == 2, "Existing verified image view must consume the imported two-package inventory"
+    assert Files(moved) == before, "Installed replay and view must preserve every saved owner byte"
+    (moved / "evidence" / record.reference.locator).write_bytes(b"x" * record.reference.size_bytes)
+    corrupted = Files(moved)
+    status, refused = Console(CycloneDxArguments(relocated, evidenceId=record.evidence_id,
+                                                kind=kind), tmp_path)
+    assert status == 4 and refused["model_commit"] == "not-attempted", (
+        "Installed replay must refuse corrupt originals before model persistence"
+    )
+    assert Files(moved) == corrupted, "Integrity refusal must preserve all actual saved state"
+
 
 
 def Console(arguments, parent):

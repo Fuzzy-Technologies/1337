@@ -8,6 +8,22 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 57 — v0.4.57 — 2026-11-25
+
+#### Digest
+
+- Import owned CycloneDX inventory through the offline operator CLI.
+
+#### Added
+
+- Add `sbom import cyclonedx` over the existing verified CycloneDX 1.6 SDK and
+  explicitly selected config/manifest image identity. Require a local owned file,
+  exact source SHA-256, source metadata and read-consent descriptions. Retain
+  actual original product custody without scanner execution.
+- Reuse independent model/workspace revision and acknowledgement owners, exact
+  replay and relocated saved inventory views. Refuse SDK raw-only acquisitions,
+  substituted, corrupt or unsupported originals without a partial normalized import.
+
 ### Patch 56 — v0.4.56 — 2026-11-25
 
 #### Digest
