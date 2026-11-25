@@ -10,9 +10,69 @@ import json
 import pytest
 
 from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.findings import Findings
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.workspace import LocalWorkspaceStore
-from tests.sbom_helpers import FIXTURES, Arguments, Context, Run
+from tests.sbom_helpers import (
+    FIXTURES,
+    Arguments,
+    Context,
+    CycloneDxArguments,
+    CycloneDxContext,
+    Run,
+)
+
+
+@pytest.mark.parametrize("kind", ["config", "manifest"])
+def test_CycloneDxOperatorAcquiresOriginalFileWithGenuineProfileCustody(tmp_path, kind):
+    """A byte-pinned owned file enters the unchanged inventory SDK with actual read attribution."""
+
+    owned = CycloneDxContext(tmp_path)
+    raw = owned.source.read_bytes()
+    status, outcome = Run(CycloneDxArguments(owned, kind=kind))
+    assert status == 0 and outcome["command"] == "sbom.import.cyclonedx", (
+        "The operator must acquire the selected owned CycloneDX file through its inventory profile"
+    )
+    evidence = LocalEvidenceStore(owned.root / "evidence")
+    record = evidence.Get(outcome["evidence_id"])
+    assert evidence.Read(record.reference) == raw, (
+        "Original owned file bytes must remain unredacted"
+    )
+    assert record.provenance.source_id == "inventory.owned-cyclonedx" and (
+        record.provenance.source_version == "owned-export-v1"
+        and record.provenance.tool_version == "declared-exporter-v1"
+        and record.provenance.started_at == outcome["started_at"]
+        and record.provenance.finished_at == outcome["finished_at"]
+        and record.provenance.execution is None and record.provenance.invocation_sha256 is None
+    ), "Actual original read times and declared source metadata must not become scanner evidence"
+    state = LocalModelStore(owned.root).Open()
+    images = [item for item in state.objects if item.attributes.get("asset_type") == "image"]
+    packages = [item for item in state.objects if item.attributes.get("asset_type") == "package"]
+    assert len(images) == 1 and images[0].attributes["digest_kind"] == kind, (
+        "Explicit image digest domains must remain distinct from checksum equality"
+    )
+    assert {(item.attributes["name"], item.attributes["version"]) for item in packages} == {
+        ("owned-lib", "1.0"), ("owned-framework", "2.0"),
+    }, "Existing supported components must retain their canonical versioned package identities"
+    assert not Findings(state), (
+        "Inventory import must create no vulnerability or compliance verdict"
+    )
+    fact = next(item for item in state.observations if item.kind == "sbom-import-source")
+    assert fact.attributes["profile"] == "cyclonedx" and fact.attributes[
+        "read_actor_reference"
+    ] == "owner:test" and fact.attributes["read_consent_reference"] == "read:owned-cyclonedx", (
+        "Product custody must come from this actual operator read, not a prior SDK acquisition"
+    )
+    assert "custody_basis" not in fact.attributes, (
+        "Workspace references must not invent read custody"
+    )
+    assert all(item.observed_at == record.provenance.finished_at
+               and item.source_id == record.provenance.source_id
+               and item.provider_version == record.provenance.tool_version
+               and item.execution is None for entity in (*state.objects, *state.relations)
+               for item in entity.provenance), (
+        "Inventory must retain exact original read attribution"
+    )
 
 
 def test_ActualImportMatchesIndependentNestedInverseAliasDependencyAndLicenseOracle(tmp_path):

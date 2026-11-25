@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from io import StringIO
@@ -107,6 +108,30 @@ def Value(arguments: list[str], flag: str, value: object) -> list[str]:
     updated[updated.index(flag) + 1] = str(value)
 
     return updated
+
+
+def CycloneDxContext(parent: Path) -> OwnedSbom:
+    """Select one owned original matching the existing bounded CycloneDX inventory profile."""
+
+    owned = Context(parent)
+    owned.source.write_bytes((FIXTURES / "cyclonedx.inventory.v1.6.json").read_bytes())
+
+    return owned
+
+
+def CycloneDxArguments(owned, *, evidenceId=None, kind="config"):
+    """Declare original file ownership and byte pin, or exact closed product replay."""
+
+    arguments = Arguments(owned, evidence_id=evidenceId, digest_kind=kind)
+    arguments[1] = "cyclonedx"
+    arguments = Value(arguments, "--run", "run:owned-cyclonedx")
+
+    if evidenceId is None:
+        arguments = Value(arguments, "--source-id", "inventory.owned-cyclonedx")
+        arguments = Value(arguments, "--read-consent-reference", "read:owned-cyclonedx")
+        arguments += ["--expected-sha256", hashlib.sha256(owned.source.read_bytes()).hexdigest()]
+
+    return arguments
 
 
 def ViewArguments(owned, *, digest=IMAGE_DIGEST, kind="config"):

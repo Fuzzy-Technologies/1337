@@ -7,6 +7,11 @@ file, applies the existing SDK graph interpretation and persists the canonical
 model and workspace through their independent owners.
 [ADR 0082](adr/0082-owned-offline-spdx-graph-import.md) defines this product slice.
 
+For the separate CycloneDX 1.6 inventory profile, see
+[owned CycloneDX import](SBOM_CYCLONEDX_IMPORT.md). It uses the same original
+file-read custody with an explicit source byte pin, followed by closed original
+product replay. The SPDX admission below is unchanged.
+
 The workspace, canonical model and selected workspace-local scope already exist.
 Scope records offline attribution; it supplies no read or execution grant.
 The caller explicitly declares image digest semantics. The SPDX CONTAINER root
