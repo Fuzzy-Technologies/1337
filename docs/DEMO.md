@@ -267,7 +267,8 @@ Replace `path/to/saved-workspace` inside the quotes with the saved directory
 that contains `workspace.json`, `state/model/model.json` and `evidence/`.
 The [report SDK](REPORTING.md) verifies saved model evidence and renders the
 projection in memory. By default, the example expects one marker and its single
-saved fixture observation.
+saved fixture observation. The reader checks the fixture's recorded detection
+target against the Finding's subject.
 
 ```bash
 uv run --offline --locked --no-sync python - 'path/to/saved-workspace' <<'PY'
@@ -283,10 +284,13 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 
 
 def MatchesFindingIdentity(observation, finding):
-    """Compare the saved detection with the canonical Finding identity."""
+    """Compare the saved detection identity and target with the canonical Finding."""
 
-    return all(
-        observation["attributes"].get(key) == finding["normalized"][key]
+    normalized = finding["normalized"]
+    recordedTarget = observation["provenance"]["target_reference"]
+
+    return recordedTarget == normalized["subject_reference"] and all(
+        observation["attributes"].get(key) == normalized[key]
         for key in ("fingerprint", "check_id", "subject_reference", "location_key")
     )
 
@@ -382,6 +386,9 @@ if (
 ):
     raise SystemExit("Saved observation and acquisition do not match")
 
+if (record.reference.role, record.reference.media_type) != ("fixture-marker", "application/json"):
+    raise SystemExit("Unexpected role or media type for the saved fixture marker")
+
 marker = json.loads(store.Read(record.reference))
 selected = {key: marker[key] for key in ("id", "type", "provenance")}
 if selected != {
@@ -415,9 +422,10 @@ To verify a listed observation's acquisition, use
 with the full observation reference from the row's first field.
 
 A successful acquisition inspection prints the Finding, saved observation and
-acquisition IDs on its first line. The original marker has `id` equal to
-`evidence.initial-topology`, `type` equal to `topology-seed` and `provenance`
-equal to `seeded`. The inspection checks that ID against the Finding's
+acquisition IDs on its first line. The fixture acquisition uses the
+`fixture-marker` role and `application/json` media type. The marker has `id`
+equal to `evidence.initial-topology`, `type` equal to `topology-seed` and
+`provenance` equal to `seeded`. The inspection checks that ID against the Finding's
 `location_key`. This fixture explicitly uses the acquisition ID as its
 `run_reference`. Other sources can retain a job ID there. A shared raw digest
 can belong to multiple acquisitions, so leave attribution unresolved when the
