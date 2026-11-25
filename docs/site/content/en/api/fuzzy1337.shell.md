@@ -1,10 +1,5 @@
 # fuzzy1337.shell
 
-Foreground `trace syslog import|inspect` forwards explicit selections to the same
-[saved RFC 5424 handler](fuzzy1337.syslog_commands.md) as the console. Workspace,
-original file, framing, checksum and receipt are never inferred from shell context;
-the existing private command-history treatment of `trace` is retained.
-
 Read-only `view model --query <file> [--json]` replays an explicit standard
 `LensQuery.ToDict()` document for one render through the unchanged typed decoder
 and lens projection. It replaces the preset without saving a preference; omitted
@@ -83,11 +78,5 @@ shell selection never supplies source paths, scope or SAFE approval.
 Foreground `report export` also admits explicit HTML and JUnit formats through
 the same owner-verified snapshot and publication consumer as JSON and SARIF.
 Shell context never supplies missing input or destination selections.
-
-Foreground `bridge sarif import|inspect` forwards only explicit saved-report
-selections to the same Internal owner as the installed CLI. Context supplies no
-source, workspace, scope, read authority, original/receipt or SHA pin. All bridge
-arguments remain excluded from local/native history and empty-line replay.
-Source paths/URIs are inert, no provider executes and inspection writes no owner.
 
 ::: fuzzy1337.shell

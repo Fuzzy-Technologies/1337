@@ -166,15 +166,3 @@ reference after verifying registration, the manifest, and the retained bytes.
 Save this JSON object as the optional reference file for a later comparison.
 Keep the acquisition ID with the object. Two acquisitions can share the same
 reference when only their recorded provenance differs.
-
-
-## Saved syslog consumer profile
-
-The Experimental [owned saved RFC 5424 operation](SYSLOG_SAVED_IMPORT.md) uses
-this unchanged owner for one explicit original file and its separate profile
-receipt. It preflights its own raw/receipt ceilings before eager owner reads.
-Its independently selected receipt/raw pins support source-only CLI/SDK reopen
-without registering workspace evidence references, saving Core state or adding
-automatic report/timeline integration. Its descriptive read declarations are
-profile metadata, not a new global custody or authentication contract. The
-workspace-registered handoff example above keeps its existing registration rule.

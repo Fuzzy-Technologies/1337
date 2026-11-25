@@ -1,10 +1,5 @@
 # fuzzy1337.command_registry
 
-The `trace` descriptor also advertises the separate Experimental saved-file
-`trace syslog import|inspect` operation. Discovery supplies no original file,
-checksum, receipt, source attribution or read declaration and grants no authority.
-See the [source-only handler](fuzzy1337.syslog_commands.md).
-
 The `paths` descriptor advertises Experimental version-one `paths analyze` over
 one explicit pinned saved-model source/target selection and original reachability
 proof. Discovery supplies no workspace, full model pin, selected references,

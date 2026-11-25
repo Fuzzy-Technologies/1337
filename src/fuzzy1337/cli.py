@@ -121,7 +121,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
                  "demo", "intel", "ci", "runtime", "paths", "sbom", "api", "trace", "response",
-                 "raw", "image", "extension", "business", "bridge"),
+                 "raw", "image", "extension", "business"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
@@ -204,14 +204,6 @@ def Main(argv: Sequence[str] | None = None) -> int:
             remaining.append("--help")
 
         return RunRuntimeCommands(remaining, sys.stdout, json_output=arguments.json)
-
-    if arguments.command == "bridge":
-        from fuzzy1337.bridge_commands import RunBridgeCommands
-
-        if arguments.help:
-            remaining.append("--help")
-
-        return RunBridgeCommands(remaining, sys.stdout, jsonOutput=arguments.json)
 
     if arguments.command == "trace":
         from fuzzy1337.ioc_commands import RunIocCommands

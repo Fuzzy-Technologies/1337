@@ -188,7 +188,6 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: sbom",
         "cli: api",
         "cli: runtime",
-        "cli: bridge",
         "cli: trace",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
@@ -256,15 +255,14 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: api, bridge, business, ci, commands, context, demo, "
-            "extension, help, "
+            "Interactive commands: api, business, ci, commands, context, demo, extension, help, "
             "history, "
             "image, intel, lens, model, palette, paths, quit, raw, report, runtime, sbom, "
             "scan, scope, select, trace, update, updates, view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, image, "
          "scan, raw, report, business, extension, intel, demo, ci, paths, sbom, api, response, "
-         "runtime, bridge, trace"),
+         "runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -527,7 +525,7 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
 
 @pytest.mark.parametrize("namespace", [
     "workspace", "scope", "scan", "report", "demo", "ci", "runtime", "paths", "sbom", "api",
-    "trace", "raw", "bridge",
+    "trace", "raw",
 ])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
@@ -610,7 +608,7 @@ def NativeEditor(entries):
 
 
 @pytest.mark.parametrize("namespace", [
-    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace", "raw", "bridge",
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace", "raw",
 ])
 def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
