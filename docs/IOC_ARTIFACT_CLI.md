@@ -141,6 +141,12 @@ without their workspace, use the separate explicit
 [original evidence bundle](IOC_EVIDENCE_BUNDLE.md). Candidate export alone does
 not contain those originals.
 
+Detached candidate disclosure is also available through
+`verify-bundle --export-candidates --json` with the independently retained original
+receipt and complete transfer digest. It returns the same DTO after verifying the
+three transferred originals, including when the original workspace is absent.
+See [the detached handoff recipe](IOC_EVIDENCE_BUNDLE.md#read-verified-candidates-without-the-workspace).
+
 ## Inspect one normalized occurrence
 
 Use the Python SDK with the `snapshot_id` and independent `receipt_id` saved from

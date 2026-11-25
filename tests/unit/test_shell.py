@@ -120,6 +120,39 @@ def test_ShellHelpAndUsageErrorsRemainCompact():
     ], "shell help and usage errors remain compact invariant failed."
 
 
+@pytest.mark.parametrize("topic", ["", "sbom"], ids=["help", "help-sbom"])
+def test_ShellSbomContextualHelpListsBothProfilesWithoutDispatch(topic, monkeypatch):
+    """Both contextual help entries expose accepted imports without dispatch or context actions."""
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    prior = shell.State
+
+    def Forbidden(*arguments, **options):
+        """Trip any foreground product dispatch while requesting static contextual help."""
+
+        raise AssertionError("Contextual help must not dispatch an import or open a workspace")
+
+    monkeypatch.setattr(shell, "RunLocalCommand", Forbidden)
+    shell.onecmd("help" + (" " + topic if topic else ""))
+    text = output.getvalue()
+    assert "spdx-graph" in text and "cyclonedx" in text, (
+        "Both contextual help entries must expose both implemented SBOM import profiles"
+    )
+
+    if topic:
+        assert "sbom import <spdx-graph|cyclonedx>" in text and "--expected-sha256" in text, (
+            "SBOM help must expose original custody replay and the required CycloneDX file pin"
+        )
+
+    else:
+        assert "sbom <image|import spdx-graph|import cyclonedx>" in text, (
+            "General shell help must expose the same complete SBOM namespace as CLI discovery"
+        )
+
+    assert shell.State == prior, "Static contextual help must not change the selected shell context"
+
+
 def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
     """Verify shell palette searches local commands and cached context actions."""
 
