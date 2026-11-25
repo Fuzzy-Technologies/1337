@@ -15,6 +15,10 @@ ROOT = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
 TEMP = Path(os.environ["RUNNER_TEMP"]).resolve()
 P = [sys.executable, "-I", "-m"]
 TESTS = [
+    "tests/unit/test_model_save_wire_boundary.py", "tests/e2e/test_model_save_wire_boundary_cli.py",
+    "tests/unit/test_model.py", "tests/contract/test_security_model_contract.py",
+    "tests/integration/test_security_model_integration.py::test_AdapterEvidenceAndPortableModelRoundTrip",
+    "tests/integration/test_security_model_integration.py::test_AbsentRebuildableDirectoriesDoNotAffectModelOpening",
     "tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule",
     "tests/e2e/test_runtime_cli.py::test_InstalledKubernetesIpv6RegistryImagesPreserveLiteralInventoryAndPortableReplay",
     "tests/unit/test_kubernetes_inventory.py::test_KubernetesMalformedBracketedImageRefusesTheWholeCandidate",
@@ -46,7 +50,7 @@ def Run():
     import fuzzy1337
     assert Path(fuzzy1337.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
     sources = ["business_commands", "cli", "command_registry", "shell", "extension_commands",
-               "intelligence_cwe_commands", "kubernetes_inventory"]
+               "intelligence_cwe_commands", "kubernetes_inventory", "model"]
     sources = ["src/fuzzy1337/" + name + ".py" for name in sources]
     tests = sorted({item.split("::")[0] for item in TESTS})
     subprocess.run([*P, "ruff", "check", *sources, *tests, "tests/business_inspection_helpers.py"],
@@ -73,6 +77,8 @@ def Run():
             "test_InstalledModuleProvidesExplicitSemverProfileWithoutChangingDefault"} <= names
     assert "test_InstalledKubernetesIpv6RegistryImagesPreserveLiteralInventoryAndPortableReplay" in names
     assert "test_KubernetesMalformedBracketedImageRefusesTheWholeCandidate" in names
+    assert counts["tests.unit.test_model_save_wire_boundary"] >= 39
+    assert counts["tests.e2e.test_model_save_wire_boundary_cli"] >= 8
     console = str(Path(sys.executable).with_name("1337"))
     # These are the two documented resources in the wheel and sdist.
     members = ("extension-manifest.schema.json", "examples/extension-manifest.example.json")

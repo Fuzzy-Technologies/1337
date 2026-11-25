@@ -8,6 +8,22 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 63 — v0.4.63 — 2026-11-25
+
+#### Digest
+
+- Refuse model snapshots that the same saved-state reader cannot reopen.
+
+#### Fixed
+
+- Validate the complete final serialized model bytes before writer-path preparation
+  or locking, and publish exactly those bytes without a second serialization.
+  Return the snapshot decoded by the same strict reader used for saved state.
+- Preserve correct inherited record/scalar wire representations and previous
+  canonical model files; refuse unsupported fields and scalar JSON shapes without
+  replacing durable data. Keep the existing size limit before deep decoding.
+  This adds one proposed-document decode; read-only SDK contracts remain unchanged.
+
 ### Patch 62 — v0.4.62 — 2026-11-25
 
 #### Digest

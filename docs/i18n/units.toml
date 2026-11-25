@@ -4441,7 +4441,7 @@ state = "missing"
 id = "symbol:fuzzy1337.model.LocalModelStore.Save"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/model.py"
-sourceHash = "sha256:78092ef5da591077a05415dc682af8f7f8c59d4269bef1425fd429ce49c406af"
+sourceHash = "sha256:9b123a39e78cd32d99fb2a01a6089045cf985541d1eb4f4c1d66f5a2ef3314f9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -4463,7 +4463,7 @@ state = "missing"
 id = "symbol:fuzzy1337.model.LocalModelStore.WriteState"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/model.py"
-sourceHash = "sha256:feec2905a9762d8c315525b61cbee7a3f4b0da98b44d1ec765a52863449c67db"
+sourceHash = "sha256:ac604fd14c3ab6d4f23649b566d77a1074430f71ffd17e9ad5178c0d6c5042a5"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -28506,6 +28506,38 @@ id = "symbol:fuzzy1337.kubernetes_inventory.ImageDeclaration"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
 sourceHash = "sha256:0f0468d35a81487d2f0f9fcdbef6be86b38ec36a4842b34736ea8d7b2980ce2f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.model.DecodeModelState"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/model.py"
+sourceHash = "sha256:8e9c133e674cd9f5c7d2b2e18329813a1d95b736c107615f2df885ee088e5ac9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.model.PrepareModelState"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/model.py"
+sourceHash = "sha256:23fd74905fa2fb5529f9e18fe8880a52a253033b19d78e23590de15e03e271df"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.model.LocalModelStore.WritePayload"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/model.py"
+sourceHash = "sha256:8640fe2ef605aa2204029867a0da0de3b23cd0b0949aef27b4d013ca6df351c4"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

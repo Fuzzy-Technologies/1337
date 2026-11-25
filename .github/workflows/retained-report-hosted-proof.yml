@@ -1,5 +1,5 @@
 {
-  "name": "Saved Kubernetes interoperability, model storage reproduction and report test timing",
+  "name": "Final saved Kubernetes and local model storage acceptance with exact original comparison",
   "on": {
     "push": {
       "branches": [
@@ -11,8 +11,8 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "e6d15fdc2d91a0e2bd3c6383ae6badd594468b76",
-    "PRODUCT_TREE": "624a28f777271ce2236105c7742fc03b8959e3ff"
+    "APPROVED_SOURCE_SHA": "305a695775b403c8ae223eb23626b61a3fd26467",
+    "PRODUCT_TREE": "88ea5490c9b57287c5cb738ab86c80ffde2954c8"
   },
   "jobs": {
     "offline-milestones": {
@@ -36,7 +36,7 @@
         {
           "name": "Retain the reviewed offline test driver from this workflow commit",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py model-before.py report-schema-profile.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py model-after.py model-benchmark.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
         },
         {
           "name": "Check out the corrected business, CWE and SemVer reference tree for the wheel comparison",
@@ -86,33 +86,16 @@
           "run": "set -euo pipefail\ncd \"$RUNNER_TEMP/business-reference\"\npython3 -I -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/business-wheel\"\nset -- \"$RUNNER_TEMP/business-wheel/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\npython3 -I - \"$1\" <<'PY'\nimport hashlib, sys\nfrom pathlib import Path\nvalue = hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest()\nassert value == \"6bf6ff8564fcd66b1dbb8c024370626841da811d7af7bc0a6998b185dc735d9c\", value\nprint(\"CORRECTED_BUSINESS_WHEEL\", value)\nPY\n"
         },
         {
-          "name": "Observe the original installed SDK storage failure on the unchanged model source in isolated temporary workspaces",
+          "name": "Reverse the four verified original failures and confirm the compatible control on the fixed installed SDK",
           "shell": "bash",
-          "run": "set -euo pipefail\nexpected=$(git rev-parse $APPROVED_SOURCE_SHA:src/fuzzy1337/model.py)\ntest \"$expected\" = 7179eafdc841c9da642262c4a529ec0b16c3c40b\ncd \"$RUNNER_TEMP\"\npython3 -I \"$RUNNER_TEMP/model-before.py\"\n"
+          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\npython3 -I \"$RUNNER_TEMP/model-after.py\"\n"
         },
         {
-          "name": "Read the existing Linux timing artifact",
-          "id": "previous_unit_timings",
-          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
-          "with": {
-            "github-token": "${{ github.token }}",
-            "run-id": "45672277785",
-            "artifact-ids": "15050192700",
-            "path": "${{ runner.temp }}/earlier-ubuntu",
-            "skip-decompress": true,
-            "digest-mismatch": "error"
-          }
-        },
-        {
-          "name": "Time schema checks on four saved-report modules against the original native unit test IDs",
+          "name": "Measure current and corrected durable Save on the same runner, input and pinned wheels",
           "shell": "bash",
-          "run": "set -euo pipefail\npython3 -I - <<'PY'\nimport hashlib, os, zipfile\nfrom pathlib import Path\nroot = Path(os.environ[\"RUNNER_TEMP\"])\narchive, = [p for p in (root / \"earlier-ubuntu\").rglob(\"*\") if p.is_file()]\nassert hashlib.sha256(archive.read_bytes()).hexdigest() == \"a2dde7116ef752a29526dd25b640455c4cc080dc704364e54010f3e6252f2148\"\nwith zipfile.ZipFile(archive) as z:\n    record = z.getinfo(\"coverage/passive-units-parallel.xml\")\n    assert record.file_size < 32 * 1024 * 1024\n    (root / \"native-unit.xml\").write_bytes(z.read(record))\nPY\npython3 -I -m py_compile \"$RUNNER_TEMP/report-schema-profile.py\"\npython3 -I \"$RUNNER_TEMP/report-schema-profile.py\" \"$RUNNER_TEMP/native-unit.xml\" \"$RUNNER_TEMP/report-schema-profile\"\n"
+          "run": "set -euo pipefail\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nbefore_dir=\"$RUNNER_TEMP/business-wheel\"\nafter_dir=\"$RUNNER_TEMP/proof-dist\"\ncd \"$RUNNER_TEMP\"\nfor tag in before after after before; do\n  if test \"$tag\" = before; then wheels=\"$before_dir\"; else wheels=\"$after_dir\"; fi\n  set -- \"$wheels/\"*.whl\n  test \"$#\" -eq 1 && test -f \"$1\"\n  uv pip install --reinstall --no-deps --python \"$runtime/bin/python\" \"$1\"\n  \"$runtime/bin/python\" -I \"$RUNNER_TEMP/model-benchmark.py\" \"$RUNNER_TEMP/model-timings.jsonl\" \"$tag\"\ndone\n\"$runtime/bin/python\" -I - <<'PY'\nfrom collections import defaultdict\nimport hashlib, json, os, statistics\nfrom pathlib import Path\nlines = (Path(os.environ[\"RUNNER_TEMP\"]) / \"model-timings.jsonl\").read_text().splitlines()\nsets = [json.loads(v) for v in lines]\nassert [s[\"tag\"] for s in sets] == [\"before\", \"after\", \"after\", \"before\"]\ngroups = defaultdict(list)\nfor s in sets:\n    assert len(s[\"rows\"]) == 5\n    groups[s[\"tag\"]].extend(s[\"rows\"])\nall_rows = groups[\"before\"] + groups[\"after\"]\nassert len({r[\"sha256\"] for r in all_rows}) == len({r[\"bytes\"] for r in all_rows}) == 1\nfmt = {tag: {key + \"_median\": round(statistics.median(r[key] for r in rows), 3) for key in (\"wall_ms\", \"cpu_ms\")} for tag, rows in groups.items()}\nprint(\"DURABLE_SAVE_COMPARISON\", json.dumps({\"snapshot_bytes\": all_rows[0][\"bytes\"], \"sha256\": all_rows[0][\"sha256\"], \"objects\": 256, \"observations\": 256, \"runs_per_wheel\": 10, \"measurements\": fmt}, sort_keys=True))\nPY\n"
         }
-      ],
-      "permissions": {
-        "contents": "read",
-        "actions": "read"
-      }
+      ]
     }
   }
 }

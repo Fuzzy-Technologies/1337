@@ -1,4 +1,4 @@
-"""Reproduce the original local SDK state corruption in new, temporary, operator-owned workspaces."""
+"""Validate the corrected local SDK publication boundary in new, temporary, operator-owned workspaces."""
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -17,12 +17,11 @@ for variant in ("extra", "compatible"):
         result = subprocess.run([sys.executable, "-I", "-c", CONSUMER, work, variant], cwd=work,
                                 check=True, capture_output=True, timeout=15)
         facts = json.loads(result.stdout)
-        assert not result.stderr and facts["save_error"] is None and facts["writer_lock"] is False
-        assert facts["open_error"] == ("ValueError" if variant == "extra" else None), facts
-        assert not facts["unchanged"], facts
-        if variant == "compatible":
-            assert facts["objects"] == facts["view_objects"] == facts["report_objects"] == 1
-        print("ORIGINAL_STORED_MODEL", variant, json.dumps(facts, sort_keys=True))
+        assert not result.stderr and facts["writer_lock"] is False
+        assert facts["save_error"] == ("ValueError" if variant == "extra" else None), facts
+        assert facts["open_error"] is None and facts["unchanged"] is (variant == "extra"), facts
+        assert facts["objects"] == facts["view_objects"] == facts["report_objects"] == (0 if variant == "extra" else 1)
+        print("CHECKED_STORED_MODEL", variant, json.dumps(facts, sort_keys=True))
 
 @dataclass(frozen=True)
 class TaggedText(str):
@@ -64,6 +63,6 @@ for case in ("concrete-text", "concrete-duration", "fallback-text"):
         facts["changed_original"] = raw != before
         facts["wire_workspace_id"] = json.loads(raw)["workspace_id"]
         facts["writer_lock"] = (root / "state/model/.write-lock").exists()
-        print("ORIGINAL_STORED_SCALAR", json.dumps(facts, sort_keys=True))
-        assert facts["save"] is None and facts["open"] == "ValueError" and facts["changed_original"], facts
+        print("CHECKED_STORED_SCALAR", json.dumps(facts, sort_keys=True))
+        assert facts["save"] == "ValueError" and facts["open"] is None and not facts["changed_original"], facts
         assert facts["writer_lock"] is False
