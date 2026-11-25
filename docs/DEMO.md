@@ -378,11 +378,12 @@ if not MatchesFindingIdentity(observation, finding):
 provenance = observation["provenance"]
 store = LocalEvidenceStore(root / "evidence")
 record = store.Get(provenance["run_reference"])
+checkedReference = asdict(record.reference)
 if (
     record.provenance.workspace_id != report["workspace_id"]
     or record.provenance.source_id != provenance["source_id"]
     or record.provenance.scope_reference != provenance["scope_reference"]
-    or [asdict(record.reference)] != provenance["evidence_references"]
+    or [checkedReference] != provenance["evidence_references"]
 ):
     raise SystemExit("Saved observation and acquisition do not match")
 
@@ -412,6 +413,7 @@ print(
     "from", provenance["source_id"], "at", provenance["observed_at"],
 )
 print("Scan completeness:", report["scan_completeness"])
+print(json.dumps(checkedReference, sort_keys=True))
 PY
 ```
 
@@ -441,9 +443,13 @@ opened workspace snapshot. The finding-replay fixture stores the acquisition
 and leaves the workspace registry empty.
 
 The fourth line gives the saved model observation's kind, source and recorded
-time. The last line shows the report's `scan_completeness` value of
+time. The fifth line shows the report's `scan_completeness` value of
 `not-assessed`. Discovered service behavior and attack-path outcomes require
 their own evidence.
+
+The final line contains the complete checked `EvidenceReference` as one JSON
+object. Save it as UTF-8 JSON and keep it with the retained workspace and the
+full acquisition ID from the first line for a later evidence check.
 
 ## Failure and interruption truth
 
