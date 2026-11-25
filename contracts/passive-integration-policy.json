@@ -2,6 +2,13 @@
   "base_commit": "2d439ac8c7a6017964058a1a8684e8bf4c1ab2a7",
   "changes": [
     {
+      "new_blob": "8999c93850dc5e4e882a952b80b701f387e23367",
+      "new_mode": "100644",
+      "old_blob": "0ba09ba6e06379b853700c12ecb194fa432fc7fa",
+      "old_mode": "100644",
+      "path": ".gitattributes"
+    },
+    {
       "new_blob": null,
       "new_mode": "100644",
       "normalized_sha256": "1f8943a99bd645ce9b08df9d827f47ab786cf5307891896be2063be21d10c521",
@@ -10,160 +17,153 @@
       "path": ".github/workflows/passive-acceptance-routing.yml"
     },
     {
-      "new_blob": "dce5d05dc06668605fe3ac304ecd3702b89caae4",
+      "new_blob": "4be6ce724e814168763b1d50f4c8e6bf8f5b6893",
       "new_mode": "100644",
       "old_blob": "bc338312a3b4e4be3be36f3f67818af710fce189",
       "old_mode": "100644",
       "path": "CHANGELOG.md"
     },
     {
-      "new_blob": "4d7d26ead34cf87aa948cd83c8bc6e0fe4995186",
+      "new_blob": "9ab42ede0cb1188fc970aea359c4e6f1ba1107b4",
+      "new_mode": "100644",
+      "old_blob": "86721b2baf9b10d7efe6ab433d44b9be271f0e32",
+      "old_mode": "100644",
+      "path": "docs/CI_QUICKSTART.md"
+    },
+    {
+      "new_blob": "4e9203bf3a41e51d145cb1395d6095a2d305e131",
       "new_mode": "100644",
       "old_blob": "4d890928bf62f67ba5c58e787ee550e27c0270df",
       "old_mode": "100644",
       "path": "docs/COMPATIBILITY.md"
     },
     {
-      "new_blob": "049f55465fa4a55265494cd2dee298484825e9a6",
+      "new_blob": "df21ee1bd8b3e19a71aa198ed3d34ef5c66c347e",
       "new_mode": "100644",
-      "old_blob": "3f75ad160c5175292dee6ac54e93212dceb29e34",
+      "old_blob": "1444b01b092bddf4f44afd136a7b8154ffe9dec3",
       "old_mode": "100644",
-      "path": "docs/GRAPHQL_IMPORT.md"
+      "path": "docs/IOC_ARTIFACT_CLI.md"
     },
     {
-      "new_blob": "f4c5613810433fd58dd2ec9e77f5ca5bc016189f",
+      "new_blob": "bd00ee709b13a62af7c5a27c67d5ba47a714c246",
       "new_mode": "100644",
-      "old_blob": "8a9bf5e594e92e57a2336272aec07a2ce7d56a4c",
-      "old_mode": "100644",
-      "path": "docs/KUBERNETES_INVENTORY.md"
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/IOC_EVIDENCE_BUNDLE.md"
     },
     {
-      "new_blob": "da6fa015e7f9e97fbd079e33eb8367e16cc290be",
+      "new_blob": "25154e1f988b1fa2d326c7e874d3e1c88ea971c8",
       "new_mode": "100644",
-      "old_blob": "3b77e1ee59a1b0f879df26d5644882208fca13fe",
-      "old_mode": "100644",
-      "path": "docs/TOOL_ADAPTERS.md"
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/adr/0151-selected-ioc-evidence-bundle.md"
     },
     {
-      "new_blob": "deb363999cd650f824067c4fd434ec3176622c1d",
+      "new_blob": "7119b08cdc24636885773556bac2c9320de61834",
       "new_mode": "100644",
-      "old_blob": "45558f1ed7808e5f8df57205dae7f14ee769046b",
-      "old_mode": "100644",
-      "path": "docs/adr/0014-provider-neutral-tool-adapter-contract.md"
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/examples/ci/gitlab-retained-report.yml"
     },
     {
-      "new_blob": "45bc8c6ac0c9682fb80f07dffd21d7bd2b661eaa",
-      "new_mode": "100644",
-      "old_blob": "13927140779db501b02b27591c889efaae080a48",
-      "old_mode": "100644",
-      "path": "docs/adr/0074-owned-kubernetes-list-inventory.md"
-    },
-    {
-      "new_blob": "76c84a07c5021351ae9264920e035e85600124a7",
+      "new_blob": "e1d81f62bdf730b3d6f1bb3a6c6058aa2ce30348",
       "new_mode": "100644",
       "old_blob": "fbb9068e2192a4eadd9fc57095a9fd957bdc5f7b",
       "old_mode": "100644",
       "path": "docs/i18n/units.toml"
     },
     {
-      "new_blob": "66671d764091f207b9311f4c5b4ba2c170f79ddf",
+      "new_blob": "5ca48144f53ec46fc3b5d09fb7e5d48ec9c04356",
       "new_mode": "100644",
-      "old_blob": "07822c032f072e6f832ed77d7723d384e6c02f7b",
+      "old_blob": "26d6ce86bd2f29cc0b5f02a3869f05c0ef86585d",
       "old_mode": "100644",
-      "path": "docs/site/content/en/api/fuzzy1337.adapters.contracts.md"
+      "path": "docs/site/api-coverage.toml"
     },
     {
-      "new_blob": "eddb6a94181516a9ea8400dbf7067b9165e22a47",
-      "new_mode": "100644",
-      "old_blob": "baa58c6a940b77cfd00780466afccc8e76a57b7f",
-      "old_mode": "100644",
-      "path": "docs/site/content/en/api/fuzzy1337.kubernetes_inventory.md"
-    },
-    {
-      "new_blob": "557f0f1ef3962c5dc1f090e06577660ab56a325c",
-      "new_mode": "100644",
-      "old_blob": "44b0d7a2084f8c8d6fe1bb172b33906ced835025",
-      "old_mode": "100644",
-      "path": "src/fuzzy1337/adapters/contracts.py"
-    },
-    {
-      "new_blob": "92c7d6d0567ab49162b8dd5f249b6723463e76ad",
-      "new_mode": "100644",
-      "old_blob": "4f5b2bc64f48644721a145ec0d6cee8902cdcf73",
-      "old_mode": "100644",
-      "path": "src/fuzzy1337/graphql_import.py"
-    },
-    {
-      "new_blob": "560c56070558df37c9db24cdc4e2141fc5dbf1cd",
-      "new_mode": "100644",
-      "old_blob": "257380e9ab09d937639f12339521f186619af375",
-      "old_mode": "100644",
-      "path": "src/fuzzy1337/kubernetes_inventory.py"
-    },
-    {
-      "new_blob": "1c24b0bd1a1cdebf3e456e5ae784a1c91a54f907",
-      "new_mode": "100644",
-      "old_blob": "8d99377c23f80459b9b7ef12eb74589555b1cce3",
-      "old_mode": "100644",
-      "path": "tests/contract/test_tool_adapters.py"
-    },
-    {
-      "new_blob": "4adbbf3d1b53b4757882ae384cf79b9c21a55040",
-      "new_mode": "100644",
-      "old_blob": "8d9a1a69372e92cfde254543c50fa48d9ca120c1",
-      "old_mode": "100644",
-      "path": "tests/e2e/test_api_cli.py"
-    },
-    {
-      "new_blob": "47daf82db4c72da6ac0b901fecee4458643ff2af",
-      "new_mode": "100644",
-      "old_blob": "ce73baebfa15dd75138694558f952e5a6407eadf",
-      "old_mode": "100644",
-      "path": "tests/e2e/test_runtime_cli.py"
-    },
-    {
-      "new_blob": "a392dcdd9b89ee0481f406c231df9ec7823dfa76",
-      "new_mode": "100644",
-      "old_blob": "db1cfb5dc94e9c6ba2bbdafbd83b3a9e78cd7de7",
-      "old_mode": "100644",
-      "path": "tests/integration/test_security_model_integration.py"
-    },
-    {
-      "new_blob": "38693c83fb9f42557f9a15ed08cb6043566cffc6",
-      "new_mode": "100644",
-      "old_blob": "30ad76bebee53ee326ea855641165a3520336c3c",
-      "old_mode": "100644",
-      "path": "tests/unit/test_ci_workflows.py"
-    },
-    {
-      "new_blob": "0ac5b62ce227640d1d58ba26122f429b65ab4f39",
-      "new_mode": "100644",
-      "old_blob": "e749cf84dcaf1694372c410225b8715f102368d1",
-      "old_mode": "100644",
-      "path": "tests/unit/test_graphql_import.py"
-    },
-    {
-      "new_blob": "f9a0668251545027a7175ee7e0d63ffbf30db0e9",
-      "new_mode": "100644",
-      "old_blob": "15b50ebb9aeec5cfa795b223ec7268a8b590e539",
-      "old_mode": "100644",
-      "path": "tests/unit/test_kubernetes_inventory.py"
-    },
-    {
-      "new_blob": "c3b40435710430c72f308aa6424218b8aa78284e",
-      "new_mode": "100644",
-      "old_blob": "9d909f35f912fe8793e7d28f5664eb208fee5444",
-      "old_mode": "100644",
-      "path": "tests/unit/test_passive_integration.py"
-    },
-    {
-      "new_blob": "8d74665333c6020997ed34ed64cad16680df4304",
+      "new_blob": "38899057c33bda30d21dc97a7222ddccc5838326",
       "new_mode": "100644",
       "old_blob": "0000000000000000000000000000000000000000",
       "old_mode": "000000",
-      "path": "tests/workflow_fixture.py"
+      "path": "docs/site/content/en/api/fuzzy1337.ioc_bundle.md"
+    },
+    {
+      "new_blob": "21ca94ca8f9aca05c2782afeb87af1ace9039734",
+      "new_mode": "100644",
+      "old_blob": "b2e3ee3edc01d54724ffbebb6f38feb1f202ff61",
+      "old_mode": "100644",
+      "path": "docs/site/content/en/api/fuzzy1337.ioc_commands.md"
+    },
+    {
+      "new_blob": "c1e071fde09ee99b73fdc314fa1a4bbf12f023d7",
+      "new_mode": "100644",
+      "old_blob": "60367041d9a565e488130e02b858b07b2876a979",
+      "old_mode": "100644",
+      "path": "pyproject.toml"
+    },
+    {
+      "new_blob": "9e798381e01e6456ad737b7808898d17e03365fb",
+      "new_mode": "100644",
+      "old_blob": "0d82fc13c4593e49dabab95e61b79ca3332dba76",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/command_registry.py"
+    },
+    {
+      "new_blob": "22bbc104e7428def23f4e072dd28b2116184c44c",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "src/fuzzy1337/ioc_bundle.py"
+    },
+    {
+      "new_blob": "0b0215ccfa3c1e5046c01568bf824121d962152d",
+      "new_mode": "100644",
+      "old_blob": "e84086d50e7486d23af9eb62e62ba14a9b8b2c52",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/ioc_commands.py"
+    },
+    {
+      "new_blob": "56a30052185efdd26ab3e22865fac7a1582d0ee0",
+      "new_mode": "100644",
+      "old_blob": "649eac180300151c3121ba7fba7264e70a1b3429",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/shell.py"
+    },
+    {
+      "new_blob": "560a424ca8942f6aa70574ae2a1e2749e00d8d19",
+      "new_mode": "100644",
+      "old_blob": "58bb4483871e7b136173820355cc0263b2a00d36",
+      "old_mode": "100644",
+      "path": "tests/e2e/test_ioc_cli.py"
+    },
+    {
+      "new_blob": "49ed223901105d02198c03321d3081af633b9529",
+      "new_mode": "100644",
+      "old_blob": "0afa5820207460fdd0a0ac7c3ba8f6eb450c4d59",
+      "old_mode": "100644",
+      "path": "tests/integration/test_packaging.py"
+    },
+    {
+      "new_blob": "f083bf294d2d5521fe5b07dabdd9839bcaeb1b42",
+      "new_mode": "100644",
+      "old_blob": "8f115db22a13db48a4803dc159d543eab1413141",
+      "old_mode": "100644",
+      "path": "tests/ioc_cli_helpers.py"
+    },
+    {
+      "new_blob": "af0a115e2bf86e715c7f9ca9c60e1504f3ddd0d7",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/unit/test_gitlab_retained_report.py"
+    },
+    {
+      "new_blob": "5086a0257c35fb78675ac5a54c1fdd09e63f6118",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/unit/test_ioc_bundle.py"
     }
   ],
-  "head_ref": "feature/passive-batch-saved-imports",
+  "head_ref": "feature/passive-batch-offline-delivery",
   "schema_version": 1
 }
