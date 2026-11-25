@@ -178,8 +178,8 @@ snapshot** with `snapshot_sha256`, the digest of the saved model.
    marks an unknown inventory value.
 2. In **Findings**, use a finding's **Subject** link to locate the saved object.
    Follow a link under **Evidence for this interpretation** to its row in
-   **Evidence and byte integrity**. Evidence numbers on finding cards are local
-   to each card. Open **Digest and metadata** for the exact reference.
+   **Evidence and byte integrity**. Evidence numbers on finding cards match their
+   rows in the Evidence table. Open **Digest and metadata** for the exact reference.
 3. To direct another reader to the same row, cite the evidence link's fragment
    with this report. `verified bytes` records the integrity check at export
    time. The row contains reference metadata. Independent acquisition
