@@ -135,13 +135,22 @@ def test_RecordsAreFrozenAndSerializationReturnsDetachedData():
     {"source_version": None}, {"tool_version": "a\x00b"}, {"invocation_sha256": "../blob"},
     {"started_at": "2026-10-04T10:00:00"}, {"started_at": "not-a-time"},
     {"finished_at": "2026-10-04T09:00:00Z"}, {"execution": {}},
-    {"execution": AdapterExecution(ExecutionState.SUCCEEDED, 0, True)},
 ])
 def test_InvalidProvenanceFailsBeforeFilesystemAccess(overrides):
-    """Reject ambiguous attribution, invalid timing, and bool-as-duration coercion."""
+    """Reject ambiguous attribution and invalid timing before any storage access."""
 
     with pytest.raises(ValueError):
         Provenance(**overrides)
+
+
+def test_CorruptedExecutionDurationFailsBeforeFilesystemAccess():
+    """Keep evidence validation independent of the SDK constructor's own checks."""
+
+    execution = AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.0)
+    object.__setattr__(execution, "duration_seconds", True)
+
+    with pytest.raises(ValueError):
+        Provenance(execution=execution)
 
 
 def test_PureConstructionDoesNotTouchFilesystem(tmp_path):

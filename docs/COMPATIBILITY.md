@@ -600,6 +600,12 @@ allowance never permits a same-view change. Inspect requires separate original
 snapshot and receipt manifest identities and accepts no source/consent override.
 Schema-one summaries contain counts, observed hash/length, acquisition times and
 confirmed evidence identifiers, without original tokens or physical paths.
+Explicit `inspect --export-candidates --json` additionally includes
+`candidate_export`, the unchanged verified schema-one snapshot document with
+original/normalized tokens, coordinates and declared source/parser attribution.
+This data-bearing opt-in requires independent original receipt-anchored replay,
+is incompatible with `--match`, and is absent from default summaries and all
+refusals under ADR 0148.
 Digest/parse refusal retains confirmed raw/receipt records; failed acknowledgement
 may leave immutable evidence with `unknown` commitment and no rollback claim.
 Neither action saves Core/workspace state, resolves names, probes hosts or grants

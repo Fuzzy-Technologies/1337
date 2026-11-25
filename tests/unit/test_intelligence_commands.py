@@ -77,17 +77,77 @@ def test_InvalidGrammarNeverEchoesRejectedArguments(arguments):
     assert "untrusted-value" not in json.dumps(outcome), "Rejected values leaked to output."
 
 
-@pytest.mark.parametrize("action", [None, "import", "inspect", "apply"])
+@pytest.mark.parametrize("action", [None, "import", "inspect", "preview", "apply"])
 def test_HelpUsesCallerStreamAndDescribesSelectedActionWithoutExecution(action):
     """Command-specific help exposes explicit options without requiring an owning workspace."""
 
     output = StringIO()
     arguments = ["--help"] if action is None else [action, "--help"]
     assert commands.RunIntelCommands(arguments, output) == 0, "Help returned a failure status."
-    expected = "import,inspect,apply" if action is None else (
+    expected = "import,inspect,preview,apply" if action is None else (
         "--feed" if action == "import" else "--snapshot"
     )
     assert expected in output.getvalue(), "Action help hid its required explicit selections."
+
+
+def test_PreviewNeverCallsModelSaveAndBoundsItsProjectionBeforePrinting(tmp_path, monkeypatch):
+    """Preview uses the verified proposal owner while refusing excessive output atomically."""
+
+    model, finding, imported = Imported(tmp_path)
+    arguments = ApplyArguments(model, finding, imported)
+    arguments[0] = "preview"
+    before = Files(model.root)
+
+    def RefuseSave(*args, **kwargs):
+        """Fail the test if a read-only preview reaches the mutation owner."""
+
+        pytest.fail("Preview must never call the model save boundary.")
+
+    monkeypatch.setattr(LocalModelStore, "Save", RefuseSave)
+    status, outcome = Run(arguments)
+    assert status == 0 and outcome["preview"]["observations"], "Verified preview failed."
+    status, text = Run(arguments, json_output=False)
+    assert status == 0 and "model save has not been attempted" in text, (
+        "Human preview omitted the explicit unsaved result."
+    )
+    monkeypatch.setattr(commands, "MAX_INSPECTION_BYTES", 1)
+    status, rejected = Run(arguments)
+    assert status == 4 and rejected["failure"] == "inspection-limit" and (
+        "preview" not in rejected
+    ), (
+        "An excessive preview printed a partial or implicitly truncated candidate."
+    )
+    assert Files(model.root) == before, "Preview success or failure changed retained bytes."
+
+
+@pytest.mark.parametrize("error", [OSError, KeyboardInterrupt], ids=("storage", "interrupt"))
+def test_PreviewLateFailureNeverPublishesTheStagedProposal(tmp_path, monkeypatch, error):
+    """Refuse late serialization failure without including already constructed candidate data."""
+
+    model, finding, imported = Imported(tmp_path)
+    arguments = ApplyArguments(model, finding, imported)
+    arguments[0] = "preview"
+    before = Files(model.root)
+    original = commands.CanonicalModelJson
+
+    def Encode(value):
+        """Fail only the candidate bound check while preserving terminal refusal serialization."""
+
+        if isinstance(value, dict) and value.get("profile_version") == 1:
+            raise error("untrusted-value")
+
+        return original(value)
+
+    monkeypatch.setattr(commands, "CanonicalModelJson", Encode)
+    status, rejected = Run(arguments)
+    assert status == (130 if error is KeyboardInterrupt else 4)
+    assert rejected["status"] == "failed" and "preview" not in rejected, (
+        "Late preview failure emitted an unverified or unbounded staged proposal."
+    )
+    assert rejected["model_commit"] == "not-attempted" and "untrusted-value" not in (
+        json.dumps(rejected)
+    ), "Late preview failure claimed a save or exposed rejected exception text."
+    assert Files(model.root) == before, "Late preview refusal changed retained state."
 
 
 @pytest.mark.parametrize("path", ["../owned", "owned/../source", "owned\x1bsource", "x" * 4097])
@@ -520,6 +580,27 @@ def test_SelectedDetailsPreserveExactRecordsAndExplicitUnmatchedIdentifiers(tmp_
     )
 
 
+def test_HumanCveDetailsBindSourceProfilesBeforeTheUnmatchedSelection(tmp_path):
+    """Keep declared source custody and CVE profiles ahead of an unmatched selection."""
+
+    model, _, imported = ImportedDetails(tmp_path)
+    status, human = Run([
+        *Selection("inspect", model.root, imported),
+        "--identifier", "CVE-1900-9999", "--identifier", "CVE-1900-8888",
+    ], json_output=False)
+    assert status == 0, "Mixed selected CVE inspection failed."
+    assert "Origin (declared): synthetic" in human and (
+        "License (declared): Apache-2.0 synthetic fixture; "
+        "https://example.invalid/LICENSE"
+    ) in human, "Human inspection omitted retained source origin or license attribution."
+
+    profile = "CVE source profiles for selected verified source:"
+    unmatched = "Not present in this selected snapshot: CVE-1900-8888"
+    assert profile in human and human.index(profile) < human.index(unmatched), (
+        "Source profiles appeared to belong to the later unmatched identifier."
+    )
+
+
 @pytest.mark.parametrize("version", ["5.0", "5.1", "5.1.1"])
 def test_OlderCveFormatsRetainAssertionsWithoutInventingNewProfileSupport(tmp_path, version):
     """Unsupported extended source formats remain explicit while original snapshot support works."""
@@ -652,6 +733,12 @@ def test_HumanSelectedDetailsExplainFeedMeaningAndEscapeTerminalControls(tmp_pat
     assert expected[feed] in human and "CVE-1900-8888" in human, (
         "Human detail omitted the source measure's meaning or unmatched selection."
     )
+
+    if feed is IntelligenceFeed.EPSS:
+        assert "Source score timestamp (UTC): 2026-10-12T00:00:00.000000+00:00" in human, (
+            "Human EPSS detail omitted the retained score timestamp."
+        )
+
     assert commands.IntelDisplay("source\x1b[31m\u202e") == "source\\u001b[31m\\u202e", (
         "Selected source metadata could execute terminal controls or hide directional text."
     )

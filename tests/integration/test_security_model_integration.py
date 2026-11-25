@@ -45,6 +45,7 @@ from fuzzy1337.workspace import (
     WorkspaceConfiguration,
     WorkspaceConflictError,
 )
+from tests.contract.test_attack_path_scenario import IndexById, LoadJson
 
 
 def Context(tmp_path: Path, outcome: ExecutionState = ExecutionState.SUCCEEDED):
@@ -98,6 +99,63 @@ def Context(tmp_path: Path, outcome: ExecutionState = ExecutionState.SUCCEEDED):
     )
 
     return store, initial, result, bindings, provenance
+
+
+def test_OfflineShowcaseCriticalAssetRoundTrip(tmp_path: Path):
+    """Retain the canonical fixture's critical Asset as a local seed declaration."""
+
+    assetAlias = "asset.business-event"
+    expectedAttributes = {
+        "type": "business-event-store", "name": "Business Event", "zone_id": "zone.data",
+        "critical": True, "provenance": "seeded",
+    }
+    expectedReference = (
+        "object:fdbda883088d0de45b40ee85fb9bb444ef34c9e179fd0ba2f34c06c7bd77ec4d"
+    )
+    oracle = LoadJson("oracle.v1.json")
+    scenario = LoadJson("scenario.v1.json")
+    attributes = dict(IndexById(scenario["assets"])[assetAlias])
+    assert assetAlias in oracle["canonical_path"]["node_ids"], "Oracle lost the critical Asset"
+
+    # The test alone binds the fixture alias to an opaque Asset key in this workspace.
+    assetKey = attributes.pop("id")
+    assert attributes == expectedAttributes and attributes["critical"] is True, (
+        "Scenario changed the seeded critical Asset declaration"
+    )
+    root = tmp_path / "workspace"
+    workspace = LocalWorkspaceStore(root).Create(
+        WorkspaceConfiguration("Showcase critical Asset"), "showcase-asset",
+    )
+    store = LocalModelStore(root)
+    initial = store.Create()
+    identity = ObjectIdentity(workspace.workspace_id, ObjectKind.ASSET, assetKey)
+    seeded = ModelProvenance(
+        "attack-path-mini-seed", "fixture:attack-path-mini/scenario.v1.json",
+        "2026-10-11T00:00:00Z", "scope:fixture", identity.Reference(),
+    )
+    proposed, delta = initial.Apply(objects=(SecurityObject(identity, attributes, (seeded,)),))
+    saved = store.Save(proposed, expected_revision=delta.previous_revision)
+    reopened = LocalModelStore(root).Open()
+
+    assert reopened == saved and reopened.revision == 1, "Saved Asset did not round-trip"
+    assert reopened.workspace_id == "showcase-asset", "Asset was reopened in the wrong workspace"
+    asset, = reopened.Objects(ObjectKind.ASSET)
+    assert asset.Reference() == expectedReference, "Persisted Asset has the wrong canonical ID"
+    assert asset.attributes == expectedAttributes and asset.attributes["critical"] is True, (
+        "Persisted Asset changed the seeded critical declaration"
+    )
+    assert asset.provenance == (seeded,), "Persisted Asset lost its fixture attribution"
+    update, = reopened.observations
+    assert update.kind == "object-update" and update.subject_reference == expectedReference, (
+        "History must describe the seeded Asset update"
+    )
+    assert update.attributes == expectedAttributes and update.attributes["critical"] is True, (
+        "Asset history lost the seeded attributes"
+    )
+    assert update.provenance == seeded, "Asset history lost its seeded fixture attribution"
+    assert update.provenance.evidence_references == () and update.provenance.execution is None, (
+        "Seeded Asset update was promoted to acquisition evidence"
+    )
 
 
 @pytest.mark.parametrize("outcome", [ExecutionState.SUCCEEDED, ExecutionState.FAILED])

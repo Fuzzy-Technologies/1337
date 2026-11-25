@@ -414,6 +414,12 @@ class AdapterExecution:
             isinstance(self.exit_code, bool) or not isinstance(self.exit_code, int)
         ):
             raise ValueError("exit_code must be an integer or None")
+
+        if isinstance(self.duration_seconds, bool) or not isinstance(
+            self.duration_seconds, (int, float),
+        ):
+            raise ValueError("duration_seconds must be a number, excluding booleans")
+
         if not math.isfinite(self.duration_seconds) or self.duration_seconds < 0:
             raise ValueError("duration_seconds must be a non-negative finite number")
         if self.state is ExecutionState.SUCCEEDED and self.exit_code != 0:

@@ -73,6 +73,50 @@ recorded stays unknown. Discovery records describe objects and responses; a zero
 finding count does not establish that a target is secure. A resolved disposition
 alone does not establish a successful repeated check.
 
+The HTML renderer groups inventory rows by stored object kind and indexes finding
+history by canonical subject reference in a single pass. Inventory follows
+canonical order by default. Ports show saved integer port numbers lowest first.
+Web addresses show saved integer HTTP statuses highest first so recorded HTTP
+errors appear before successful responses. Equal values keep canonical order.
+Rows with missing or non-integer values follow the integer rows in canonical
+order. Missing values show Not recorded.
+
+Use the Asset types links to jump to populated inventory groups. Each link and
+heading show the count in the retained snapshot. Each table uses its visible
+heading as its accessible name. The scroll region shares that name and supports
+keyboard focus. Groups with more than 50 rows open on the first page. Row-range
+links focus a page within the same table. A link to an individual asset opens
+its page. While a findings filter is active, all matching rows are shown across
+the group's pages. The printed report includes every retained row.
+
+Follow a link in the inventory's Findings column to open the corresponding
+finding card. Other retained objects show links when a finding names them as its
+subject. Links use the exact saved subject reference and cover all dispositions.
+With findings is available when the snapshot contains both objects with saved
+findings and objects without them. Without findings is available for manual
+review whenever at least one object has no saved findings. Security and check
+coverage remain unassessed. All restores the full inventory. Group counts and
+the printed report describe the full snapshot.
+
+Use the Findings disposition links to jump to open, confirmed, dismissed or
+resolved findings. Each populated group shows its count and keeps its findings
+in canonical order.
+
+Expand Findings by saved severity to compare findings across dispositions.
+The index lists critical through informational findings before Unknown and
+keeps canonical order within each severity. Each row links to the finding card
+and the saved subject. When the index exceeds 50 rows, it starts with the first
+page open. A row-range link opens its page and focuses the scrollable table of
+up to 50 rows. Use a page heading to open or close its table manually. The print
+view uses the full finding cards for paginated indexes.
+
+Use the saved severity filter to show matching cards, including Unknown when
+present. All restores the full view, as does a link to another report section or
+record. Disposition counts describe the full snapshot.
+
+A finding's evidence link uses the number on its row in the Evidence table.
+Follow the link to read the retained reference and its byte-integrity status.
+
 Finding-intelligence cards keep source origin, publisher, version, date,
 freshness, explicit candidate association and unmatched identifiers visible.
 CVSS technical severity, KEV known-exploitation assertions and EPSS forecasts

@@ -37,6 +37,7 @@ MAX_TOTAL_CHECKS = 4096
 MAX_RUNS = 512
 MAX_RECORD_ITEMS = 128
 COMPARISON_VERSION = 1
+_INPUT_ERRORS = (OSError, OverflowError, RecursionError, TypeError, ValueError)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,16 @@ class Selection:
 
         if re.fullmatch(r".+\.v[1-9][0-9]*", self.profile_id) is None:
             raise ValueError("profile identifier requires a .vN version suffix")
+
+
+class _ReportInputError(ValueError):
+    """Attach the known side to an invalid saved report."""
+
+    def __init__(self, side: str, message: str) -> None:
+        """Preserve the underlying validation message for callers of the comparison."""
+
+        super().__init__(message)
+        self.side = side
 
 
 def ReadReport(path: Path) -> bytes:
@@ -424,8 +435,16 @@ def CompareReports(
     """
 
     RequireIdentifier(scanner_id, "scanner identifier")
-    beforeOracles, beforeRuns = DecodeReport(baseline, scanner_id, baseline_selection)
-    afterOracles, afterRuns = DecodeReport(candidate, scanner_id, candidate_selection)
+    side = "baseline"
+
+    try:
+        beforeOracles, beforeRuns = DecodeReport(baseline, scanner_id, baseline_selection)
+        side = "candidate"
+        afterOracles, afterRuns = DecodeReport(candidate, scanner_id, candidate_selection)
+
+    except _INPUT_ERRORS as error:
+        raise _ReportInputError(side, str(error)) from error
+
     sameProfile = baseline_selection.profile_id == candidate_selection.profile_id
     scenarios = sorted(beforeOracles.keys() | afterOracles.keys())
 
@@ -465,15 +484,27 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--baseline-profile", required=True)
     parser.add_argument("--candidate-profile", required=True)
     args = parser.parse_args(argv)
+    message = "The baseline report is invalid or unreadable."
 
     try:
-        report = CompareReports(ReadReport(args.baseline), ReadReport(args.candidate), args.scanner,
-            Selection(args.baseline_release, args.baseline_profile),
-            Selection(args.candidate_release, args.candidate_profile))
+        baseline = ReadReport(args.baseline)
+        message = "The candidate report is invalid or unreadable."
+        candidate = ReadReport(args.candidate)
 
-    except (OSError, OverflowError, RecursionError, TypeError, ValueError):
-        print("Cannot compare the selected functional reports: invalid or unreadable input.",
-              file=sys.stderr)
+        message = "The baseline report selection is invalid."
+        baselineSelection = Selection(args.baseline_release, args.baseline_profile)
+        message = "The candidate report selection is invalid."
+        candidateSelection = Selection(args.candidate_release, args.candidate_profile)
+
+        message = "Cannot compare the selected functional reports: invalid or unreadable input."
+        report = CompareReports(baseline, candidate, args.scanner, baselineSelection,
+            candidateSelection)
+
+    except _INPUT_ERRORS as error:
+        if isinstance(error, _ReportInputError):
+            message = f"The {error.side} report is invalid or unreadable."
+
+        print(message, file=sys.stderr)
         return 2
 
     sys.stdout.write(SerializeReport(report))

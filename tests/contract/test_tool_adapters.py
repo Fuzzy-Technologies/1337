@@ -30,6 +30,7 @@ from fuzzy1337.adapters import (
     SerializeContract,
     ToolAdapter,
 )
+from fuzzy1337.model import ModelProvenance
 
 
 def Descriptor() -> AdapterDescriptor:
@@ -244,6 +245,36 @@ def test_ExecutionStateValidationPreservesFailureTruth(state, exit_code, message
 
     with pytest.raises(ValueError, match=message):
         AdapterExecution(state=state, exit_code=exit_code, duration_seconds=0.1)
+
+
+@pytest.mark.parametrize("duration", [True, False, None, "0", [], 1j])
+def test_ExecutionDurationRejectsValuesOutsideTheCanonicalNumericContract(duration):
+    """Reject records that the canonical provenance consumer cannot deserialize."""
+
+    with pytest.raises(ValueError, match="duration_seconds"):
+        AdapterExecution(ExecutionState.SUCCEEDED, 0, duration)
+
+
+@pytest.mark.parametrize("state,exit_code", [
+    (ExecutionState.SUCCEEDED, 0), (ExecutionState.FAILED, 7),
+    (ExecutionState.TIMED_OUT, None), (ExecutionState.CANCELLED, None),
+])
+@pytest.mark.parametrize("duration", [0, 1, 0.125])
+def test_SerializedExecutionRoundTripsThroughCanonicalProvenance(state, exit_code, duration):
+    """Preserve supported SDK outcomes and durations through the real JSON consumer."""
+
+    execution = AdapterExecution(state, exit_code, duration)
+    document = {
+        "source_id": "synthetic.sdk", "run_reference": "retained:one",
+        "observed_at": "2026-11-25T00:00:00Z", "scope_reference": "scope:owned",
+        "target_reference": "target:owned", "provider_version": None,
+        "evidence_references": [], "execution": json.loads(SerializeContract(execution)),
+    }
+    decoded = ModelProvenance.FromDict(document)
+    assert decoded.execution == execution, "Canonical decoding changed the retained SDK outcome"
+    assert json.loads(SerializeContract(decoded))["execution"] == document["execution"], (
+        "Canonical provenance serialization changed the original numeric execution metadata"
+    )
 
 
 def test_NormalizedResultKeepsEvidenceDistinctFromGenericEnrichment():
