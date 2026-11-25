@@ -22,7 +22,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   provenance; refuse invalid disclosure combinations or damaged originals before
   returning candidate data.
 
+#### Fixed
 
+- List the SPDX and CycloneDX import formats in interactive shell help, including
+  the source hash required for an original CycloneDX file.
 
 ### Patch 57 — v0.4.57 — 2026-11-25
 

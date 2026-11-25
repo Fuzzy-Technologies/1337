@@ -579,7 +579,8 @@ class InteractiveShell(cmd.Cmd):
                 "runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect|export-bundle|verify-bundle>, "
                 "select <object-id>, "
-                "sbom <image|import spdx-graph>, scan <quick|crawl|ports|web|nuclei|image|config>, "
+                "sbom <image|import spdx-graph|import cyclonedx>, "
+                "scan <quick|crawl|ports|web|nuclei|image|config>, "
                 "scope create, "
                 "workspace <create|open>, "
                 "update [--json], updates, view <name> [--query <file>] [--json], quit"
@@ -635,8 +636,9 @@ class InteractiveShell(cmd.Cmd):
             ),
             "sbom": (
                 "sbom image <workspace>: inspect verified saved inventory by exact digest/kind; "
-                "sbom import spdx-graph <workspace>: import explicit original evidence with "
-                "declared image identity, scope and exact owner revision bases."
+                "sbom import <spdx-graph|cyclonedx> <workspace>: import an owned file or replay "
+                "original product custody with explicit image/scope/run and both revision bases; "
+                "CycloneDX file mode requires --expected-sha256."
             ),
             "trace": (
                 "trace ioc <import|inspect|export-bundle|verify-bundle>: import selected "
@@ -866,10 +868,10 @@ class InteractiveShell(cmd.Cmd):
         self.RunLocalCommand("paths", argument)
 
     def do_sbom(self, argument: str) -> None:
-        """Import an explicit local SPDX graph without deriving authority from shell context.
+        """Inspect saved inventory or import owned SPDX/CycloneDX without implicit authority.
 
         Args:
-            argument: Import action, original source, declared image identity and owner bases.
+            argument: Explicit view/import profile, original source, image identity and owner bases.
         """
 
         self.RunLocalCommand("sbom", argument)
