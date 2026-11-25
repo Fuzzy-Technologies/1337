@@ -70,7 +70,7 @@ state = "missing"
 id = "page:api.fuzzy1337.command-registry"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.command_registry.md"
-sourceHash = "sha256:c6300d864206869ead57b5ca5d42ef75828d81a988b0f186a744e58c7c577714"
+sourceHash = "sha256:ef06bbbaf3c803e13a1367bdc458e98ecf408b96892af135909dfa4bcc11c6c3"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -270,7 +270,7 @@ state = "missing"
 id = "page:api.fuzzy1337.shell"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.shell.md"
-sourceHash = "sha256:ee7779a8fa6c7ffd7c1cf59d2d45a48117f9dbfe3e91af579ff74aad2000e799"
+sourceHash = "sha256:53b25c7aaf455bf42e4c1fb751b1cd40550cfdefab4393e52ae7f91ba4af0ad5"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -1554,7 +1554,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.do_trace"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:bbd03e4a078e085930827fa735494876c29947f9311236b8134fb177edf19a23"
+sourceHash = "sha256:901b55eab16d9225d1602fdbd9cf75672d70f83450451e620c75a3f8341a8718"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -5596,7 +5596,7 @@ state = "missing"
 id = "page:api.fuzzy1337.ioc-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.ioc_commands.md"
-sourceHash = "sha256:cbe4f6fc026fc7715de95ce4507b327cbeca4c7469632744ec78d2e74df59beb"
+sourceHash = "sha256:e17394600c86f7d6c369ebd67a709d4e6f56c7ae11a88771d144af12f23c48b8"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -5684,7 +5684,7 @@ state = "missing"
 id = "symbol:fuzzy1337.ioc_commands.RunIocCommands"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/ioc_commands.py"
-sourceHash = "sha256:8b6c839bef8f9b7c578546946441ef842f97e21ec7571ce03156a29c2bf7f162"
+sourceHash = "sha256:30e8e05aa695f5d6d4dbc78f2941b1ac1a73ffe6928fffb686e4925745f61bc8"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -28496,6 +28496,369 @@ id = "symbol:fuzzy1337.intelligence_cwe_commands.WriteCwePartitions"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
 sourceHash = "sha256:260cd0f4079939c6a22ce8ce9d95a46e5428be7ec1ac2d1e1afd5e60b492767f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.syslog-artifacts"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.syslog_artifacts.md"
+sourceHash = "sha256:2ff6027a141d2cd332ac34fb69c1704ee29cdd62fa2cd089752855f4b4cd5d0f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.syslog-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.syslog_commands.md"
+sourceHash = "sha256:5c5e73889d6f9e5b6be37f078483751c2b3b07e29c653b0db8208e6c5edadc13"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.syslog-records"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.syslog_records.md"
+sourceHash = "sha256:c8847e6363f0b49e84ab5cb345ab9a55be79cea5b2860a84ea902f6a4ec0ee98"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.ImportSavedSyslogFile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:dc100f31337942bd04d617c943728b93c1351bac919c14bdc97c196103e6ddf4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.LoadSavedSyslog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:10526ea9d75282b807835ba7c127e292e2d2b427ae45f770e88f32c9ff3702c8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.OriginalSyslogPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:061505dc9304274a8971a6b254c5bbfa9c843fba623ebdc330aba38c41cc98f1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SourceFromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:951b473a4b3c6388eb86ef145b34225f1d775f12dd31603306964959fd894b15"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogAcquisition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:73009b8fef5d92de9e78af591a21565721f87dc329e5383930da44474c827076"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:0c1ff5ffc4daaaca4bcb317e1ee47be50cbde9b31bbf325a177339deafea669c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:c66f55bd1b3116807b881b6a6933f3c525c7514a52b8bcb0e5d6c47ae56579d9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogReceipt"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:dccf7aa85e8c652d0a45b80f638fea7521e5a09e71223d4be626e56fad5dc672"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogSource"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:a80e70ed7bc3e19a555c2a456f1658f4a51419df3be329c3ff1fa8a2e6474a5e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogSource.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:50f9516c4f870ded6f91456a905614d600dece97a56fb5b70b53b66fc7f63b32"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_artifacts.SyslogText"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_artifacts.py"
+sourceHash = "sha256:86feed1410bb0a29a8c98f939436e91791f8f223e703432c214505ac89fd8140"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.DescribeSyslog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:34a7187a94dbcfb45a218728d96b57f63efa635c248476530a52c7bca7c465d6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.RenderSyslog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:85ffb6fa9252cbeacd27690c8a6f7f214eb216128647f17a2b3d21573dab9609"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.RunSyslogCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:b7fd4793d8f25b3dbaf2cd664cd9ab75f67931ddaa46cb0bff8e580584031591"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.SyslogArguments"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:31dd6492fa2047a0d7fbc62e24753e704f747c63d3d44418c25bf6ef2bbcfee5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.SyslogArguments.Error"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:806673982d167c6f4dee6e402dbb48413b1f77cbef361f06eb646301b4df321e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.SyslogParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:fa8832103301d7f64c12c8d32e8a452201df4535411a1131d90ceee3a646964b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_commands.VisibleSyslogRecords"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_commands.py"
+sourceHash = "sha256:eef3004b53ccc214d78417cf02b26a5bc805ee281d3d5104b958e5cec12c3efc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.HeaderValue"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:e5f17ae730e1bb71adf5621dec382901c4c3515d2fafdc699f761e6ea58b219f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.ParseSavedSyslog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:6be3d5265925b1317a0f9b1c0edb137665894b02d1bf899b3a1440cae9717a8d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.ParseSyslogRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:9523fcc87174dcf861e3f9dda1b5a6c95389be3bb0dc6c33d805249d0e296051"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.ReadSdName"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:17ae7b5704d934418d733fc966bccb411a0092f7c3d71596c9d331a22cb353e4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.ReadSdValue"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:3771027aec27118597d3d2ed3713c8b3aee8cc8685667a352117a815e8491df1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.ReadStructuredData"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:9238522a065c59213968ca272b0560f21675197da5459cff06f6fb6f25b7ae8e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.RequireSyslogDigest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:e5efdcfc1c547b74e2627d7932e949c8b0aef8aac390923477328a7efaab9b0c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.RequireSyslogFraming"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:59c9c35d7d48727988823931b605e979f021735e88f347f831fb369727393e32"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.SyslogDecodeError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:447623d2b7420c75838cc042b3286393add326f572cc04c3c221c901797a7449"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.SyslogJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:e7aaf635cbbd6d238a7ee55ee204edcdc7302e038f13e0ca795bba065addd327"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.SyslogLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:9af412f0002e9ef8f88e408c0a758ed01f6299c06e88b500d769c827db7cb29a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.syslog_records.TimestampValue"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/syslog_records.py"
+sourceHash = "sha256:f5c84119bb65a94e72a4abca48f537314b74713fbd72d9346a54403d730a7b34"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
