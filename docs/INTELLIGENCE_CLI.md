@@ -83,6 +83,9 @@ records. `target_applicability="not-evaluated"` and
 `publisher_authentication="not-assessed"` remain explicit. Missing catalog
 membership is not evidence of no vulnerability, exploitation or risk. Omit
 `--json` for a source summary that explains each feed's meaning.
+For a matched EPSS record, the text summary shows the publisher's score
+timestamp normalized to UTC alongside its probability and percentile. This
+timestamp comes from the record's `effective_at` field.
 
 For a selected CVE Record `5.2`/`5.2.0`, `cve_source_profiles` exposes the existing
 independent inspection results without repeating snapshots:

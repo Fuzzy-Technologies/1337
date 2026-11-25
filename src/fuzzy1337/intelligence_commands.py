@@ -368,6 +368,7 @@ def WriteIntelDetails(details: dict[str, object], output: TextIO) -> None:
         if record["feed"] == IntelligenceFeed.EPSS.value:
             output.write("EPSS predicts exploitation of the CVE in the next 30 days; "
                          "it does not establish that this target is vulnerable.\n")
+            output.write(f"Source score timestamp (UTC): {IntelDisplay(record['effective_at'])}\n")
             output.write(f"Source probability: {IntelDisplay(data['probability'])}; "
                          f"percentile: {IntelDisplay(data['percentile'])}\n")
 

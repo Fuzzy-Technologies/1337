@@ -652,6 +652,12 @@ def test_HumanSelectedDetailsExplainFeedMeaningAndEscapeTerminalControls(tmp_pat
     assert expected[feed] in human and "CVE-1900-8888" in human, (
         "Human detail omitted the source measure's meaning or unmatched selection."
     )
+
+    if feed is IntelligenceFeed.EPSS:
+        assert "Source score timestamp (UTC): 2026-10-12T00:00:00.000000+00:00" in human, (
+            "Human EPSS detail omitted the retained score timestamp."
+        )
+
     assert commands.IntelDisplay("source\x1b[31m\u202e") == "source\\u001b[31m\\u202e", (
         "Selected source metadata could execute terminal controls or hide directional text."
     )
