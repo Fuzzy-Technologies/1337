@@ -79,3 +79,33 @@ portable round trips, moved workspaces, writer conflicts, unsafe paths, and
 write-failure cleanup. Module branch coverage must remain strictly above 80%.
 Full product and documentation gates run in PR CI under the owner's development
 workflow; local validation remains focused on this subsystem.
+
+## Reopenable publication boundary
+
+The M6 SDK follow-up enforces the existing strict version-one wire shape at
+`LocalModelStore.Save` before writer-path preparation, locking or publication.
+Ordinary Python dataclass subclasses can add serialized fields, including on
+values which also satisfy `isinstance(value, str/int/float)`. The generic JSON
+renderer visits dataclass fields before scalar values. Checking only DTO classes
+or decoding the original Python dictionary does not prove the final bytes are
+readable.
+
+Serialize the proposed `ToDict()` once, bound its complete UTF-8 bytes including
+the terminal newline, then apply the same strict JSON and model decoder as
+`Open`. Publish those exact admitted bytes without reserialization and return
+their concrete decoded snapshot. Correct inherited record/scalar representations
+remain accepted; unsupported JSON shapes fail without durable changes. JSON
+attributes retain what the existing serializer actually encodes rather than a
+guessed runtime type. This adds no schema, public operation or execution authority.
+
+A normal save now decodes the proposed document in addition to the current file.
+The 256-object counter regression requires two model decodes and only one payload
+serialization. Wall-time/memory cost must be measured in the grouped acceptance;
+no unproven runtime-type shortcut is retained. Keep `WriteState(directory, state)`
+as an Internal compatibility wrapper while sharing the original atomic publisher.
+
+Verify the original external installed-SDK path, concrete DTOs holding dataclass
+scalar values, correct inherited records/scalars, readable attribute wire,
+size refusal before deep reconstruction, unchanged prior files and no writer-path
+access on refused shapes. Retain original failed-execution metadata and replay/
+advance of the previously shipped model fixture.

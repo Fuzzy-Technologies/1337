@@ -197,6 +197,11 @@ The interface grants no authority beyond an explicitly approved scope/policy.
 at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic object
 identity, attributable updates, typed relations, observations, incremental deltas,
 and portable model persistence. Scope/target references do not grant authority.
+Before publication, the same strict decoder as `Open` validates the final
+serialized bytes within the existing limit. The store writes exactly those bytes
+and returns their decoded snapshot. Compatible inherited Python representations
+remain usable; unsupported wire shapes fail before writer locking. Python
+subclass fields do not establish new persisted domain semantics.
 
 `fuzzy1337.reachability` is an Experimental offline Python library at profile `1`.
 ADR 0047 and `docs/REACHABILITY.md` define exact current-basis source-attestation
