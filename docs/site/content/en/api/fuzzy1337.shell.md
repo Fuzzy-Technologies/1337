@@ -21,7 +21,7 @@ Local/native history and empty-line replay retain only the protected `paths`
 namespace; quoted Windows paths retain spaces/backslashes through the shared
 argument parser. No acquisition or hidden output is introduced.
 
-Foreground Experimental version-one `sbom import spdx-graph` forwards explicit
+Foreground Experimental version-one `sbom import <spdx-graph|cyclonedx>` forwards explicit
 quoted arguments to the Internal owning handler and preserves its actual exit
 status and three independent acquisition/model/workspace acknowledgements.
 Shell context supplies no source, image digest kind, source attribution,
@@ -30,6 +30,9 @@ SBOM alias preflight retain the CLI's evidence boundaries. SBOM arguments are
 excluded from local/native history before dispatch, and empty-line replay retains
 only the canonical namespace. Quoted paths keep spaces and backslashes through
 the shared parser; no scanner or remote authority follows from shell dispatch.
+General `help` and `help sbom` advertise both profiles. SBOM-specific help keeps
+CycloneDX's required original-file SHA-256 explicit; it opens no workspace and
+runs no import or provider operation.
 
 Foreground `api import graphql-introspection` forwards explicit quoted selections
 to the Internal API handler and preserves its actual terminal status. Shell
