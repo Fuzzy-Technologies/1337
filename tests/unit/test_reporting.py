@@ -836,7 +836,7 @@ def test_HtmlAssetTypesJumpToPopulatedInventoryGroups():
 
 
 def test_HtmlAssetFindingsUseExactSavedSubjects():
-    """Findings link to the exact saved subject even across shared labels and relations."""
+    """Links and filtering use exact saved subjects across shared labels and relations."""
 
     summary = "Saved interpretation <script>inert</script>"
     report = Fixture(summary=summary)
@@ -868,10 +868,29 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
 
     assert len(cards) == len(entities)
     assert inventory.find(".//script") is None
+    filters, = inventory.findall('nav[@aria-labelledby="asset-findings-filter-label"]')
+    assert filters.get("hidden") == "hidden"
+    assert [(link.get("href"), link.text) for link in filters.findall("a")] == [
+        ("#model", "All (4)"), ("#assets-with-findings", "With findings (3)"),
+    ]
+    selected, = inventory.findall('p[@id="assets-with-findings"]')
+    assert (selected.get("hidden"), selected.get("tabindex")) == ("hidden", "-1")
+    selector = '#model:has(> #assets-with-findings:target) [data-asset-findings="none"]'
+    guard = f"@media screen {{\n@supports selector({selector}) {{\n"
+    defaults, guardStart, conditional = rendered.partition(guard)
+    assert guardStart
+    assert ".asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}" in (
+        defaults
+    )
+    screenRules = conditional.split("\n}\n}\n", 1)[0]
+    assert f"{selector} {{display:none}}" in screenRules
 
     for subject in (host, endpoint, asset):
         reference = subject.Reference()
         objectId = f"object-{reference[7:]}"
+        entry, = (inventory.findall(f'.//tr[@id="{objectId}"]')
+                  + inventory.findall(f'.//details[@id="{objectId}"]/..'))
+        assert entry.get("data-asset-findings") is None
         expected = [
             (
                 f"#finding-{entity.Reference()[7:]}",
@@ -891,8 +910,15 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
 
     serviceRow = inventory.find(f'.//tr[@id="object-{service.Reference()[7:]}"]')
     assert serviceRow is not None
+    assert serviceRow.get("data-asset-findings") == "none"
     assert serviceRow.findall("td")[-2].text == "None retained"
     assert serviceRow.findall(".//a") == []
+    assert inventory.find('h3[@id="model-service-table-heading"]').get("data-asset-findings") == (
+        "none"
+    )
+    assert inventory.find('div[@aria-labelledby="model-service-table-heading"]').get(
+        "data-asset-findings"
+    ) == "none"
 
 
 def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):

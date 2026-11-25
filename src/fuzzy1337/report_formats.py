@@ -67,6 +67,19 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 #evidence tbody tr:target > th[scope="row"] {outline:2px solid var(--cyan);outline-offset:-2px}}
 @media print {body {background:white;color:black} a,h1,h2,h3,.finding > h4,summary {color:black}}
 """
+_ASSET_WITHOUT_FINDINGS = ' data-asset-findings="none"'
+_ASSET_FINDINGS_SELECTOR = (
+    '#model:has(> #assets-with-findings:target) [data-asset-findings="none"]'
+)
+_ASSET_FINDINGS_CSS = (
+    ".asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}\n"
+    "@media screen {\n"
+    f"@supports selector({_ASSET_FINDINGS_SELECTOR}) {{\n"
+    ".asset-findings-filter[hidden] {display:flex}\n"
+    ".asset-findings-selection[hidden]:target {display:block}\n"
+    f"{_ASSET_FINDINGS_SELECTOR} {{display:none}}\n"
+    "}\n}\n"
+)
 _FINDING_SEVERITY_SELECTOR = (
     "#findings-severity-{severity}:target ~ [data-finding-severities]"
     ':not([data-finding-severities~="{severity}"])'
@@ -267,11 +280,13 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
-def _TableStart(headingId: str) -> str:
+def _TableStart(headingId: str, *, withoutAssetFindings: bool = False) -> str:
     """Name the native table and its keyboard scroll region with the same heading."""
 
+    marker = _ASSET_WITHOUT_FINDINGS if withoutAssetFindings else ""
+
     return ('<div class="table" role="region" tabindex="0" '
-            f'aria-labelledby="{headingId}">'
+            f'aria-labelledby="{headingId}"{marker}>'
             f'<table aria-labelledby="{headingId}"><thead><tr>')
 
 
@@ -344,24 +359,45 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         lines.extend(f'<a href="#{headingId}">{label}</a>' for headingId, label in links)
         lines.append("</nav>")
 
+    assetCount = len(rows.objects) - len(rows.findings)
+    subjectCount = len(findingsBySubject)
+    includeFilter = 0 < subjectCount < assetCount
+
+    if includeFilter:
+        lines.extend((
+            '<nav class="asset-findings-filter" aria-labelledby="asset-findings-filter-label" '
+            'hidden="hidden"><span id="asset-findings-filter-label">Filter assets</span>',
+            f'<a href="#model">All ({assetCount})</a>',
+            f'<a href="#assets-with-findings">With findings ({subjectCount})</a></nav>',
+            '<p class="asset-findings-selection" id="assets-with-findings" tabindex="-1" '
+            f'hidden="hidden">Showing {subjectCount} of {assetCount} objects with retained '
+            'findings. Group counts describe the full snapshot.</p>',
+        ))
+
     for headingId, label, fields, entities in inventory:
-        lines.append(f'<h3 id="{headingId}" tabindex="-1">{label}</h3>')
+        withoutFindings = includeFilter and not any(
+            reference in findingsBySubject for reference, _ in entities
+        )
+        marker = _ASSET_WITHOUT_FINDINGS if withoutFindings else ""
+        lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         if not entities:
-            lines.append("<p>No objects of this kind were retained.</p>")
+            lines.append(f"<p{marker}>No objects of this kind were retained.</p>")
 
             continue
 
-        lines.append(_TableStart(headingId) + '<th scope="col">Saved identity</th>')
+        lines.append(_TableStart(headingId, withoutAssetFindings=withoutFindings)
+                     + '<th scope="col">Saved identity</th>')
         lines.extend(f'<th scope="col">{Html(label)}</th>' for label, _ in fields)
         lines.append('<th scope="col">Findings</th>'
                      '<th scope="col">Details</th></tr></thead><tbody>')
 
         for reference, entity in entities:
-            lines.append(f'<tr id="object-{reference[7:]}">'
+            findings = findingsBySubject.get(reference)
+            marker = _ASSET_WITHOUT_FINDINGS if includeFilter and not findings else ""
+            lines.append(f'<tr id="object-{reference[7:]}"{marker}>'
                          f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
-            findings = findingsBySubject.get(reference)
             lines.append(f"<td>{_FindingLinks(findings) if findings else 'None retained'}</td>")
             lines.append("<td><details><summary>Technical object</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details></td></tr>")
@@ -370,12 +406,17 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
     if others:
         headingId, label = otherGroup
-        lines.append(f'<h3 id="{headingId}" tabindex="-1">{label}</h3>')
+        withoutFindings = includeFilter and not any(
+            reference in findingsBySubject for reference, _ in others
+        )
+        marker = _ASSET_WITHOUT_FINDINGS if withoutFindings else ""
+        lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         for reference, entity in others:
             findings = findingsBySubject.get(reference)
+            marker = _ASSET_WITHOUT_FINDINGS if includeFilter and not findings else ""
             navigation = "<p>Findings</p>" + _FindingLinks(findings) if findings else ""
-            lines.append(f'<div><details id="object-{reference[7:]}"><summary>'
+            lines.append(f'<div{marker}><details id="object-{reference[7:]}"><summary>'
                          + Html(ObjectLabel(entity)) + "</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details>" + navigation + "</div>")
 
@@ -677,7 +718,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<meta name="color-scheme" content="dark">',
         '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; '
         'style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">',
-        f"<title>1337 Evidence report</title><style>{_CSS}{_FINDING_SEVERITY_CSS}</style>"
+        f"<title>1337 Evidence report</title><style>{_CSS}{_ASSET_FINDINGS_CSS}"
+        f"{_FINDING_SEVERITY_CSS}</style>"
         "</head><body><main>",
         '<p class="brand">Fuzzy Technologies · Security Workbench</p>'
         '<h1>Security assessment report</h1>',
