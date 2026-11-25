@@ -62,6 +62,19 @@ declarations; they never become runtime Pods. Missing flags and ServiceAccount
 names stay unknown. Image tags, manifest-like configuration and opaque CRI
 `imageID` status values never become image config or manifest identities.
 
+A declared image can name a bracketed IPv6 registry, with or without a numeric
+port: for example, `[2001:db8::10]:5000/owned/app:retained` or
+`[2001:0DB8::11]/owned/sidecar@sha256:...`. The address is checked locally as
+an IPv6 literal, while the complete original image string is retained exactly.
+No registry name is resolved, address contacted, repository fetched or digest
+domain inferred. Malformed brackets/addresses, zone identifiers, URI schemes and
+unsupported image suffixes refuse the complete candidate. Original byte/string
+limits, ordinary registry declarations and retained profile identity are unchanged.
+This syntax follows the bracketed registry domain in the
+[image-reference grammar](https://github.com/distribution/reference/blob/main/reference.go)
+and [registry-domain expression](https://github.com/distribution/reference/blob/main/regexp.go);
+it does not establish that the declared registry or image exists.
+
 Services retain configured type, literal cluster IP and selected ports. Their
 nonempty equality selector maps can match explicit labelled Pods in the same
 export and namespace. Workload and NetworkPolicy LabelSelectors support

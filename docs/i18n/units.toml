@@ -9006,7 +9006,7 @@ state = "missing"
 id = "page:api.fuzzy1337.kubernetes-inventory"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.kubernetes_inventory.md"
-sourceHash = "sha256:d94c1cbc310aea84a0a51d23f93e353bde114a1a15c863b1af3561cc40de7760"
+sourceHash = "sha256:20b4dd5d1eb683e03d5fd187b0e70d30185df388a5c3f87acd809de14266e0d6"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -28411,6 +28411,17 @@ id = "symbol:fuzzy1337.retained_report_ci.VerifyReport"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/retained_report_ci.py"
 sourceHash = "sha256:9a970ecb3d791091d8456320d85bfeda0510b40128d032d3b75328945dc05185"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.ImageDeclaration"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:0f0468d35a81487d2f0f9fcdbef6be86b38ec36a4842b34736ea8d7b2980ce2f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
