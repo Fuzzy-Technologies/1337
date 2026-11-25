@@ -266,13 +266,13 @@ from the checkout root with the locked Python environment already installed.
 Replace `path/to/saved-workspace` inside the quotes with the saved directory
 that contains `workspace.json`, `state/model/model.json` and `evidence/`.
 The [report SDK](REPORTING.md) verifies saved model evidence and renders the
-projection in memory. The example expects one marker and its single saved
-fixture observation.
+projection in memory. By default, the example expects one marker and its single
+saved fixture observation.
 
 ```bash
 uv run --offline --locked --no-sync python - 'path/to/saved-workspace' <<'PY'
 import json
-import sys
+from argparse import ArgumentParser
 from dataclasses import asdict
 from pathlib import Path
 
@@ -281,28 +281,54 @@ from fuzzy1337.model import LocalModelStore
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.workspace import LocalWorkspaceStore
 
-root = Path(sys.argv[1])
+parser = ArgumentParser(description="Read saved showcase marker evidence.")
+parser.add_argument("workspace", type=Path)
+parser.add_argument("--observation", metavar="REFERENCE")
+args = parser.parse_args()
+root = args.workspace
 snapshot = ReportSnapshot(LocalModelStore(root).Open())
 report = VerifyReportEvidence(snapshot, root).ToDict()
 findings = [
     item for item in report["findings"]
     if item["normalized"]["check_id"] == "showcase.fixture-marker"
 ]
+observations = [
+    item for item in report["model"]["observations"]
+    if item["kind"] == "finding-detection"
+    and item["provenance"]["source_id"] == "showcase-fixture"
+]
+
+if args.observation is not None:
+    matches = [item for item in observations if item["reference"] == args.observation]
+
+    if len(matches) != 1:
+        raise SystemExit(
+            f"Expected one saved fixture observation for that reference, found {len(matches)}."
+        )
+
+    observations = matches
+    subjectReference = observations[0]["subject_reference"]
+    findings = [item for item in findings if item["reference"] == subjectReference]
+
 if len(findings) != 1:
     raise SystemExit(f"Expected one saved showcase marker Finding, found {len(findings)}.")
 finding = findings[0]
 
 observations = [
-    item for item in report["model"]["observations"]
-    if item["kind"] == "finding-detection"
-    and item["subject_reference"] == finding["reference"]
-    and item["provenance"]["source_id"] == "showcase-fixture"
+    item for item in observations if item["subject_reference"] == finding["reference"]
 ]
 if len(observations) != 1:
     raise SystemExit(
         f"Expected one saved showcase fixture observation, found {len(observations)}."
     )
 observation = observations[0]
+
+if args.observation is not None and any(
+    observation["attributes"].get(key) != finding["normalized"][key]
+    for key in ("fingerprint", "check_id", "subject_reference", "location_key")
+):
+    raise SystemExit("Saved fixture observation and marker Finding identities do not match")
+
 provenance = observation["provenance"]
 store = LocalEvidenceStore(root / "evidence")
 record = store.Get(provenance["run_reference"])
@@ -331,6 +357,14 @@ print(selected)
 print("Registered in workspace snapshot:", "yes" if registered else "no")
 PY
 ```
+
+When a workspace retains more than one marker Finding or fixture observation,
+add `--observation 'observation:…'` after the quoted workspace path and before
+`<<'PY'`. Supply the full reference from the second value in a previous result or
+from `observations[].reference` in `state/model/model.json`. In the saved model,
+look for a `finding-detection` observation with `provenance.source_id` equal to
+`showcase-fixture`. The reader checks the selected observation's recorded Finding
+identity before verifying the acquisition.
 
 The first line gives the Finding, saved observation and acquisition IDs. The
 original marker has `id` equal to `evidence.initial-topology`, `type` equal to
