@@ -240,6 +240,38 @@ def test_NonApplicableDetectionIsExplicitAndUnknownCapabilityIntersectionStaysAb
     )
 
 
+def test_MixedCapabilityCreditsOnlyApplicableDetections():
+    """Keep a non-applicable observation separate from applicable detections."""
+
+    oracle = Oracle()
+    mixedChecks = tuple(
+        replace(check, capability="web.canary") if check.identifier == "unavailable.check"
+        else check
+        for check in oracle.checks
+    )
+    mixedOracle = replace(oracle, checks=mixedChecks)
+    run = replace(Run(), detected_checks=("unavailable.check", "negative.alarm"))
+    payload = json.loads(SerializeReport(BuildReport((mixedOracle,), (run,))))
+    cells = {row["capability"]: row["cells"][0] for row in payload["matrix"]["rows"]}
+    metrics = payload["runs"][0]["metrics"]
+
+    assert cells["web.canary"]["state"] == "not-detected", (
+        "A non-applicable observation cannot mark the capability as detected."
+    )
+    assert {
+        "identifier": "unavailable.check",
+        "expected": None,
+        "detected": True,
+        "applicable": False,
+    } in cells["web.canary"]["checks"], "The saved matrix must retain the original observation."
+    assert metrics["unexpected_detections"] == ["unavailable.check"], (
+        "Keep the observation outside the applicable oracle as an anomaly."
+    )
+    assert cells["web.negative"]["state"] == "detected" and metrics["fp"] == 1, (
+        "Credit a detection on an applicable negative as a false positive."
+    )
+
+
 @pytest.mark.parametrize(
     ("factory", "message"),
     [
