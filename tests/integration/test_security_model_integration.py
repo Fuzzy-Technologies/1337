@@ -245,17 +245,16 @@ def test_AdapterBoundaryRejectsUnsupportedOrUnresolvedEnvelopes(tmp_path, mutati
         ))
 
     elif mutation == "untyped-object":
-        object.__setattr__(result, "object_enrichments", ({},))
+        result = replace(result, object_enrichments=({},))
 
     elif mutation == "untyped-observation":
-        object.__setattr__(result, "observations", ({},))
+        result = replace(result, observations=({},))
 
     elif mutation == "untyped-relation":
-        object.__setattr__(result, "relation_enrichments", ({},))
+        result = replace(result, relation_enrichments=({},))
 
     elif mutation == "untyped-report":
-        # Ordinary SDK construction now refuses this; the consumer must still reject forged DTOs.
-        object.__setattr__(result, "report", {})
+        result = replace(result, report={})
 
     elif mutation == "untyped-bindings":
         bindings = []

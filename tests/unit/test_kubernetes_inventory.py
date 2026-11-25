@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import json
 import stat
 from dataclasses import replace
 from traceback import format_exception
@@ -95,12 +94,12 @@ def test_KubernetesLimitConstructorRejectsRelaxedOrNonintegerBudgets(field, valu
     b'{"apiVersion":"v1","kind":"List","items":[]}',
     b'{"apiVersion":"v1","kind":"List","kind":"List","items":[]}',
     b'{"ignored":NaN}', b'{"ignored":Infinity}', b'{"ignored":1e9999}',
-    b'{"ignored":"\\ud800"}', b'{"ignored":"line\nvalue"}',
+    b'{"ignored":"\\ud800"}', b'{"ignored":"line\\nvalue"}',
     CanonicalModelJson({"ignored": "x" * 4097}), b"[" * 1100 + b"]" * 1100,
     CanonicalModelJson([[] for _ in range(20001)]),
     b"[" * 25 + b"0" + b"]" * 25,
 ], ids=["empty", "truncated", "utf8", "array", "object", "null", "no-items", "duplicate",
-        "nan", "infinity", "overflow", "surrogate", "unescaped-control", "text", "recursion",
+        "nan", "infinity", "overflow", "surrogate", "control", "text", "recursion",
         "nodes", "depth"])
 def test_KubernetesBoundedOriginalJsonDecoderRefusesMalformedAndExcessiveInput(raw):
     """Complete strict UTF-8 JSON plus depth/node/string budgets precede resource interpretation."""
@@ -403,85 +402,6 @@ def test_KubernetesUnselectedValuesAndRejectedTextNeverLeak(context):
 
     assert marker not in "".join(format_exception(failure.value)), (
         "Rejected source text leaked through exception rendering"
-    )
-
-
-@pytest.mark.parametrize("note", [
-    pytest.param("OWNED_RELEASE_NOTE\nsecond line", id="line-feed"),
-    pytest.param("OWNED_RELEASE_NOTE\r\nsecond line", id="windows-lines"),
-    pytest.param("OWNED_RELEASE_NOTE\tsecond column", id="tab"),
-    pytest.param("OWNED_RELEASE_NOTE\x00retained data", id="escaped-null"),
-    pytest.param("é\n" + "x" * 4093, id="inclusive-utf8-byte-limit"),
-])
-def test_KubernetesIgnoredAnnotationTextRetainsOriginalBytesWithoutChangingInventory(context, note):
-    """Legal bounded annotation strings do not acquire selected-field restrictions or facts."""
-
-    payload = KubernetesPayload()
-    pod = KubernetesResource(payload, "Pod", "web-one", "blue")
-    payload["items"] = [KubernetesResource(payload, "Namespace", "blue"), pod]
-    original, _ = ApplyKubernetes(context, payload)
-    pod["metadata"]["annotations"] = {"owned.example/release-note": note}
-    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    record, provenance = AcquireKubernetes(context, raw)
-    proposed, _ = ApplyKubernetes(context, record=record, provenance=provenance)
-    assert [(item.identity, item.attributes) for item in proposed.objects] == [
-        (item.identity, item.attributes) for item in original.objects
-    ], "Unselected annotation contents must not change any normalized resource facts"
-    assert [(item.Reference(), item.attributes) for item in proposed.relations] == [
-        (item.Reference(), item.attributes) for item in original.relations
-    ], "Unselected annotation contents must not change declared inventory relationships"
-    assert context[3].Read(record.reference) == raw, "Original JSON bytes cannot be rewritten"
-    assert "OWNED_RELEASE_NOTE" not in repr(proposed) and CanonicalModelJson(note) not in (
-        CanonicalModelJson(proposed.ToDict())
-    ), (
-        "Ignored original text must remain outside the normalized model"
-    )
-
-
-@pytest.mark.parametrize("path", [
-    pytest.param(("metadata", "name"), id="resource-name"),
-    pytest.param(("metadata", "uid"), id="resource-uid"),
-    pytest.param(("metadata", "labels", "app"), id="selected-label"),
-    pytest.param(("spec", "containers", 0, "name"), id="container-name"),
-    pytest.param(("spec", "containers", 0, "image"), id="container-image"),
-])
-def test_KubernetesSelectedTextStillRefusesControlsAfterIgnoredAnnotationAdmission(context, path):
-    """Admitting raw annotation text never admits controls in selected single-line facts."""
-
-    payload = KubernetesPayload()
-    pod = KubernetesResource(payload, "Pod", "web-one", "blue")
-    pod["metadata"]["annotations"] = {"owned.example/release-note": "Owned note\nsecond line"}
-    SetKubernetesField(pod, path, "OWNED_REJECTED_MARKER\ninvalid")
-
-    with pytest.raises(ValueError) as failure:
-        ApplyKubernetes(context, payload)
-
-    assert "OWNED_REJECTED_MARKER" not in "".join(format_exception(failure.value)), (
-        "Rejected selected source text cannot enter diagnostics"
-    )
-    assert LocalModelStore(context[0]).Open() == context[1], (
-        "Rejected selected text cannot persist any partial inventory"
-    )
-
-
-@pytest.mark.parametrize("note", [
-    pytest.param("line\n" + "x" * 4092, id="ascii-overflow"),
-    pytest.param("é\n" + "x" * 4094, id="utf8-overflow"),
-    pytest.param("line\n\ud800", id="invalid-unicode-scalar"),
-])
-def test_KubernetesIgnoredMultilineTextStillObeysOriginalUtf8AndByteBounds(context, note):
-    """Ignored source strings retain strict Unicode and whole-string byte ceilings."""
-
-    payload = KubernetesPayload()
-    pod = KubernetesResource(payload, "Pod", "web-one", "blue")
-    pod["metadata"]["annotations"] = {"owned.example/release-note": note}
-    raw = json.dumps(payload, ensure_ascii=True).encode("utf-8")
-
-    with pytest.raises(ValueError):
-        ApplyKubernetes(context, raw)
-
-    assert LocalModelStore(context[0]).Open() == context[1], (
-        "Invalid ignored source text must refuse the entire candidate before persistence"
     )
 
 

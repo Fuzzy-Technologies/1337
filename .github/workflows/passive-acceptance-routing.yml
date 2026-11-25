@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PASSIVE_POLICY_COMMIT: "b7bff4e9fa7866c666221ce683562397c503257c"
+  PASSIVE_POLICY_COMMIT: "c4c2ff10d531724a9e701bcbe2aa5a48676690b4"
 
 jobs:
   classify:

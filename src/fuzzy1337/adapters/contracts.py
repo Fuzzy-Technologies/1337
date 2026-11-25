@@ -335,11 +335,7 @@ class AdapterRequest:
 
 @dataclass(frozen=True, slots=True)
 class AdapterInvocation:
-    """Prepared non-secret metadata containing one typed immutable AdapterRequest.
-
-    Only the concrete envelope and request types are accepted; subclass fields are not wire
-    extensions. Construction does not execute a command or coerce a decoded JSON mapping.
-    """
+    """Prepared non-secret command metadata owned by a future executor boundary."""
 
     adapter_id: str
     request: AdapterRequest
@@ -348,16 +344,9 @@ class AdapterInvocation:
     provider_version: str | None = None
 
     def __post_init__(self) -> None:
-        """Require a typed request and bounded explicit argv without invoking a process."""
-
-        if type(self) is not AdapterInvocation:
-            raise ValueError("invocation must be a concrete AdapterInvocation")
+        """Require a bounded explicit argv without invoking a process."""
 
         RequireIdentifier(self.adapter_id, "adapter_id")
-
-        if type(self.request) is not AdapterRequest:
-            raise ValueError("request must be a concrete AdapterRequest")
-
         arguments = tuple(self.argv)
         if not arguments:
             raise ValueError("argv must contain an executable")
@@ -445,41 +434,16 @@ class AdapterExecution:
 
 @dataclass(frozen=True, slots=True)
 class AdapterReport:
-    """Typed executor facts and immutable original references supplied to an adapter parser.
-
-    The envelope, invocation, execution and evidence require concrete SDK contract types;
-    dataclass subclasses cannot append unvalidated wire fields.
-    Ordered evidence iterables are detached without changing reference order or metadata.
-    """
+    """Executor-owned facts and raw-evidence references supplied to an adapter parser."""
 
     invocation: AdapterInvocation
     execution: AdapterExecution
     evidence: tuple[EvidenceReference, ...]
 
     def __post_init__(self) -> None:
-        """Require typed nested facts and freeze unique original evidence ordering."""
+        """Freeze evidence ordering and reject ambiguous duplicate references."""
 
-        if type(self) is not AdapterReport:
-            raise ValueError("report must be a concrete AdapterReport")
-
-        if type(self.invocation) is not AdapterInvocation:
-            raise ValueError("invocation must be a concrete AdapterInvocation")
-
-        if type(self.execution) is not AdapterExecution:
-            raise ValueError("execution must be a concrete AdapterExecution")
-
-        if isinstance(self.evidence, (str, bytes, bytearray, Mapping)):
-            raise ValueError("evidence must contain typed EvidenceReference records")
-
-        try:
-            evidence = tuple(self.evidence)
-
-        except TypeError:
-            raise ValueError("evidence must contain typed EvidenceReference records") from None
-
-        if any(type(item) is not EvidenceReference for item in evidence):
-            raise ValueError("evidence must contain concrete EvidenceReference records")
-
+        evidence = tuple(self.evidence)
         locatorRoles = tuple((item.locator, item.role) for item in evidence)
         if len(set(locatorRoles)) != len(locatorRoles):
             raise ValueError("evidence references must be unique by locator and role")
@@ -556,12 +520,7 @@ class RelationEnrichment:
 
 @dataclass(frozen=True, slots=True)
 class AdapterResult:
-    """Typed normalized adapter output that remains separate from persistence and policy.
-
-    The envelope, report and each output member require concrete SDK contract types;
-    subclass fields are not wire extensions. Ordered output iterables are detached;
-    decoded mappings are not silently accepted as nested record instances.
-    """
+    """Normalized adapter output that remains separate from persistence and policy."""
 
     report: AdapterReport
     observations: tuple[NormalizedObservation, ...] = ()
@@ -570,33 +529,12 @@ class AdapterResult:
     relation_enrichments: tuple[RelationEnrichment, ...] = ()
 
     def __post_init__(self) -> None:
-        """Require typed report/output envelopes before detaching ordered caller collections."""
+        """Freeze result collections so downstream consumers receive stable evidence."""
 
-        if type(self) is not AdapterResult:
-            raise ValueError("result must be a concrete AdapterResult")
-
-        if type(self.report) is not AdapterReport:
-            raise ValueError("report must be a concrete AdapterReport")
-
-        for name, expected in (
-            ("observations", NormalizedObservation), ("findings", NormalizedFinding),
-            ("object_enrichments", ObjectEnrichment), ("relation_enrichments", RelationEnrichment),
-        ):
-            source = getattr(self, name)
-
-            if isinstance(source, (str, bytes, bytearray, Mapping)):
-                raise ValueError(f"{name} must contain typed {expected.__name__} records")
-
-            try:
-                values = tuple(source)
-
-            except TypeError:
-                raise ValueError(f"{name} must contain typed {expected.__name__} records") from None
-
-            if any(type(item) is not expected for item in values):
-                raise ValueError(f"{name} must contain concrete {expected.__name__} records")
-
-            object.__setattr__(self, name, values)
+        object.__setattr__(self, "observations", tuple(self.observations))
+        object.__setattr__(self, "findings", tuple(self.findings))
+        object.__setattr__(self, "object_enrichments", tuple(self.object_enrichments))
+        object.__setattr__(self, "relation_enrichments", tuple(self.relation_enrichments))
 
 
 @runtime_checkable

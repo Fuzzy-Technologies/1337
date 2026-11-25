@@ -24,11 +24,6 @@ outside normalized metadata. Unsupported item kinds, including Secret, are
 refused before resource normalization. Original evidence remains exact and is
 not redacted; callers must supply non-sensitive owned exports.
 
-The bounded original JSON scan permits escaped multiline annotation text without
-copying it into inventory. UTF-8 and per-string byte limits still apply to ignored
-strings; selected facts retain their existing single-line validation. Original
-bytes are preserved without normalization through import and portable replay.
-
 Direct OPEN advisory findings describe configured conditions and preserve operator
 triage on refresh. Effective permissions, ClusterRole aggregation, CNI enforcement
 and image digest domains remain unknown. Relations grant no authorization or

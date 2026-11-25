@@ -91,23 +91,21 @@ class KubernetesInventoryLimits:
             Integer(getattr(self, name), maximum)
 
 
-def Text(value: object, maximum: int = 4096, *, empty: bool = False,
-         singleLine: bool = True) -> str:
-    """Bound original UTF-8 text and retain single-line restrictions for selected facts.
+def Text(value: object, maximum: int = 4096, *, empty: bool = False) -> str:
+    """Validate selected UTF-8 text without including rejected source values in errors.
 
     Args:
-        value: Source string; ignored content is validated but never projected or evaluated.
+        value: Selected scalar source text, never environment or credential fields.
         maximum: Inclusive UTF-8 byte ceiling.
         empty: Whether an explicit empty string is meaningful in this field.
-        singleLine: Require control-free selected text; False only for the raw JSON tree scan.
 
     Returns:
-        Original bounded text without normalization or value-derived diagnostics.
+        Original single-line text.
     """
 
-    if type(value) is not str or (not value and not empty) or (singleLine and any(
+    if type(value) is not str or (not value and not empty) or any(
         ord(character) < 32 for character in value
-    )):
+    ):
         raise ValueError("Kubernetes inventory selected text must be bounded single-line text")
 
     try:
@@ -294,7 +292,7 @@ def Decode(raw: bytes, limits: KubernetesInventoryLimits) -> list[dict[str, obje
             pending.extend((entry, depth + 1) for entry in item)
 
         elif type(item) is str:
-            Text(item, empty=True, singleLine=False)
+            Text(item, empty=True)
 
     document = Fields(value)
 

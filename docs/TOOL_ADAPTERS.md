@@ -62,25 +62,6 @@ Adapters may place provider-specific fields in immutable JSON-like attributes on
 observations, findings, and enrichments. Those attributes are adapter-bound
 metadata, not new Security Object Model types.
 
-Nested records use the SDK classes explicitly: `AdapterInvocation.request` requires
-`AdapterRequest`; `AdapterReport` requires `AdapterInvocation`, `AdapterExecution`
-and `EvidenceReference` members. `AdapterResult` requires an `AdapterReport` plus
-the corresponding `NormalizedObservation`, `NormalizedFinding`, `ObjectEnrichment`
-and `RelationEnrichment` members. These are exact concrete SDK types, including the
-invocation/report/result envelopes themselves: subclasses can append mutable
-dataclass fields and are refused with `ValueError`, even when frozen. DTO inheritance
-is not a version-one wire extension point; retain provider-specific data in the
-documented immutable attributes and implement providers through `ToolAdapter`.
-Untyped mappings, duck records and null children also raise `ValueError` at construction.
-
-Tuple, list and ordered iterator collections remain supported for evidence and
-normalized output. Construction detaches those collections; each typed member's
-JSON attributes are already frozen by its owner. Mutating the caller's original
-collections cannot change an existing result's serialized meaning. A decoded JSON
-object is an interchange representation, not an implicit SDK record constructor.
-This adds no JSON loader or source-authenticity claim, and typed records still need
-the existing evidence and canonical-owner checks before application.
-
 ## Security invariants
 
 - A declared capability is not execution authorization.
@@ -102,8 +83,3 @@ The SDK is an Experimental public surface. It may evolve while concrete adapters
 validate its shape, but any change is documented under the repository
 compatibility policy. Downstream adapters should import only names exported from
 `fuzzy1337.adapters` and declare the contract version they support.
-
-Nested-type validation preserves valid Python calls, declaration order and the
-version-one serialized field names/values. It corrects admission of malformed
-Python envelopes without introducing a new wire version, REST endpoint, connector
-or provider execution path.

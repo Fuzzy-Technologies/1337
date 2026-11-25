@@ -177,18 +177,6 @@ grant, launch path or authenticated historical worker identity.
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
-Its nested invocation/report/result records require typed SDK members before
-construction succeeds. Valid tuple, list and ordered iterator collections retain
-their original serialized version-one shape and ordering. Mutable mappings and
-duck records cannot stand in for nested request, report, execution, evidence or
-normalized-output contracts. The invocation/report/result envelopes and nested
-members require exact concrete SDK classes; subclasses, including frozen dataclasses,
-now raise `ValueError` because additional fields could change serialized meaning.
-DTO subclassing is not a supported version-one extension point. Provider extensions
-use immutable attributes and the `ToolAdapter` protocol. Ordinary concrete SDK calls
-keep their fields and values; the SDK does not deserialize arbitrary JSON into
-records or grant source trust.
-
 `fuzzy1337.lenses` is an Experimental Python library at contract version `1`.
 ADR 0029 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.

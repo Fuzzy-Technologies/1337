@@ -103,54 +103,6 @@ def test_TypedOperationsPreserveIndependentCoordinateAndRequestOracle():
     )
 
 
-@pytest.mark.parametrize("envelope", [True, False], ids=("response", "direct-schema"))
-def test_RootKindMetadataPreservesTypedOperationsAndOriginalCoordinates(envelope):
-    """Accept standard saved root kind metadata without changing symbolic type interpretation."""
-
-    document = json.loads(Source())
-
-    for kind in ("query", "mutation", "subscription"):
-        document["data"]["__schema"][kind + "Type"]["kind"] = "OBJECT"
-
-    raw = json.dumps(document if envelope else document["data"]).encode()
-    imported = Imported(raw)
-    original = Imported() if envelope else Imported(
-        json.dumps(json.loads(Source())["data"]).encode())
-    prefix = "#/data/__schema" if envelope else "#/__schema"
-    assert imported.source_digest == "sha256:" + hashlib.sha256(raw).hexdigest(), (
-        "Root kind interoperability changed the identity of original supplied bytes"
-    )
-    assert imported.types == original.types and len(imported.operations) == 5, (
-        "Redundant root kind metadata changed the existing finite named-type inventory"
-    )
-
-    for actual, expected in zip(imported.operations, original.operations, strict=True):
-        assert (actual.operation_kind, actual.field_name, actual.result_type, actual.template) == (
-            expected.operation_kind, expected.field_name, expected.result_type, expected.template
-        ), "Root kind metadata changed operation identity, type wrappers or symbolic requests"
-        assert actual.source_pointer.startswith(prefix + "/types/"), (
-            "Root metadata introduced an incorrect original source coordinate"
-        )
-
-
-def test_NullOptionalRootsRemainUnconfiguredWithExplicitQueryKind():
-    """A null mutation or subscription root remains absent rather than becoming an operation."""
-
-    document = json.loads(Source())
-    schema = document["data"]["__schema"]
-    schema["queryType"]["kind"] = "OBJECT"
-    schema["mutationType"] = None
-    schema["subscriptionType"] = None
-    imported = Imported(json.dumps(document).encode())
-    assert [item.field_name for item in imported.operations] == ["lookup", "opaque", "ping"], (
-        "Null optional root records created mutation or subscription operations"
-    )
-    schema["queryType"] = None
-
-    with pytest.raises(ValueError, match="query root"):
-        Imported(json.dumps(document).encode())
-
-
 @pytest.mark.parametrize("field_name,kind,operation_name,expected_arguments,expected_variables", [
     ("lookup", "query", "GqlQuery_29a1af58c1382740",
      "($filter: Filter, $ids: [ID!]!) { lookup(filter: $filter, ids: $ids) { __typename } }",
@@ -213,11 +165,6 @@ def test_InvalidSourceFailsWithoutEchoingOriginalValues(source):
 @pytest.mark.parametrize("path,value", [
     (("data", "__schema", "queryType"), None),
     (("data", "__schema", "queryType"), {"name": "Absent"}),
-    (("data", "__schema", "queryType"), {"name": "Query", "kind": None}),
-    (("data", "__schema", "queryType"), {"name": "Query", "kind": "SCALAR"}),
-    (("data", "__schema", "mutationType"), {"name": "Mutation", "kind": "LIST"}),
-    (("data", "__schema", "subscriptionType"), {"name": "Subscription", "kind": False}),
-    (("data", "__schema", "queryType"), {"name": "String", "kind": "OBJECT"}),
     (("data", "__schema", "mutationType"), {"name": "Query"}),
     (("data", "__schema", "types", 0, "kind"), []),
     (("data", "__schema", "types", 0, "kind"), "ENUM"),

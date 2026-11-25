@@ -26,15 +26,6 @@ coordinate. A List with a nonempty continuation token or remaining items is
 refused. JSON duplicate keys, non-finite numbers and malformed selected fields
 fail closed. Unsupported item kinds fail before resource normalization.
 
-The complete JSON tree retains its UTF-8, depth, node and 4,096-byte-per-string
-bounds. Ignored strings can contain JSON-escaped line breaks, tabs and other
-valid string characters: for example, a multiline release-note annotation does
-not invalidate an otherwise supported saved export. These values remain only in
-the original evidence and are never normalized, evaluated or printed. Selected
-names, image declarations, labels and other inventory facts still require their
-existing single-line field grammar. Malformed JSON, invalid Unicode scalar values
-and strings above the byte ceiling continue to refuse the complete import.
-
 | API version                    | Supported resource kinds                           |
 | ------------------------------ | -------------------------------------------------- |
 | `v1`                           | Namespace, Pod, Service, ServiceAccount            |
