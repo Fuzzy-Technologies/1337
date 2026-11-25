@@ -146,12 +146,20 @@ Automatic live refresh, broader source providers, and live official-feed
 acceptance remain separate scope.
 
 The [local CLI and shell](INTELLIGENCE_CLI.md) now provide explicit
-`intel import|inspect|apply`. Optional `inspect --identifier` exposes selected
+`intel import|inspect|preview|apply`. Optional `inspect --identifier` exposes selected
 verified source assertions and the independent CVE 5.2 applicability/CVSS 2
 profiles. Source declarations remain distinct from target applicability and
 calculated scores remain separate from source assessments. See
 [ADR 0123](adr/0123-selected-intelligence-inspection.md) for the finite source
 matrix and selected output contract.
+
+`preview` verifies the same explicitly selected local source, saved finding,
+identifiers, revision and freshness inputs as `apply` and returns the proposed
+candidate observation without saving it. Its saved model revision remains
+separate from the proposed revision, and failed verification or interruption
+emits no candidate preview. See
+[ADR 0149](adr/0149-read-only-finding-intelligence-preview.md) for this read-only
+contract over the existing original local snapshot family.
 
 A [selected official KEV catalog acceptance](INTELLIGENCE_SOURCE_ACCEPTANCE.md)
 records the exact source revision, byte digest, actual offline product import

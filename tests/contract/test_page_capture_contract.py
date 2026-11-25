@@ -28,8 +28,10 @@ from fuzzy1337.adapters.page_capture import (
 )
 from fuzzy1337.jobs import JobProvider
 from fuzzy1337.page_capture import LocalPageCaptureProvider, PageCaptureLimits
-from fuzzy1337.page_capture_worker import ParseHeaders
+from fuzzy1337.page_capture_worker import PageProtocolError, ParseHeaders
 from tests.contract.page_capture_fixture import Body, Oracle, Wire
+
+MINIMUM_HEADER_URL = "http://127.0.0.1:32123/docs/index"
 
 
 def Schema() -> dict:
@@ -141,38 +143,86 @@ def test_PublicShapesMatchOnlyTheAcceptedExperimentalConsumer():
     )
 
 
-@pytest.mark.parametrize("charset", [False, True])
-@pytest.mark.parametrize("count", range(2, 65))
-def test_EveryExactMinimumHeaderSizeHasAValidIndependentWireAndParentRecord(charset, count):
-    """Hand-derived minimum feasibility bounds admit all 126 distinct header-count profiles."""
+def MinimumHeaderWire(charset: bool, count: int) -> bytes:
+    """Build independent shortest fields, crossing from one-byte to two-byte names at count 54."""
 
     # One-byte names are case-insensitively distinct across the token alphabet.
     names = "abcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~"
     extras = [names[index].encode() if index < len(names) else f"X{index - len(names):x}".encode()
               for index in range(count - 2)]
-    raw = (b"HTTP/1.1 200 \r\nContent-Length:541\r\nContent-Type:text/html" +
-           (b";charset=utf-8" if charset else b"") + b"\r\n" +
-           b"".join(name + b":\r\n" for name in extras) + b"\r\n")
+
+    return (b"HTTP/1.1 200 \r\nContent-Length:541\r\nContent-Type:text/html" +
+            (b";charset=utf-8" if charset else b"") + b"\r\n" +
+            b"".join(name + b":\r\n" for name in extras) + b"\r\n")
+
+
+def MinimumHeaderRecord(charset: bool, count: int) -> dict:
+    """Use the actual pure header parser to populate one independently authored parent record."""
+
+    raw = MinimumHeaderWire(charset, count)
     metadata = ParseHeaders(raw, 541, 541)
-    url = "http://127.0.0.1:32123/docs/index"
-    record = {"schema_version": 1, "fixture_id": FIXTURE_ID, "url": url,
+
+    return {"schema_version": 1, "fixture_id": FIXTURE_ID, "url": MINIMUM_HEADER_URL,
         "address": "127.0.0.1", "port": 32123, "scheme": "http", **metadata,
         "body_sha256": FIXTURE_SHA256, "body_base64": base64.b64encode(Body()).decode()}
+
+
+@pytest.mark.parametrize("charset", [False, True], ids=["no-charset", "utf8"])
+@pytest.mark.parametrize("count", [
+    pytest.param(2, id="minimum"), pytest.param(3, id="first-extra"),
+    pytest.param(52, id="before-name-width"), pytest.param(53, id="last-one-byte-name"),
+    pytest.param(54, id="first-two-byte-name"), pytest.param(63, id="before-maximum"),
+    pytest.param(64, id="maximum"),
+])
+def test_MinimumHeaderSizeClassesRetainExactWireAndParentFeasibility(charset, count):
+    """Keep both charset classes, endpoints and token-width neighbors without interior repeats."""
+
+    # Interior counts vary only the linear byte total; 53/54 is the sole name-width hinge.
+    # Count 64 still includes every permitted one-byte token character used by the old matrix.
+    raw = MinimumHeaderWire(charset, count)
+    record = MinimumHeaderRecord(charset, count)
     jsonschema.validate(record, Schema())
     assert (
-        ParseRecord(CanonicalRecord(record), url,
+        ParseRecord(CanonicalRecord(record), MINIMUM_HEADER_URL,
                            KnownSyntheticHtmlBody(FIXTURE_ID), 541) == record
     ), (
-        'Expected invariant: ParseRecord(CanonicalRecord(record), url, '
-        'KnownSyntheticHtmlBody(FIXTURE_ID), 541) == record'
+        "The independent shortest wire must produce the exact admitted canonical parent record"
     )
     assert (
-        metadata["header_count"] == count
+        record["header_count"] == count
     ), (
-        'Expected invariant: metadata["header_count"] == count'
+        "Measured field count must preserve this explicit feasibility boundary"
     )
     minimum = 61 + (14 if charset else 0) + 4 * (count - 2) + max(0, count - 53)
     assert len(raw) == minimum, "Independent field names do not meet exact minimum header length"
+
+    with pytest.raises(PageCaptureRecordError, match="closed safe grammar"):
+        ParseRecord(CanonicalRecord(dict(record, header_size_bytes=minimum - 1)),
+                    MINIMUM_HEADER_URL, KnownSyntheticHtmlBody(FIXTURE_ID), 541)
+
+
+@pytest.mark.parametrize("charset", [False, True], ids=["no-charset", "utf8"])
+@pytest.mark.parametrize("count", [pytest.param(1, id="below-minimum"),
+                                  pytest.param(65, id="above-maximum")])
+def test_HeaderCountNeighborsRefuseInWorkerSchemaAndParent(charset, count):
+    """One missing required field or the first excessive field cannot enter a successful record."""
+
+    record = dict(MinimumHeaderRecord(charset, 2), header_count=count,
+                  header_size_bytes=len(MinimumHeaderWire(charset, max(2, count))))
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(record, Schema())
+
+    with pytest.raises(PageCaptureRecordError, match="closed safe grammar"):
+        ParseRecord(CanonicalRecord(record), MINIMUM_HEADER_URL,
+                    KnownSyntheticHtmlBody(FIXTURE_ID), 541)
+
+    raw = MinimumHeaderWire(charset, count) if count == 65 else (
+        b"HTTP/1.1 200 \r\nContent-Length:541\r\n\r\n")
+    reason = "excessive field count" if count == 65 else "bounded header lines"
+
+    with pytest.raises(PageProtocolError, match=reason):
+        ParseHeaders(raw, 541, 541)
 
 
 @pytest.mark.parametrize("error", ERROR_EXITS)

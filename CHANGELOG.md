@@ -8,6 +8,20 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 42 — v0.4.42 — 2026-11-25
+
+#### Digest
+
+- Reduce repeated passive page-header contract validation while preserving its boundaries.
+
+#### Changed
+
+- Replace interior header-count repetitions with explicit minimum, maximum and
+  token-width transition neighbors for both charset classes. Check each exact
+  admitted minimum and its one-byte-below refusal, plus independent worker,
+  schema and parent rejection immediately outside the supported count range.
+
+
 ### Patch 41 — v0.4.41 — 2026-11-25
 
 #### Digest

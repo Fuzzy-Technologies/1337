@@ -3,7 +3,7 @@
 `intel epss import|inspect` is a separate Experimental local profile. It keeps
 one original gzip corpus in the owning workspace, validates every CSV row and
 retains assertions only for explicit selected CVEs. Missing IDs remain unmatched.
-It does not change the legacy `intel import|inspect|apply` snapshot family.
+It does not change the legacy `intel import|inspect|preview|apply` snapshot family.
 
 The separate [pinned HTTPS profile](INTELLIGENCE_EPSS_HTTPS.md) exposes
 `intel epss https fetch|inspect` with its own original remote custody. The local

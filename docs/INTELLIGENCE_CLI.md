@@ -49,9 +49,9 @@ the selected successful local receipt. It writes no state. Moving the whole
 workspace preserves these identities; copying its artifacts to a different
 workspace does not transfer ownership. Failed imports report their terminal
 state and retained record identifiers; they do not provide a successfully
-verified selection for `inspect` or `apply`.
+verified selection for `inspect`, `preview` or `apply`.
 
-Both `inspect` and `apply` first select and read the snapshot and receipt through
+`inspect`, `preview` and `apply` first select and read the snapshot and receipt through
 the existing byte-bounded store. Before explicitly retrieving the original raw
 record with `Get` or invoking the SDK's original-source reparse, selection checks
 the receipt's integer byte ceiling (1 through 16 MiB), finite receiver timeout
