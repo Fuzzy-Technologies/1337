@@ -193,12 +193,12 @@ def CheckLiteralOracle(payload: bytes, format_name: str, model: ModelState,
             assert "<script>run()</script>" in "".join(parser.text) and (
                 b"\\u0001" in payload and b"\\u202e" in payload and b"\x01" not in payload
             ), "HTML displays hostile text and controls inertly rather than changing model data"
-            expected_findings = {
+            expected = {
                 f"finding-{entity.Reference()[7:]}"
                 for entity in model.Objects(ObjectKind.FINDING)
             }
             assert len(parser.finding_ids) == count and (
-                set(parser.finding_ids) == expected_findings
+                set(parser.finding_ids) == expected
             ), (
                 "HTML retains exactly the saved independent operator disposition cards"
             )
