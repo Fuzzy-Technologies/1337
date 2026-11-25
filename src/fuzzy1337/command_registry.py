@@ -294,9 +294,9 @@ COMMAND_REGISTRY = CommandRegistry(
         CommandDescriptor(
             identifier="trace",
             summary=(
-                "Import explicit local IOC candidates or inspect independently anchored artifacts."
+                "Import local IOC candidates or saved syslog and inspect pinned originals."
             ),
-            usage="1337 trace ioc <import|inspect|export-bundle|verify-bundle> ...",
+            usage="1337 trace <ioc|syslog> ...",
             capabilities=("trace.local-ioc-candidates",),
         ),
     )
