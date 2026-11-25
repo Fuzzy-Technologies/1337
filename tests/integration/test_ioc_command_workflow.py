@@ -192,7 +192,10 @@ def test_OriginalChainCorruptionFailsReadOnlyInspection(tmp_path, record_key):
     )
     output = StringIO()
     assert commands.RunIocCommands(InspectArguments(root, result), output) == 4
-    assert output.getvalue() == "IOC artifact failed (exit 4).\n"
+    assert output.getvalue() == (
+        "IOC artifact failed (exit 4).\n"
+        "Failure category: integrity.\n"
+    )
 
 
 @pytest.mark.parametrize("phase", ["raw", "receipt", "snapshot"])

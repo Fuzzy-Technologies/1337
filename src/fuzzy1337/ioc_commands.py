@@ -390,6 +390,9 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
                              f"Source SHA-256 {outcome['source_sha256']} "
                              f"({outcome['received_bytes']} bytes).\n")
 
+        else:
+            output.write(f"Failure category: {outcome['failure']}.\n")
+
     output.flush()
 
     return status

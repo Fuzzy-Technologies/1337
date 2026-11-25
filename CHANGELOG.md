@@ -18,6 +18,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Show the verified original evidence manifest ID, source SHA-256 and byte length
   in the default `1337 trace ioc inspect` summary.
+- Show the fixed failure category in the default IOC summary without echoing
+  rejected values or physical paths.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04

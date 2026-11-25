@@ -124,6 +124,10 @@ in the retained TSV identified by `raw_evidence_id`.
 
 ## Outcomes
 
+Without `--json`, a refusal includes the same fixed failure category as the
+machine result. Categories distinguish invalid configuration from retained
+evidence integrity failures without echoing rejected values or physical paths.
+
 | Exit | Meaning                                                           |
 | ---- | ----------------------------------------------------------------- |
 | 0    | Acquisition or independently anchored replay verified             |
