@@ -9,6 +9,7 @@ from collections import Counter
 from importlib import resources
 from pathlib import Path
 from xml.etree import ElementTree
+from zipfile import ZipFile
 
 ROOT = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
 TEMP = Path(os.environ["RUNNER_TEMP"]).resolve()
@@ -62,7 +63,17 @@ def Run():
             "test_ConsoleReopensExactOwnerDeclarationAfterRelocationWithoutWriting",
             "test_InstalledModuleProvidesExplicitSemverProfileWithoutChangingDefault"} <= names
     console = str(Path(sys.executable).with_name("1337"))
-    example = resources.files("fuzzy1337").joinpath("contracts", "extension-manifest.example.json")
+    # These are the two documented resources in the wheel and sdist.
+    members = ("extension-manifest.schema.json", "examples/extension-manifest.example.json")
+    wheel_file, = (TEMP / "proof-dist").glob("*.whl")
+    resource_hashes = {}
+    with ZipFile(wheel_file) as bundled:
+        for member in members:
+            installed = resources.files("fuzzy1337").joinpath("contracts", *member.split("/")).read_bytes()
+            assert installed == bundled.read("fuzzy1337/contracts/" + member)
+            assert installed == (ROOT / "contracts" / member).read_bytes()
+            resource_hashes[member] = hashlib.sha256(installed).hexdigest()
+    example = resources.files("fuzzy1337").joinpath("contracts", "examples", "extension-manifest.example.json")
     doc = json.loads(example.read_bytes())
     doc["extension"]["version"] = "1.2.3-" + "7"*5000 + "+" + "0"*5000
     payload = json.dumps(doc).encode()
@@ -82,7 +93,7 @@ def Run():
                 assert result["failure"] == "input-limit", result.get("failure")
             results.append([size, proc.returncode])
     receipt = {"source": os.environ["APPROVED_SOURCE_SHA"], "tree": os.environ["PRODUCT_TREE"],
-               "count": len(cases), "by_module": dict(counts), "semver_envelope": results,
+               "count": len(cases), "by_module": dict(counts), "semver_envelope": results, "packaged_resources": resource_hashes,
                "junit_sha256": hashlib.sha256(out.read_bytes()).hexdigest(),
                "wheel": json.loads((TEMP / "hosted-proof-wheel.json").read_bytes())}
     print("OFFLINE_MILESTONES_RESULT", json.dumps(receipt, sort_keys=True))
