@@ -59,7 +59,8 @@ a {color:var(--pink);overflow-wrap:anywhere} .brand {color:var(--green)}
 border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0}
 .card {flex:1;min-width:160px} .count {font-size:2rem;color:var(--green)}
 .finding {background:var(--panel);border:1px solid var(--border);border-left:4px solid
-var(--pink);border-radius:8px;padding:1.2rem;margin:1rem 0}.finding > h4 {margin-top:0;color:var(--cyan)}
+var(--pink);border-radius:8px;padding:1.2rem;margin:1rem 0}.finding > h4 {margin-top:0;""" \
+    """color:var(--cyan)}
 .finding h5,.finding h6 {font-size:1em}
 .badge {display:inline-block;padding:.1rem .5rem;border:1px solid var(--border);
 border-radius:4px;font-size:.85rem}.notice {border-left:3px solid var(--cyan);padding-left:1rem}
@@ -429,7 +430,9 @@ def _FindingSeverityIndex(
         lines.append(f'<details name="findings-severity-pages"{opened}>'
                      f'<summary id="{pageHeadingId}">{label}</summary>')
         # Target the table region so fragment navigation reveals the closed disclosure.
-        lines.append(_FindingIndexTable(rows, page, pageHeadingId, regionId=fragment) + "</details>")
+        lines.append(
+            _FindingIndexTable(rows, page, pageHeadingId, regionId=fragment) + "</details>",
+        )
 
     lines.append("</details>")
 
@@ -1017,8 +1020,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                 FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
                 FindingStatus.DISMISSED: "An operator dismissed this interpretation; "
                                          "history is retained.",
-                FindingStatus.RESOLVED: "Marked resolved by an operator; successful retesting is not "
-                                        "established by this disposition alone.",
+                FindingStatus.RESOLVED: "Marked resolved by an operator; "
+                                        "successful retesting is not established by this "
+                                        "disposition alone.",
             }[finding.status]
             lines.extend([
                 f'<article class="finding" id="{_FindingId(reference)}" tabindex="-1" '
@@ -1026,7 +1030,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                 + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
                 + f'<span class="badge">{Html(finding.status.value)}</span>'
                 + f"<h4>{Html(finding.summary)}</h4>",
-                "<p>Subject: " + ObjectLink(finding.subject_reference, ObjectLabel(subject)) + "</p>",
+                "<p>Subject: "
+                + ObjectLink(finding.subject_reference, ObjectLabel(subject)) + "</p>",
                 f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
                 "<p>Disposition: " + statusExplanation + " Reason: "
                 + Html(finding.status_reason or "No reason recorded") + "</p>",
