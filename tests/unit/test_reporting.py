@@ -21,6 +21,8 @@ from fuzzy1337.model import (
     ObjectIdentity,
     ObjectKind,
     Observation,
+    Relation,
+    RelationKind,
     SecurityObject,
 )
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
@@ -732,7 +734,7 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         table = ElementTree.fromstring(tableHtml.split("</table>", 1)[0] + "</table>")
         columnHeaders = table.findall("thead/tr/*")
         assert [(cell.tag, cell.get("scope"), cell.text) for cell in columnHeaders] == [
-            ("th", "col", column) for column in ("Saved identity", *columns, "Details")
+            ("th", "col", column) for column in ("Saved identity", *columns, "Findings", "Details")
         ]
         entity, = state.Objects(kind)
         row, = table.findall("tbody/tr")
@@ -741,8 +743,68 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         assert (identity.tag, identity.get("scope"), identity.text) == (
             "th", "row", entity.identity.key,
         )
-        assert [cell.tag for cell in cells] == ["td"] * (len(values) + 1)
-        assert [cell.text for cell in cells[:-1]] == list(values)
+        assert [cell.tag for cell in cells] == ["td"] * (len(values) + 2)
+        assert [cell.text for cell in cells[:-2]] == list(values)
+
+
+def test_HtmlAssetFindingsUseExactSavedSubjects():
+    """Findings link to the exact saved subject even across shared labels and relations."""
+
+    summary = "Saved interpretation <script>inert</script>"
+    report = Fixture(summary=summary)
+    host, = report.state.Objects(ObjectKind.HOST)
+    asset, = report.state.Objects(ObjectKind.ASSET)
+    address = "https://inventory.invalid/"
+    endpoint = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ENDPOINT, address), {}, host.provenance,
+    )
+    service = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.SERVICE, address), {}, host.provenance,
+    )
+    relation = Relation(
+        RelationKind.RELATED_TO, service.Reference(), endpoint.Reference(),
+        provenance=host.provenance,
+    )
+    state, _ = report.state.Apply(objects=(endpoint, service), relations=(relation,))
+    state, _ = ApplyFindings(state, tuple(
+        Finding(subject.Reference(), "synthetic.test-check", "tcp/443", summary, host.provenance)
+        for subject in (endpoint, asset)
+    ))
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    inventoryHtml = rendered.split('<section id="model">', 1)[1].split("</section>", 1)[0]
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    inventory = ElementTree.fromstring(f"<section>{inventoryHtml}</section>")
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    cards = {f"#{card.get('id')}": card for card in findings.findall("article")}
+    entities = state.Objects(ObjectKind.FINDING)
+
+    assert len(cards) == len(entities)
+    assert inventory.find(".//script") is None
+
+    for subject in (host, endpoint, asset):
+        reference = subject.Reference()
+        objectId = f"object-{reference[7:]}"
+        expected = [
+            (
+                f"#finding-{entity.Reference()[7:]}",
+                f"{summary} · {entity.attributes['status']} · {entity.attributes['location_key']}",
+            )
+            for entity in entities if entity.attributes["subject_reference"] == reference
+        ]
+        links = inventory.findall(f'.//tr[@id="{objectId}"]/td/ul/li/a')
+        links += inventory.findall(f'.//details[@id="{objectId}"]/../ul/li/a')
+        assert [(link.get("href"), link.text) for link in links] == expected
+
+        for fragment, _ in expected:
+            card = cards[fragment]
+            assert card.get("tabindex") == "-1"
+            assert card.findtext("h4") == summary
+            assert card.find("p/a").get("href") == f"#{objectId}"
+
+    serviceRow = inventory.find(f'.//tr[@id="object-{service.Reference()[7:]}"]')
+    assert serviceRow is not None
+    assert serviceRow.findall("td")[-2].text == "None retained"
+    assert serviceRow.findall(".//a") == []
 
 
 def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):

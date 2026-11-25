@@ -80,6 +80,10 @@ record order and source attribution.
 Each table uses its visible heading as its accessible name. The scroll region
 shares that name and supports keyboard focus.
 
+Follow a link in the inventory's Findings column to open the corresponding
+finding card. Other retained objects show links when a finding names them as its
+subject. Links use the exact saved subject reference and cover all dispositions.
+
 Use the Findings disposition links to jump to open, confirmed, dismissed or
 resolved findings. Each populated group shows its count and keeps its findings
 in canonical order. All finding cards remain visible when printing the report.

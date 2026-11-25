@@ -257,6 +257,25 @@ def _TableStart(headingId: str) -> str:
             f'<table aria-labelledby="{headingId}"><thead><tr>')
 
 
+def _FindingId(reference: str) -> str:
+    """Address the readable card for a canonical finding reference."""
+
+    return f"finding-{reference[7:]}"
+
+
+def _FindingLinks(rows: list[_RetainedFindingRow]) -> str:
+    """List readable links to the finding cards that name the asset as their saved subject."""
+
+    links = []
+
+    for row in rows:
+        finding = row.finding
+        label = Html(f"{finding.summary} · {finding.status.value} · {finding.location_key}")
+        links.append(f'<li><a href="#{_FindingId(row.reference)}">{label}</a></li>')
+
+    return "<ul>" + "".join(links) + "</ul>"
+
+
 def ObjectTables(rows: _RetainedReportRows) -> str:
     """Present retained objects as readable inventory without claiming discovery or reachability.
 
@@ -267,6 +286,11 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         An offline HTML inventory section with readable tables, canonical anchors and
         disclosed object metadata; no objects, relationships or reachability are inferred.
     """
+
+    findingsBySubject: dict[str, list[_RetainedFindingRow]] = {}
+
+    for row in rows.findings:
+        findingsBySubject.setdefault(row.finding.subject_reference, []).append(row)
 
     lines = [
         '<section id="model"><h2>Retained assets and addresses</h2>',
@@ -294,12 +318,15 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
         lines.append(_TableStart(headingId) + '<th scope="col">Saved identity</th>')
         lines.extend(f'<th scope="col">{Html(label)}</th>' for label, _ in fields)
-        lines.append('<th scope="col">Details</th></tr></thead><tbody>')
+        lines.append('<th scope="col">Findings</th>'
+                     '<th scope="col">Details</th></tr></thead><tbody>')
 
         for reference, entity in entities:
             lines.append(f'<tr id="object-{reference[7:]}">'
                          f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
+            findings = findingsBySubject.get(reference)
+            lines.append(f"<td>{_FindingLinks(findings) if findings else 'None retained'}</td>")
             lines.append("<td><details><summary>Technical object</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details></td></tr>")
 
@@ -313,9 +340,11 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         lines.append("<h3>Other retained objects</h3>")
 
         for reference, entity in others:
-            lines.append(f'<details id="object-{reference[7:]}"><summary>'
+            findings = findingsBySubject.get(reference)
+            navigation = "<p>Findings</p>" + _FindingLinks(findings) if findings else ""
+            lines.append(f'<div><details id="object-{reference[7:]}"><summary>'
                          + Html(ObjectLabel(entity)) + "</summary>"
-                         + JsonBlock(JsonValue(entity)) + "</details>")
+                         + JsonBlock(JsonValue(entity)) + "</details>" + navigation + "</div>")
 
     lines.append("</section>")
 
@@ -702,7 +731,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                                         "established by this disposition alone.",
             }[finding.status]
             lines.extend([
-                f'<article class="finding" id="finding-{reference[7:]}">'
+                f'<article class="finding" id="{_FindingId(reference)}" tabindex="-1">'
                 + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
                 + f'<span class="badge">{Html(finding.status.value)}</span>'
                 + f"<h4>{Html(finding.summary)}</h4>",
