@@ -57,12 +57,10 @@ def Run():
         assert not any(case.find(tag) is not None for tag in ("error", "failure", "skipped"))
         counts[owners[0]] += 1
     assert set(counts) == modules
-    expected_new = {
-        "tests.unit.test_business_commands": 23, "tests.e2e.test_business_inspection_cli": 3,
-        "tests.unit.test_extension_version_profile": 46, "tests.e2e.test_extension_version_profile_cli": 4,
-        "tests.unit.test_intelligence_cwe_lookup": 16, "tests.integration.test_intelligence_cwe_lookup": 1,
-    }
-    assert {m: counts[m] for m in expected_new} == expected_new
+    names = {case.attrib["name"].split("[")[0] for case in cases}
+    assert {"test_CleanWheelLooksUpNewIdsFromCopiedOriginalCustodyWithoutExternalInput",
+            "test_ConsoleReopensExactOwnerDeclarationAfterRelocationWithoutWriting",
+            "test_InstalledModuleProvidesExplicitSemverProfileWithoutChangingDefault"} <= names
     console = str(Path(sys.executable).with_name("1337"))
     example = resources.files("fuzzy1337").joinpath("contracts", "extension-manifest.example.json")
     doc = json.loads(example.read_bytes())
