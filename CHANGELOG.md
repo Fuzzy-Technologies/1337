@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 61 — v0.4.61 — 2026-11-25
+
+#### Digest
+
+- Look up new CWE IDs in an already retained full catalog without reacquiring its ZIP.
+
+#### Added
+
+- Add read-only `intel cwe lookup` over exact original selection/receipt verification
+  and the existing bounded decoder. Keep the original saved selection distinct from
+  the on-demand source assertions, with unsupported kinds and absent IDs separate.
+  Preserve original version, source hash, notices and acquisition facts after input
+  deletion or workspace relocation, without new storage, provider, model or score.
+
+
 ### Patch 57 — v0.4.57 — 2026-11-25
 
 #### Digest

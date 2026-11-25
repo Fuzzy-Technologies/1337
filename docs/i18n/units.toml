@@ -27214,7 +27214,7 @@ state = "missing"
 id = "page:api.fuzzy1337.intelligence-cwe-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cwe_commands.md"
-sourceHash = "sha256:354e9562d155a44d76cf901f3961ebdb8cb9c4321b8160ffd8b438db22ab3cf8"
+sourceHash = "sha256:10b20062a0e6b1ba0fe277f7173c3f326d823b1192ffc98ded4d45a7ba2f1f58"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -27247,7 +27247,7 @@ state = "missing"
 id = "symbol:fuzzy1337.intelligence_cwe_commands.CweIntelParser"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
-sourceHash = "sha256:d72933512ff11f5c86ef148654d299632aebfda0fe6779f7888bd463678892d1"
+sourceHash = "sha256:6aa731cc8f2f56357c1d3958e48225275514010d12abe449587e1a2f6117ad94"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -27269,7 +27269,7 @@ state = "missing"
 id = "symbol:fuzzy1337.intelligence_cwe_commands.CweTerminal"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
-sourceHash = "sha256:c77753dfcc23dc0f9b03347f39c3da68ba0903fb5ded714033ff75af890b1ff3"
+sourceHash = "sha256:d6d46378abd05d110b2bea36775446b6ece03b6b319329b79290863db549fb65"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -27313,7 +27313,7 @@ state = "missing"
 id = "symbol:fuzzy1337.intelligence_cwe_commands.RunCweIntelCommands"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
-sourceHash = "sha256:bc9ca6b20b5e321bfa18b94fb59e320fd92bb27af6eabbff265bb5e1e9ca17a3"
+sourceHash = "sha256:b5e2beea514e6db7d0ca47906cb2ec85fa1176d02f471ffe695d74b07b80aa62"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -28411,6 +28411,28 @@ id = "symbol:fuzzy1337.retained_report_ci.VerifyReport"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/retained_report_ci.py"
 sourceHash = "sha256:9a970ecb3d791091d8456320d85bfeda0510b40128d032d3b75328945dc05185"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_commands.LookupCweOriginal"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
+sourceHash = "sha256:46026f9d5345e4f20b70d5f4702423117b609e7b4f3aaa3138d9550d83703bd6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_commands.WriteCwePartitions"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
+sourceHash = "sha256:260cd0f4079939c6a22ce8ce9d95a46e5428be7ec1ac2d1e1afd5e60b492767f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
