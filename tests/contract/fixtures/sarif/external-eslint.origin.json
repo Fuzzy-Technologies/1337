@@ -1,0 +1,14 @@
+{
+  "source_repository": "https://github.com/microsoft/sarif-tutorials",
+  "source_commit": "819b0f62f47ecde9a8f24dfc387c41926f5edabe",
+  "source_path": "samples/1-Introduction/simple-example.sarif",
+  "source_blob": "2d2fa5cacfa1fddd40500fb173b6ef37ca1a9ab8",
+  "source_sha256": "d50cd7b2dc4ef6890c4ee5c905a2591fde69e8f5fee0e4c99dfceab0d947294d",
+  "source_bytes": 1453,
+  "modifications": "none; exact original UTF-8 bytes",
+  "attribution": "Microsoft and contributors, SARIF tutorials",
+  "license": "CC-BY-4.0",
+  "license_source": "https://github.com/microsoft/sarif-tutorials/blob/819b0f62f47ecde9a8f24dfc387c41926f5edabe/LICENSE",
+  "upstream_license_context": "Upstream README licenses documentation/other content under CC-BY-4.0 and code under MIT; this SARIF fixture is retained as source data. No endorsement is claimed.",
+  "upstream_license_blob": "085c3ca0c4920beedbf179f7987e705aec84115b"
+}

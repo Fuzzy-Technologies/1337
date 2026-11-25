@@ -104,7 +104,7 @@ def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
         "doctor", "help", "version", "shell", "update", "workspace", "scope", "image",
         "scan", "raw", "report",
         "business", "extension", "intel", "demo", "ci", "paths", "sbom", "api", "response",
-        "runtime", "trace",
+        "runtime", "bridge", "trace",
     ], (
         "core registry describes only currently available commands invariant failed."
     )
@@ -123,4 +123,16 @@ def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
     ), "The existing command palette must discover the implemented CycloneDX operator profile"
     assert sbom.capabilities == ("image.owned-spdx-graph-import",), (
         "Discovery must not manufacture a new capability or execution registration"
+    )
+
+
+def test_BridgeDiscoveryDescribesOnlySavedReportImportAndInspection():
+    """The new namespace must expose its actual local operation without an execution capability."""
+
+    bridge = COMMAND_REGISTRY.Resolve("bridge")
+    assert bridge is not None and bridge.usage == (
+        "1337 bridge sarif <import|inspect> <workspace>"
+    ), "Discovery must name the available source-report operations"
+    assert bridge in COMMAND_REGISTRY.Search("sarif") and bridge.capabilities == (), (
+        "Saved report intake must be discoverable without manufacturing an execution registration"
     )
