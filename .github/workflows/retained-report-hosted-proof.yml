@@ -11,8 +11,8 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "004a571857c19026bfc2fc7fe6aac3af18858a6a",
-    "PRODUCT_TREE": "aaaf7d0110c4466e1c9774ad6aff489d198f3067"
+    "APPROVED_SOURCE_SHA": "0b0e6d665da07dae36a2780280cc081b70f0cf02",
+    "PRODUCT_TREE": "c0a5c28f607c851ed0152a8b93705d8eb0243d58"
   },
   "jobs": {
     "offline-milestones": {
@@ -64,8 +64,33 @@
           "name": "Run the actual installed CLI and offline SDK tests on two workers",
           "shell": "bash",
           "run": "python3 -I \"$RUNNER_TEMP/milestone-checks.py\""
+        },
+        {
+          "name": "Read the existing Linux timing artifact",
+          "id": "previous_unit_timings",
+          "if": "always()",
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "continue-on-error": true,
+          "with": {
+            "github-token": "${{ github.token }}",
+            "run-id": "45672277785",
+            "artifact-ids": "15050192700",
+            "path": "${{ runner.temp }}/earlier-ubuntu",
+            "skip-decompress": true,
+            "digest-mismatch": "error"
+          }
+        },
+        {
+          "name": "Summarize previously executed unit cases without rerunning the suite",
+          "if": "always() && steps.previous_unit_timings.outcome == 'success'",
+          "shell": "bash",
+          "run": "python3 -I - <<'PY'\nimport hashlib, json, os, zipfile\nfrom collections import defaultdict\nfrom pathlib import Path\nfrom xml.etree import ElementTree\nroot = Path(os.environ[\"RUNNER_TEMP\"]) / \"earlier-ubuntu\"\narchives = [p for p in root.rglob(\"*\") if p.is_file()]\nassert len(archives) == 1\narchive = archives[0]\nassert hashlib.sha256(archive.read_bytes()).hexdigest() == \"a2dde7116ef752a29526dd25b640455c4cc080dc704364e54010f3e6252f2148\"\nwith zipfile.ZipFile(archive) as z:\n    metadata = [m for m in z.infolist() if m.filename.lower().endswith(\".xml\") and m.file_size < 32*1024*1024]\n    print(\"PRIOR_XML_FILES\", json.dumps([m.filename for m in metadata]))\n    observed = {}\n    for member in metadata:\n        tree = ElementTree.fromstring(z.read(member))\n        for test in tree.iter(\"testcase\"):\n            module = test.get(\"classname\", \"\")\n            if not (module.startswith(\"tests.unit.\") or \"/unit/\" in member.filename or \"unit\" in member.filename.lower()):\n                continue\n            if test.find(\"skipped\") is not None:\n                continue\n            key = (module, test.get(\"name\", \"\"))\n            duration = float(test.get(\"time\", 0))\n            observed[key] = max(duration, observed.get(key, 0))\n    totals = defaultdict(float)\n    for (module, name), duration in observed.items():\n        totals[module] += duration\n    print(\"PRIOR_TIMINGS\", json.dumps({\"unique_unit_cases\": len(observed), \"top_cases\": [\n        [module, name, round(time, 3)] for (module, name), time in sorted(observed.items(), key=lambda p:-p[1])[:24]],\n        \"top_modules\": [[k, round(v, 3)] for k, v in sorted(totals.items(), key=lambda p:-p[1])[:22]]}))\nPY\n"
         }
-      ]
+      ],
+      "permissions": {
+        "contents": "read",
+        "actions": "read"
+      }
     }
   }
 }

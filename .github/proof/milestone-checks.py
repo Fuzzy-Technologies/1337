@@ -20,7 +20,7 @@ TESTS = [
     "tests/e2e/test_extension_version_profile_cli.py",
     "tests/unit/test_intelligence_cwe_commands.py", "tests/unit/test_intelligence_cwe_lookup.py",
     "tests/contract/test_intelligence_cwe_commands_contract.py",
-    "tests/integration/test_intelligence_cwe_lookup.py",
+    "tests/integration/test_intelligence_cwe_lookup_wheel.py",
     "tests/unit/test_command_registry.py",
     "tests/unit/test_shell.py::test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly",
     "tests/unit/test_shell.py::test_ShellPaletteSearchesLocalCommandsAndCachedContextActions",
