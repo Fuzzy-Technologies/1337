@@ -8,6 +8,19 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 32 — v0.4.32 — 2026-11-25
+
+#### Digest
+
+- Distinguish saved report failures from invalid comparison selections.
+
+#### Fixed
+
+- Identify the affected baseline or candidate when a comparison rejects a
+  saved report or an invalid release or profile selection. The diagnostics
+  omit report paths, contents, and supplied selection values.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest

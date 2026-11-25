@@ -484,25 +484,25 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--baseline-profile", required=True)
     parser.add_argument("--candidate-profile", required=True)
     args = parser.parse_args(argv)
-    side: str | None = "baseline"
+    message = "The baseline report is invalid or unreadable."
 
     try:
         baseline = ReadReport(args.baseline)
-        side = "candidate"
+        message = "The candidate report is invalid or unreadable."
         candidate = ReadReport(args.candidate)
-        side = None
-        report = CompareReports(baseline, candidate, args.scanner,
-            Selection(args.baseline_release, args.baseline_profile),
-            Selection(args.candidate_release, args.candidate_profile))
+
+        message = "The baseline report selection is invalid."
+        baselineSelection = Selection(args.baseline_release, args.baseline_profile)
+        message = "The candidate report selection is invalid."
+        candidateSelection = Selection(args.candidate_release, args.candidate_profile)
+
+        message = "Cannot compare the selected functional reports: invalid or unreadable input."
+        report = CompareReports(baseline, candidate, args.scanner, baselineSelection,
+            candidateSelection)
 
     except _INPUT_ERRORS as error:
         if isinstance(error, _ReportInputError):
-            side = error.side
-
-        message = "Cannot compare the selected functional reports: invalid or unreadable input."
-
-        if side is not None:
-            message = f"The {side} report is invalid or unreadable."
+            message = f"The {error.side} report is invalid or unreadable."
 
         print(message, file=sys.stderr)
         return 2

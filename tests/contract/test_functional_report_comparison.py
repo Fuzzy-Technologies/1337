@@ -394,3 +394,22 @@ def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_pa
     assert shared.stderr == (
         b"Cannot compare the selected functional reports: invalid or unreadable input.\n"
     ), "A shared scanner selection failure must stay generic."
+
+    for side, field, value in (
+        ("baseline", "profile", "private.profile"),
+        ("candidate", "release", "private release\n"),
+    ):
+        invalidSelection = args.copy()
+        option = invalidSelection.index(f"--{side}-{field}")
+        invalidSelection[option + 1] = value
+        failure = subprocess.run(invalidSelection, cwd=ROOT, capture_output=True,
+            check=False, timeout=10)
+        assert failure.returncode == 2 and not failure.stdout, (
+            "Reject an invalid side selection without emitting partial JSON."
+        )
+        assert failure.stderr == f"The {side} report selection is invalid.\n".encode(), (
+            "Identify the rejected declaration without disclosing its value or the report path."
+        )
+        assert left.read_bytes() == before and right.read_bytes() == after, (
+            "A selection refusal must leave both valid reports unchanged."
+        )
