@@ -108,8 +108,14 @@ def test_CandidateExportRequiresExplicitMachineModeBeforeStorage(
     arguments = ["ioc", "inspect", str(tmp_path), "--snapshot", "sha256:" + "a" * 64,
                  "--receipt", "sha256:" + "b" * 64, "--export-candidates", *extra]
     output = StringIO()
-    assert commands.RunIocCommands(arguments, output, json_output=json_output) == 2
-    assert "configuration" in output.getvalue() and "candidate_export" not in output.getvalue()
+    assert commands.RunIocCommands(arguments, output, json_output=json_output) == 2, (
+        'Candidate export must require explicit machine mode before reading retained '
+        'data'
+    )
+    assert "configuration" in output.getvalue() and "candidate_export" not in output.getvalue(), (
+        'Candidate export must require explicit machine mode before reading retained '
+        'data'
+    )
     assert "example.invalid" not in output.getvalue(), "Invalid export echoed selected values"
 
 
@@ -119,5 +125,8 @@ def test_ImportCannotEnableCandidateExport(tmp_path):
     root, source = Owned(tmp_path)
     before = Files(root)
     status, rejected = Run([*ImportArguments(root, source), "--export-candidates"])
-    assert status == 2 and rejected["failure"] == "configuration" and Files(root) == before
+    assert status == 2 and rejected["failure"] == "configuration" and Files(root) == before, (
+        'Import consent must not enable candidate export or change retained source '
+        'bytes'
+    )
     assert "candidate_export" not in rejected, "Rejected import emitted derived candidate data"

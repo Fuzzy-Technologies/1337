@@ -270,9 +270,18 @@ def test_HumanFailureShowsFixedConfigurationCategoryWithoutRejectedInput():
 
     output = StringIO()
     status = commands.RunIocCommands(["ioc", "apply", "secret-sentinel"], output)
-    assert status == 2
+    assert status == 2, (
+        'Invalid selection must return the fixed configuration failure without '
+        'reflecting rejected input'
+    )
     assert output.getvalue() == (
         "IOC artifact failed (exit 2).\n"
         "Failure category: configuration.\n"
+    ), (
+        'Invalid selection must return the fixed configuration failure without '
+        'reflecting rejected input'
     )
-    assert "secret-sentinel" not in output.getvalue()
+    assert "secret-sentinel" not in output.getvalue(), (
+        'Invalid selection must return the fixed configuration failure without '
+        'reflecting rejected input'
+    )

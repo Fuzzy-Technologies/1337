@@ -73,10 +73,19 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
         "Offline candidate export differs from the independently replayed original snapshot"
     )
     output = StringIO()
-    assert commands.RunIocCommands(InspectArguments(moved, result), output) == 0
-    assert f"Original evidence manifest {raw.evidence_id}\n" in output.getvalue()
+    assert commands.RunIocCommands(InspectArguments(moved, result), output) == 0, (
+        'Relocated inspection must succeed and identify the original manifest and '
+        'source digest'
+    )
+    assert f"Original evidence manifest {raw.evidence_id}\n" in output.getvalue(), (
+        'Relocated inspection must succeed and identify the original manifest and '
+        'source digest'
+    )
     assert f"Source SHA-256 {hashlib.sha256(RAW).hexdigest()} ({len(RAW)} bytes)." in (
         output.getvalue()
+    ), (
+        'Relocated inspection must succeed and identify the original manifest and '
+        'source digest'
     )
     assert Files(moved) == before and all(before[name] == content
         for name, content in coreBefore.items()), "IOC product workflow wrote Core/owning state"
@@ -159,11 +168,23 @@ def test_ConsoleLocatesEveryMatchingRetainedOccurrence(tmp_path, monkeypatch, ca
         f"Line 5, byte offset {second}, byte length 15, "
         "source-declared time 2099-01-01T12:00:00+05:30, timezone +05:30.",
     ], "Match output lost original coordinates/time or exposed source tokens and locators"
-    assert Main([*arguments, "--match", "dns", "absent.invalid"]) == 0
-    assert capsys.readouterr().out.splitlines()[-1] == "0 matching supplied occurrences."
-    assert Main([*match, "--json"]) == 2
+    assert Main([*arguments, "--match", "dns", "absent.invalid"]) == 0, (
+        'Exact occurrence selection must preserve empty matches and refuse ambiguous '
+        'machine output'
+    )
+    assert capsys.readouterr().out.splitlines()[-1] == "0 matching supplied occurrences.", (
+        'Exact occurrence selection must preserve empty matches and refuse ambiguous '
+        'machine output'
+    )
+    assert Main([*match, "--json"]) == 2, (
+        'Exact occurrence selection must preserve empty matches and refuse ambiguous '
+        'machine output'
+    )
     machine = json.loads(capsys.readouterr().out)
-    assert machine["schema_version"] == 1 and machine["failure"] == "configuration"
+    assert machine["schema_version"] == 1 and machine["failure"] == "configuration", (
+        'Exact occurrence selection must preserve empty matches and refuse ambiguous '
+        'machine output'
+    )
     assert Files(moved) == before, "Locating a supplied candidate changed retained state"
 
     store = LocalEvidenceStore(moved / "evidence")
@@ -255,10 +276,16 @@ def test_OriginalChainCorruptionFailsReadOnlyInspection(tmp_path, record_key):
         "Product inspection ignored corrupt original chain bytes or rewrote evidence"
     )
     output = StringIO()
-    assert commands.RunIocCommands(InspectArguments(root, result), output) == 4
+    assert commands.RunIocCommands(InspectArguments(root, result), output) == 4, (
+        'Corrupt original bytes must produce the fixed integrity failure without an '
+        'inspection result'
+    )
     assert output.getvalue() == (
         "IOC artifact failed (exit 4).\n"
         "Failure category: integrity.\n"
+    ), (
+        'Corrupt original bytes must produce the fixed integrity failure without an '
+        'inspection result'
     )
 
 
@@ -278,7 +305,9 @@ def test_CandidateExportWaitsForFinalOriginalVerification(tmp_path, monkeypatch,
 
     monkeypatch.setattr(commands, "OriginalRecord", Verify)
     status, refused = Run([*InspectArguments(root, imported), "--export-candidates"])
-    assert status == (130 if error is KeyboardInterrupt else 4)
+    assert status == (130 if error is KeyboardInterrupt else 4), (
+        'Late verification failure must retain its error or interruption exit status'
+    )
     assert "candidate_export" not in refused and all(value not in str(refused) for value in (
         "secret-marker", "EXAMPLE.Invalid.", "opaque.tsv"
     )), "Late verification failure emitted candidate data or rejected exception text"

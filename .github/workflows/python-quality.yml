@@ -15,14 +15,124 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  integration-scope:
+    uses: ./.github/workflows/passive-acceptance-routing.yml
+
+  saved-report-acceptance:
+    needs: integration-scope
+    if: ${{ !cancelled() }}
+    name: Saved report acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    outputs:
+      profile: ${{ steps.scope.outputs.profile }}
+      integration_profile: ${{ needs.integration-scope.outputs.profile }}
+    steps:
+      - name: Require a completed independent routing decision
+        if: needs.integration-scope.result != 'success'
+        run: exit 1
+      - name: Check out proposed source and merge base
+        if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Classify the complete change using the base policy
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          profile=full
+          accept=false
+          if [[ "$GITHUB_EVENT_NAME" == pull_request && "$GITHUB_BASE_REF" == develop ]]; then
+            [[ "$(git rev-parse HEAD)" == "$HEAD_SHA" ]]
+            ancestor=$(git merge-base --all "$BASE_SHA" "$HEAD_SHA")
+            [[ "$ancestor" =~ ^[0-9a-f]{40}$ ]]
+            git diff --no-ext-diff --raw -z --no-renames "$ancestor" "$HEAD_SHA" -- > "$RUNNER_TEMP/report-changes"
+            if git cat-file -e "$BASE_SHA:tools/saved_report_scope.py" 2>/dev/null; then
+              git show "$BASE_SHA:tools/saved_report_scope.py" > "$RUNNER_TEMP/report-scope.py"
+              profile=$(python3 -I "$RUNNER_TEMP/report-scope.py" < "$RUNNER_TEMP/report-changes")
+              [[ "$profile" == full || "$profile" == saved-report ]]
+            fi
+            if [[ "$profile" == saved-report ]]; then
+              accept=true
+            elif git diff --quiet "$ancestor" "$HEAD_SHA" -- \
+              tools/saved_report_scope.py tools/saved_report_acceptance.py \
+              tests/unit/test_saved_report_acceptance.py tests/integration/test_finding_persistence.py; then
+              accept=false
+            else
+              [[ $? == 1 ]]
+              accept=true
+            fi
+          fi
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "accept=$accept" >> "$GITHUB_OUTPUT"
+      - name: Select Python for saved-report acceptance
+        if: steps.scope.outputs.accept == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Prepare the locked test environment
+        if: steps.scope.outputs.accept == 'true'
+        run: |
+          python -m pip install uv==0.11.33
+          uv sync --locked --extra dev --python 3.13
+      - name: Run saved-report acceptance offline
+        if: steps.scope.outputs.accept == 'true'
+        shell: bash
+        env:
+          PROFILE: ${{ steps.scope.outputs.profile }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          evidence="$GITHUB_WORKSPACE/coverage/saved-report-acceptance"
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source.sha"
+          python="$GITHUB_WORKSPACE/.venv/bin/python"
+          "$python" -m pytest --version > "$evidence/pytest.txt"
+          if [[ "$PROFILE" == saved-report ]]; then
+            git worktree add --quiet --detach "$RUNNER_TEMP/report-oracle" "$BASE_SHA"
+            cd "$RUNNER_TEMP/report-oracle"
+          fi
+          git rev-parse HEAD > "$evidence/oracle.sha"
+          sudo -n /usr/bin/unshare --net -- /usr/bin/setpriv \
+            --reuid="$(id -u)" --regid="$(id -g)" --clear-groups --no-new-privs \
+            /usr/bin/env "PYTHONPATH=$GITHUB_WORKSPACE/src:$PWD" \
+            "$python" tools/saved_report_acceptance.py "$evidence/junit.xml"
+      - name: Check changes to the saved-report policy
+        if: steps.scope.outputs.accept == 'true' && steps.scope.outputs.profile == 'full'
+        run: |
+          .venv/bin/python -m ruff check tools/saved_report_*.py tests/unit/test_saved_report_acceptance.py
+          .venv/bin/python -m pytest -o addopts='' -q \
+            tests/unit/test_saved_report_acceptance.py \
+            tests/unit/test_ci_workflows.py::test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate \
+            tests/unit/test_ci_workflows.py::test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate \
+            tests/unit/test_ci_workflows.py::test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode \
+            tests/contract/test_external_native_benchmark.py::test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate \
+            --junitxml=coverage/saved-report-acceptance/policy.xml
+      - name: Retain the source revision and actual test outcomes
+        if: always() && steps.scope.outputs.accept == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: saved-report-acceptance
+          path: coverage/saved-report-acceptance/
+          if-no-files-found: error
+          retention-days: 14
+
   quality:
+    needs: saved-report-acceptance
     if: >-
+      !cancelled() && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == true
       && contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]'))
       || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[owned-response-protocol-checkpoint]'))
+      && contains(github.event.pull_request.body, '[owned-response-protocol-checkpoint]')))
     name: Python ${{ matrix.python }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.job_timeout_minutes || 15 }}
@@ -48,17 +158,27 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: ${{ needs.saved-report-acceptance.outputs.integration_profile == 'passive' && matrix.os == 'ubuntu-24.04' && matrix.python == '3.13' && '0' || '1' }}
+          ref: ${{ needs.saved-report-acceptance.outputs.integration_profile == 'passive' && github.event.pull_request.head.sha || github.sha }}
       - name: Select Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
+      - name: Require an admitted integration profile
+        env:
+          ROUTING_RESULT: ${{ needs.saved-report-acceptance.result }}
+          INTEGRATION_PROFILE: ${{ needs.saved-report-acceptance.outputs.integration_profile }}
+        run: >-
+          python -c "import os; assert os.environ['ROUTING_RESULT'] == 'success'; assert os.environ['INTEGRATION_PROFILE'] in ('passive', 'full'),
+          'Develop integration is held until its complete change has passive admission'"
       - name: Install pinned uv
         run: python -m pip install uv==0.11.33
       - name: Synchronize locked environment
         run: uv sync --locked --extra dev --python ${{ matrix.python }}
       - name: Check owned transport lifecycle on Windows
         if: >-
-          matrix.os == 'windows-2022' && (github.event_name == 'push' ||
+          needs.saved-report-acceptance.outputs.integration_profile == 'full'
+          && matrix.os == 'windows-2022' && (github.event_name == 'push' ||
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false))
         run: >-
           uv run --locked --extra dev pytest
@@ -69,8 +189,9 @@ jobs:
       - name: Run focused native image protocol checks
         timeout-minutes: 5
         if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'full' && (
           github.event_name == 'pull_request' && github.event.pull_request.draft == true
-          && contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]')
+          && contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]'))
         run: >-
           uv run --locked --extra dev pytest -q -x --max-worker-restart=0
           --timeout=30 --timeout-method=thread -n 2 --dist=loadscope -o addopts='' --no-cov
@@ -86,8 +207,9 @@ jobs:
       - name: Run focused owned response protocol checks
         timeout-minutes: 5
         if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'full' && (
           github.event_name == 'pull_request' && github.event.pull_request.draft == true
-          && contains(github.event.pull_request.body, '[owned-response-protocol-checkpoint]')
+          && contains(github.event.pull_request.body, '[owned-response-protocol-checkpoint]'))
         run: >-
           uv run --locked --extra dev pytest -q -x --max-worker-restart=0
           --timeout=30 --timeout-method=thread -n 2 --dist=loadscope -o addopts='' --no-cov
@@ -104,10 +226,90 @@ jobs:
           github.event_name == 'push' || (github.event_name == 'pull_request'
           && github.event.pull_request.draft == false)
         run: uv run --locked --extra dev python tools/python_naming.py
+      - name: Run passive shared quality checks
+        if: >-
+          matrix.os == 'ubuntu-24.04' && matrix.python == '3.13' &&
+          github.event_name == 'pull_request' && github.base_ref == 'develop'
+          && github.event.pull_request.draft == false
+          && needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+        run: |
+          uv run --locked --extra dev 1337-dev compile
+          uv run --locked --extra dev 1337-dev lint
+          uv run --locked --extra dev 1337-dev typecheck
+          uv run --locked --extra dev 1337-dev performance
+      - name: Run all passive unit tests with branch coverage
+        if: >-
+          matrix.os == 'ubuntu-24.04' && matrix.python == '3.13' &&
+          github.event_name == 'pull_request' && github.base_ref == 'develop'
+          && github.event.pull_request.draft == false
+          && needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+        env:
+          PASSIVE_BASE: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          uv run --locked --extra dev python tools/passive_test_gate.py
+          --base "$PASSIVE_BASE" --suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}
+      - name: Build passive integration package
+        if: >-
+          matrix.os == 'ubuntu-24.04' && matrix.python == '3.13' &&
+          github.event_name == 'pull_request' && github.base_ref == 'develop'
+          && github.event.pull_request.draft == false
+          && needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+        run: uv run --locked --extra dev 1337-dev build
+      - name: Run passive runtime compatibility tests
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'develop' &&
+          needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+          && github.event.pull_request.draft == false && (
+          matrix.os == 'windows-2022' || matrix.python == '3.14')
+        run: >-
+          uv run --locked --extra dev pytest --no-cov -n 2 --dist=loadscope
+          --strict-config --strict-markers --max-worker-restart=0
+          tests/unit/test_test_runner.py tests/unit/test_test_progress.py
+          tests/unit/test_report_commands.py tests/unit/test_reporting.py
+          tests/unit/test_workspace.py
+          --timeout=120 -x
+          --junitxml=functional-evidence/passive-runtime-compatibility.xml
+      - name: Verify passive Windows TLS ownership and cleanup
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'develop' &&
+          needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+          && github.event.pull_request.draft == false && matrix.os == 'windows-2022'
+        run: >-
+          uv run --locked --extra dev pytest --no-cov -n 0 --strict-config --strict-markers --timeout=120 -x
+          tests/integration/test_proxy_regression_workflow.py::test_IndependentVerifyingClientRejectsTheActualSelfSignedCertificate
+          --junitxml=functional-evidence/passive-windows-tls.xml
+      - name: Run macOS quality checks before pytest
+        if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
+          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
+        run: |
+          uv run --locked --extra dev 1337-dev compile
+          uv run --locked --extra dev 1337-dev lint
+          uv run --locked --extra dev 1337-dev typecheck
+          uv run --locked --extra dev 1337-dev performance
+      - name: Run focused macOS portability tests
+        if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
+          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
+        timeout-minutes: 5
+        run: |
+          uv run --locked --extra dev pytest -q -x -n 0 --timeout=15 \
+            --timeout-method=thread -o addopts='' --strict-config --strict-markers --no-cov \
+            tests/unit/test_test_runner.py tests/unit/test_test_progress.py \
+            --junitxml=functional-evidence/macos-portability.xml
+      - name: Run macOS package build
+        if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
+          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
+        run: uv run --locked --extra dev 1337-dev build
       - name: Run repository quality gate
         if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'full' && (
           github.event_name == 'push' || (github.event_name == 'pull_request'
-          && github.event.pull_request.draft == false)
+          && github.event.pull_request.draft == false))
         env:
           FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
           FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
@@ -128,9 +330,11 @@ jobs:
           retention-days: 14
 
   nuclei-governed-prerequisite-checkpoint:
+    needs: integration-scope
     if: >-
+      needs.integration-scope.outputs.profile == 'full' && (
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[nuclei-governed-prerequisite-checkpoint]')
+      && contains(github.event.pull_request.body, '[nuclei-governed-prerequisite-checkpoint]'))
     name: Target-free Nuclei governed no-HOME prerequisite
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -319,9 +523,11 @@ jobs:
           retention-days: 14
 
   nuclei-application-product-checkpoint:
+    needs: integration-scope
     if: >-
+      needs.integration-scope.outputs.profile == 'full' && (
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[nuclei-application-product-checkpoint]')
+      && contains(github.event.pull_request.body, '[nuclei-application-product-checkpoint]'))
     name: Genuine Nuclei application comparison / six fresh targets
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -368,9 +574,11 @@ jobs:
           retention-days: 14
 
   nuclei-contract-windows-checkpoint:
+    needs: integration-scope
     if: >-
+      needs.integration-scope.outputs.profile == 'full' && (
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[nuclei-contract-windows-checkpoint]')
+      && contains(github.event.pull_request.body, '[nuclei-contract-windows-checkpoint]'))
     name: Focused Windows external provider contract portability
     runs-on: windows-2022
     timeout-minutes: 8
@@ -425,9 +633,11 @@ jobs:
           if-no-files-found: error
 
   owned-traversal-rate-checkpoint:
+    needs: integration-scope
     if: >-
+      needs.integration-scope.outputs.profile == 'full' && (
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')
+      && contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]'))
     name: Owned traversal Windows rate feature checks
     runs-on: windows-2022
     timeout-minutes: 8
@@ -479,9 +689,11 @@ jobs:
           if-no-files-found: warn
 
   native-crawl-windows-portability:
+    needs: integration-scope
     if: >-
+      needs.integration-scope.outputs.profile == 'full' && (
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')
+      && contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]'))
     name: Native crawl Windows feature checks
     runs-on: windows-2022
     timeout-minutes: 8
@@ -525,9 +737,11 @@ jobs:
           if-no-files-found: warn
 
   native-crawl-container-portability:
+    needs: integration-scope
     if: >-
+      needs.integration-scope.outputs.profile == 'full' && (
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')
+      && contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]'))
     name: Native crawl container feature check
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -561,11 +775,13 @@ jobs:
           if-no-files-found: warn
 
   browser-page-quality:
+    needs: saved-report-acceptance
     if: >-
+      needs.saved-report-acceptance.outputs.integration_profile == 'full' && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))
+      && contains(github.event.pull_request.body, '[browser-feature-checkpoint]')))
     name: Offline browser page acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -624,24 +840,62 @@ jobs:
           retention-days: 14
 
   container-quality:
+    needs: saved-report-acceptance
     if: >-
-      github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      !cancelled() && (github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false))
     name: Container configuration and quality
     runs-on: ubuntu-24.04
     # Complete suite attempts reached 99% at the former 900-second deadline.
     timeout-minutes: 25
     steps:
+      - name: Require the saved-report acceptance decision
+        env:
+          ROUTING_RESULT: ${{ needs.saved-report-acceptance.result }}
+          INTEGRATION_PROFILE: ${{ needs.saved-report-acceptance.outputs.integration_profile }}
+        shell: bash
+        run: |
+          test "$ROUTING_RESULT" = success
+          case "$INTEGRATION_PROFILE" in
+            full|passive) ;;
+            *) exit 1 ;;
+          esac
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ needs.saved-report-acceptance.outputs.integration_profile == 'passive' && github.event.pull_request.head.sha || github.sha }}
       - name: Validate Compose configuration
         run: docker compose config --quiet
       - name: Build locked development image
         run: docker compose build
+      - name: Run container compatibility gate
+        if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
+          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          && github.event.pull_request.base.ref == 'develop'
+        timeout-minutes: 8
+        run: |
+          LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" \
+            docker compose --profile quality run --rm quality sh -ec '
+              1337-dev compile
+              1337-dev lint
+              1337-dev typecheck
+              1337-dev performance
+              pytest -q -x -n 2 --dist=loadscope --timeout=120 \
+                -o addopts="" --strict-config --strict-markers --no-cov -m "not serial" \
+                tests/unit/test_test_runner.py tests/unit/test_test_progress.py \
+                tests/unit/test_package.py tests/integration/test_packaging.py \
+                tests/integration/test_progress_execution.py \
+                --junitxml=functional-evidence/container-compatibility.xml
+              1337-dev build
+            '
       - name: Run container quality gate
         id: container_gate
+        if: >-
+          needs.saved-report-acceptance.outputs.integration_profile == 'full' && (
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false))
         run: >-
           LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
           docker compose --profile quality run --rm quality 1337-dev check --fail-fast
@@ -656,11 +910,26 @@ jobs:
             coverage/serial-tests.progress/summary.json
           if-no-files-found: ignore
           retention-days: 14
+      - name: Preserve container compatibility evidence
+        if: >-
+          always() && needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+          && github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          && github.event.pull_request.base.ref == 'develop'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: container-compatibility
+          path: |
+            functional-evidence/container-compatibility.xml
+            dist/
+          if-no-files-found: error
+          retention-days: 14
 
   synthetic-lab:
+    needs: saved-report-acceptance
     if: >-
+      !cancelled() && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      && github.event.pull_request.draft == false))
     name: Synthetic lab lifecycle
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -674,15 +943,25 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
+      - name: Require an admitted lifecycle profile
+        env:
+          ROUTING_RESULT: ${{ needs.saved-report-acceptance.result }}
+          INTEGRATION_PROFILE: ${{ needs.saved-report-acceptance.outputs.integration_profile }}
+        run: >-
+          python -c "import os; assert os.environ['ROUTING_RESULT'] == 'success'; assert os.environ['INTEGRATION_PROFILE'] in ('passive', 'full'),
+          'Develop lifecycle is held until its complete change has passive admission'"
       - name: Install pinned uv
         run: python -m pip install uv==0.11.33
       - name: Start isolated safe target
+        if: needs.saved-report-acceptance.outputs.integration_profile == 'full'
         run: docker compose --profile lab up --build --wait lab-web-safe
       - name: Verify safe target contract
+        if: needs.saved-report-acceptance.outputs.integration_profile == 'full'
         run: >-
           docker compose exec -T lab-web-safe python -c
           "from urllib.request import urlopen; import json; response = urlopen('http://127.0.0.1:8080/health', timeout=1); assert json.load(response) == {'status': 'ok', 'target': 'web-safe'}"
       - name: Verify attack-path mini lifecycle
+        if: needs.saved-report-acceptance.outputs.integration_profile == 'full'
         run: |
           evidence=functional-evidence/attack-path-mini
           mkdir -p "$evidence"
@@ -691,6 +970,7 @@ jobs:
           uv run --locked --extra dev pytest -o addopts='' -n 0 --no-cov -q \
             tests/functional/test_attack_path_lab.py --junitxml="$evidence/junit.xml"
       - name: Require executed successful attack-path cases
+        if: needs.saved-report-acceptance.outputs.integration_profile == 'full'
         shell: python
         run: |
           from xml.etree import ElementTree
@@ -706,10 +986,10 @@ jobs:
           ):
               raise SystemExit("Every attack-path mini case must execute and pass")
       - name: Stop synthetic lab
-        if: always()
+        if: always() && needs.saved-report-acceptance.outputs.integration_profile == 'full'
         run: docker compose --profile lab --profile attack-path down --volumes --remove-orphans
       - name: Preserve attack-path mini command evidence
-        if: always()
+        if: always() && needs.saved-report-acceptance.outputs.integration_profile == 'full'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: attack-path-mini-lifecycle
@@ -717,14 +997,34 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+      - name: Verify benign isolated startup health and teardown
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'develop'
+          && needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+        run: >-
+          python tools/passive_lab_lifecycle.py
+          --project passive-health-${{ github.run_id }}-${{ github.run_attempt }}
+          --receipt functional-evidence/passive-lab/lifecycle.json
+      - name: Retain actual passive lifecycle evidence
+        if: always() && needs.saved-report-acceptance.outputs.integration_profile == 'passive'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: passive-lab-lifecycle
+          path: functional-evidence/passive-lab/
+          if-no-files-found: error
+          retention-days: 14
+
   external-targets:
+    needs: saved-report-acceptance
     if: >-
+      needs.saved-report-acceptance.outputs.integration_profile == 'full'
+      && needs.saved-report-acceptance.outputs.profile == 'full' && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false)
       || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
       && contains(github.event.pull_request.body, '[native-external-checkpoint]'))
       || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
+      && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')))
     name: Pinned external target regression
     runs-on: ubuntu-24.04
     timeout-minutes: 61

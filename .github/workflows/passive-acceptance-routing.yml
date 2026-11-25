@@ -1,0 +1,85 @@
+name: Reviewed passive batch routing
+
+on:
+  workflow_call:
+    outputs:
+      profile:
+        description: Full ordinary acceptance, verified passive batch, or explicit hold
+        value: ${{ jobs.classify.outputs.profile }}
+
+permissions:
+  contents: read
+
+env:
+  PASSIVE_POLICY_COMMIT: "e66135c9b56032693215f6f79ce9e086e39a810a"
+
+jobs:
+  classify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    outputs:
+      profile: ${{ steps.classify.outputs.profile || steps.default.outputs.profile }}
+    steps:
+      - name: Keep ordinary routing and fail closed for a requested passive batch
+        id: default
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          profile=full
+          if test "$EVENT" = pull_request && test "$BASE" = develop && [[ "$HEAD_REF" == feature/passive-batch-* ]]; then
+            profile=hold
+          fi
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+      - name: Check out candidate Git objects without running candidate code
+        if: steps.default.outputs.profile == 'hold'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: candidate
+      - name: Check out the separate immutable reviewed policy
+        if: steps.default.outputs.profile == 'hold'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.PASSIVE_POLICY_COMMIT }}
+          persist-credentials: false
+          path: trusted-policy
+      - name: Verify complete exact batch against the independent reviewed manifest
+        if: steps.default.outputs.profile == 'hold'
+        id: classify
+        working-directory: candidate
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
+          HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$PASSIVE_POLICY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git -C ../trusted-policy rev-parse HEAD)" = "$PASSIVE_POLICY_COMMIT"
+          test "$(git rev-parse HEAD)" = "$HEAD_COMMIT"
+          ancestor="$(git merge-base "$BASE_COMMIT" "$HEAD_COMMIT")"
+          test "$ancestor" = "$BASE_COMMIT"
+          git --no-replace-objects diff --no-ext-diff --raw -z --no-renames --abbrev=40 "$ancestor" "$HEAD_COMMIT" > "$RUNNER_TEMP/passive-batch-changes"
+          python3 -I ../trusted-policy/tools/passive_scope.py \
+            --event "$EVENT" --base "$BASE" --head-ref "$HEAD_REF" \
+            --base-commit "$BASE_COMMIT" --policy-commit "$PASSIVE_POLICY_COMMIT" \
+            --manifest ../trusted-policy/contracts/passive-integration-policy.json \
+            < "$RUNNER_TEMP/passive-batch-changes" >> "$GITHUB_OUTPUT"
+      - name: Report the actual acceptance scope and refuse an unverified passive request
+        if: always()
+        env:
+          PROFILE: ${{ steps.classify.outputs.profile || steps.default.outputs.profile || 'hold' }}
+        run: |
+          echo "Integration profile: $PROFILE" >> "$GITHUB_STEP_SUMMARY"
+          if test "$PROFILE" = passive; then
+            echo "Exact reviewed passive batch. Active and external acceptance is not applicable; no execution evidence is claimed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test "$PROFILE" = hold; then
+            echo "Requested passive batch was not verified. Acceptance remains on hold; no active execution was started." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

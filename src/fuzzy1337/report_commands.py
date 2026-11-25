@@ -154,8 +154,12 @@ class ReportInput:
         default=None, init=False, repr=False, compare=False,
     )
 
-    def _PinSnapshotDigest(self) -> str:
-        """Retain this immutable report's canonical digest for the publication check."""
+    def PinSnapshotDigest(self) -> str:
+        """Retain this immutable report's canonical digest for the publication check.
+
+        Returns:
+            The exact selected report digest retained for the final source comparison.
+        """
 
         digest = self.report.SnapshotDigest()
         object.__setattr__(self, "_pinnedSnapshotDigest", digest)
@@ -163,8 +167,18 @@ class ReportInput:
         return digest
 
 
-def _OpenReportModel(root: Path) -> ModelState:
-    """Classify out-of-range saved model values as input integrity failures."""
+def OpenSavedReportModel(root: Path) -> ModelState:
+    """Classify out-of-range saved model values as input integrity failures.
+
+    Args:
+        root: Existing owner workspace containing the selected saved model.
+
+    Returns:
+        The unchanged model reopened through its owning store.
+
+    Raises:
+        ReportFailure: A stored value cannot be represented by the model reader.
+    """
 
     try:
         return LocalModelStore(root).Open()
@@ -184,7 +198,7 @@ def OpenReportInput(root: Path) -> ReportInput:
     """
 
     workspace = LocalWorkspaceStore(root).Open()
-    state = _OpenReportModel(root)
+    state = OpenSavedReportModel(root)
     report = ReportSnapshot(state)
     evidence = BoundedReportEvidenceStore(root / "evidence")
     scopes = set(workspace.scope_references)
@@ -345,7 +359,7 @@ def CheckReportSnapshot(root: Path, original: ReportInput) -> None:
     """
 
     workspace = LocalWorkspaceStore(root).Open()
-    state = _OpenReportModel(root)
+    state = OpenSavedReportModel(root)
 
     if workspace != original.workspace:
         raise ReportFailure("input-changed")
@@ -484,7 +498,7 @@ def RunReportCommands(
         checkedEvidenceCount = original._checkedModelEvidenceReferenceCount
         outcome.update({
             "model_revision": original.report.state.revision,
-            "snapshot_sha256": original._PinSnapshotDigest(),
+            "snapshot_sha256": original.PinSnapshotDigest(),
             "verified_retained_acquisitions": len(original.workspace.evidence_record_references),
             "checked_model_evidence_references": (
                 checkedEvidenceCount if checkedEvidenceCount is not None

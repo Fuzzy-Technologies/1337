@@ -26,6 +26,29 @@ INTEGRATION_CONDITION = (
     "github.event_name == 'push' || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == false)"
 )
+OPTIONAL_ACTIVE_GUARD = (
+    "!(github.event_name == 'pull_request' && github.base_ref == 'develop' "
+    "&& startsWith(github.head_ref, 'feature/passive-batch-'))"
+)
+CONTAINER_INTEGRATION_CONDITION = f"!cancelled() && ({INTEGRATION_CONDITION})"
+MACOS_DEVELOP_TARGET = (
+    "github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'"
+)
+MACOS_PORTABILITY_CONDITION = (
+    "needs.saved-report-acceptance.outputs.integration_profile == 'passive' && "
+    "github.event_name == 'pull_request' && github.event.pull_request.draft == false && "
+    + MACOS_DEVELOP_TARGET
+)
+FULL_PYTHON_CONDITION = (
+    "needs.saved-report-acceptance.outputs.integration_profile == 'full' && ( "
+    + INTEGRATION_CONDITION + ")"
+)
+CONTAINER_COMPATIBILITY_CONDITION = (
+    "needs.saved-report-acceptance.outputs.integration_profile == 'passive' && "
+    "github.event_name == 'pull_request' && github.event.pull_request.draft == false "
+    "&& github.event.pull_request.base.ref == 'develop'"
+)
+FULL_CONTAINER_CONDITION = FULL_PYTHON_CONDITION
 NATIVE_IMAGE_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
@@ -53,9 +76,10 @@ PORTABLE_PROTOCOL_FEATURE_CONDITION = (
     "&& contains(github.event.pull_request.body, '[owned-response-protocol-checkpoint]'))"
 )
 BROWSER_FEATURE_CONDITION = (
-    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
+    "needs.saved-report-acceptance.outputs.integration_profile == 'full' && ( "
+    + INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
-    "&& contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))"
+    "&& contains(github.event.pull_request.body, '[browser-feature-checkpoint]')))"
 )
 NUCLEI_PREREQUISITE_CONDITION = (
     "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
@@ -65,22 +89,26 @@ NUCLEI_PREREQUISITE_EXECUTION_CONDITION = (
     INTEGRATION_CONDITION + " || (" + NUCLEI_PREREQUISITE_CONDITION + ")"
 )
 EXTERNAL_NATIVE_FEATURE_CONDITION = (
-    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
-    "&& github.event.pull_request.draft == true "
+    "needs.saved-report-acceptance.outputs.integration_profile == 'full' "
+    "&& needs.saved-report-acceptance.outputs.profile == 'full' && ( "
+    + INTEGRATION_CONDITION
+    + " || (github.event_name == 'pull_request' && github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[native-external-checkpoint]'))"
-    + " || (" + NUCLEI_PREREQUISITE_CONDITION + ")"
+    + " || (" + NUCLEI_PREREQUISITE_CONDITION + "))"
 )
 NATIVE_CRAWL_PORTABILITY_JOBS = {
     "native-crawl-windows-portability", "native-crawl-container-portability",
 }
 NATIVE_CRAWL_PORTABILITY_CONDITION = (
+    "needs.integration-scope.outputs.profile == 'full' && ( "
     "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-    "&& contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')"
+    "&& contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]'))"
 )
 OWNED_TRAVERSAL_RATE_JOB = "owned-traversal-rate-checkpoint"
 OWNED_TRAVERSAL_RATE_CONDITION = (
+    "needs.integration-scope.outputs.profile == 'full' && ( "
     "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-    "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')"
+    "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]'))"
 )
 NUCLEI_CONTRACT_WINDOWS_JOB = "nuclei-contract-windows-checkpoint"
 NUCLEI_GOVERNED_PREREQUISITE_JOB = "nuclei-governed-prerequisite-checkpoint"
@@ -125,7 +153,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     expected = WORKFLOWS[name] | ({"deploy-pages"} if name == "documentation.yml" else set())
 
     if name == "python-quality.yml":
-        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
+        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {"integration-scope", "saved-report-acceptance",
             OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB,
             NUCLEI_GOVERNED_PREREQUISITE_JOB, NUCLEI_APPLICATION_PRODUCT_JOB}
 
@@ -137,10 +165,24 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
         condition = " ".join(str(job.get("if", "")).split())
         expectedCondition = (
             EXTERNAL_NATIVE_FEATURE_CONDITION if jobId == "external-targets"
+            else CONTAINER_INTEGRATION_CONDITION if jobId == "container-quality"
             else BROWSER_FEATURE_CONDITION if jobId == "browser-page-quality"
-            else PORTABLE_PROTOCOL_FEATURE_CONDITION if jobId == "quality"
+            else "!cancelled() && ( " + PORTABLE_PROTOCOL_FEATURE_CONDITION + ")"
+            if jobId == "quality"
+            else "!cancelled() && ( " + INTEGRATION_CONDITION + ")"
+            if jobId == "synthetic-lab"
             else NATIVE_CONFIGURATION_FEATURE_CONDITION if name == "trivy-acceptance.yml"
             else INTEGRATION_CONDITION)
+        if name in {"nmap-acceptance.yml", "nuclei-acceptance.yml", "trivy-acceptance.yml"}:
+            expectedCondition = (
+                OPTIONAL_ACTIVE_GUARD + " && ( "
+                + expectedCondition + ")"
+            )
+            assert "needs" not in job, (
+                'Unrouted workflow ownership must retain its existing independent job '
+                'dependency contract'
+            )
+
         assert condition == expectedCondition, (
             f"{name}/{jobId} lost its final gate or explicit feature checkpoint."
         )
@@ -158,6 +200,35 @@ def test_DocumentationTestsUseParallelWorkersAndKeepBranchCoverage() -> None:
     assert "-n auto --dist=loadscope" in command, "Documentation tests lost process parallelism."
     assert "--cov=tools --cov-branch" in command, "Parallel documentation lost branch measurement."
     assert "fuzzy1337.coverage_gate" in command, "Parallel documentation lost its per-tool gate."
+    assert all(path in command for path in (
+        "tests/unit/test_passive_scope.py", "tests/unit/test_passive_integration.py",
+        "tests/unit/test_saved_report_acceptance.py", "tests/unit/test_passive_test_gate.py",
+    )), "Every new routing, lifecycle and acceptance helper needs measured tool coverage."
+
+
+def test_CheckoutPreservesFullMergeValidationAndDeepensOnlyTheAuthoritativePassiveCell():
+    """Ordinary checks keep merge SHA and shallow history; passive diff discovery deepens once."""
+
+    jobs = Workflow("python-quality.yml")["jobs"]
+    checkout = next(step for step in jobs["quality"]["steps"]
+                    if step.get("name") == "Check out source")
+    profile = "needs.saved-report-acceptance.outputs.integration_profile == 'passive'"
+    assert checkout["with"]["ref"] == (
+        "${{ " + profile + " && github.event.pull_request.head.sha || github.sha }}"
+    ), "Full and master routes must preserve their original GitHub revision."
+    assert checkout["with"]["fetch-depth"] == (
+        "${{ " + profile + " && matrix.os == 'ubuntu-24.04' && matrix.python == '3.13' "
+        "&& '0' || '1' }}"
+    ), "Only the authoritative passive Linux cell needs the complete actual base history."
+    container = next(step for step in jobs["container-quality"]["steps"]
+                     if step.get("name") == "Check out source")
+    assert container["with"]["ref"] == checkout["with"]["ref"], (
+        'Container and matrix checks must retain the same explicit original candidate '
+        'checkout reference'
+    )
+    assert container["with"].get("fetch-depth", 1) == 1, (
+        "Container compatibility must not add another deep repository fetch."
+    )
 
 
 def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> None:
@@ -176,20 +247,72 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     assert naming["run"] == "uv run --locked --extra dev python tools/python_naming.py", (
         "The naming gate must run as a standalone command."
     )
-    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
+    assert " ".join(full["if"].split()) == (
+        "needs.saved-report-acceptance.outputs.integration_profile == 'full' && ( "
+        + INTEGRATION_CONDITION + ")"
+    ), (
         "Only existing Ready/push integration events may start the full Python check."
     )
     assert " ".join(full["run"].split()) == (
         "uv run --locked --extra dev 1337-dev check --fail-fast "
         "--suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}"
     ), "The full matrix must preserve its complete gate and original platform suite budget."
+    portabilitySteps = [step for step in steps if step.get("name") in {
+        "Run macOS quality checks before pytest", "Run focused macOS portability tests",
+        "Run macOS package build",
+    }]
+    assert [step["name"] for step in portabilitySteps] == [
+        "Run macOS quality checks before pytest",
+        "Run focused macOS portability tests",
+        "Run macOS package build",
+    ], "The macOS portability profile must run in order after the naming check."
+
+    for step in portabilitySteps:
+        assert " ".join(step["if"].split()) == MACOS_PORTABILITY_CONDITION, (
+            "Every portability step must apply only to admitted Ready macOS passive batches."
+        )
+        assert step.get("continue-on-error", False) is False, (
+            "A failed portability step must stop subsequent quality steps."
+        )
+
+    pretest, portability, build = portabilitySteps
+    assert "timeout-minutes" not in pretest and "timeout-minutes" not in build, (
+        "Non-test phases must use the job ceiling."
+    )
+    assert jobs["quality"]["timeout-minutes"] == "${{ matrix.job_timeout_minutes || 15 }}", (
+        "The quality job must retain its platform ceiling."
+    )
+    assert portability["timeout-minutes"] == 5, "Only focused pytest has a five-minute deadline."
+    prefix = ["uv", "run", "--locked", "--extra", "dev"]
+    assert [shlex.split(command) for command in pretest["run"].splitlines()] == [
+        prefix + ["1337-dev", "compile"],
+        prefix + ["1337-dev", "lint"],
+        prefix + ["1337-dev", "typecheck"],
+        prefix + ["1337-dev", "performance"],
+    ], "The non-test checks must run in order before pytest."
+    commands = portability["run"].replace("\\\n", " ").splitlines()
+    assert [shlex.split(command) for command in commands] == [
+        prefix + [
+            "pytest", "-q", "-x", "-n", "0", "--timeout=15", "--timeout-method=thread",
+            "-o", "addopts=", "--strict-config", "--strict-markers", "--no-cov",
+            "tests/unit/test_test_runner.py", "tests/unit/test_test_progress.py",
+            "--junitxml=functional-evidence/macos-portability.xml",
+        ],
+    ], "The focused pytest step must retain its exact offline selection and JUnit path."
+    assert build["run"] == "uv run --locked --extra dev 1337-dev build", (
+        "The package build must run after pytest."
+    )
+
     container = jobs["container-quality"]
-    assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
+    assert " ".join(container["if"].split()) == CONTAINER_INTEGRATION_CONDITION, (
         "The complete container gate must retain its original Ready/push condition."
     )
     gate = next(step for step in container["steps"]
         if step.get("name") == "Run container quality gate")
     command = gate["run"]
+    assert " ".join(gate["if"].split()) == FULL_CONTAINER_CONDITION, (
+        "Stable pushes and PRs to master must retain the complete container gate."
+    )
     assert " ".join(command.split()) == (
         'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
         "docker compose --profile quality run --rm quality 1337-dev check --fail-fast "
@@ -214,6 +337,131 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
         )
 
 
+def test_DevelopContainerExercisesItsRuntimeBoundaryWithoutRepeatingTheNativeFullSuite():
+    """Container compatibility executes real package and worker checks with failing exits."""
+
+    steps = Workflow("python-quality.yml")["jobs"]["container-quality"]["steps"]
+    focused = next(step for step in steps if step.get("name") == "Run container compatibility gate")
+    assert " ".join(focused["if"].split()) == CONTAINER_COMPATIBILITY_CONDITION, (
+        "Only Ready develop PRs may select the bounded container compatibility profile."
+    )
+    assert focused["timeout-minutes"] == 8 and not focused.get("continue-on-error", False), (
+        "Compatibility must remain bounded and propagate every failed phase."
+    )
+    arguments = shlex.split(focused["run"].replace("\\\n", " "))
+    assert arguments == [
+        'LOCAL_UID=$(id -u)', 'LOCAL_GID=$(id -g)',
+        "docker", "compose", "--profile", "quality", "run", "--rm", "quality", "sh", "-ec",
+        arguments[-1],
+    ], "One mapped-ownership container must execute the actual compatibility phases."
+    script = arguments[-1].replace("\\\n", " ")
+    commands = [shlex.split(command) for command in script.splitlines() if command.strip()]
+    assert commands[:4] == [
+        ["1337-dev", phase] for phase in ("compile", "lint", "typecheck", "performance")
+    ] and commands[-1] == ["1337-dev", "build"], (
+        "All non-test quality and package phases must run in their original order."
+    )
+    assert commands[4] == [
+        "pytest", "-q", "-x", "-n", "2", "--dist=loadscope", "--timeout=120",
+        "-o", "addopts=", "--strict-config", "--strict-markers", "--no-cov", "-m", "not serial",
+        "tests/unit/test_test_runner.py", "tests/unit/test_test_progress.py",
+        "tests/unit/test_package.py", "tests/integration/test_packaging.py",
+        "tests/integration/test_progress_execution.py",
+        "--junitxml=functional-evidence/container-compatibility.xml",
+    ], "The profile must exercise real clean-wheel installation and overlapping worker execution."
+    upload = next(step for step in steps
+                  if step.get("name") == "Preserve container compatibility evidence")
+    assert " ".join(upload["if"].split()) == "always() && " + CONTAINER_COMPATIBILITY_CONDITION, (
+        'Container compatibility evidence must be retained even when its actual '
+        'declared profile fails'
+    )
+    assert upload["with"]["path"].splitlines() == [
+        "functional-evidence/container-compatibility.xml", "dist/",
+    ] and upload["with"]["if-no-files-found"] == "error", (
+        "Absent execution evidence must never silently become a successful compatibility check."
+    )
+
+
+@pytest.mark.parametrize("event", ["push", "pull_request"])
+@pytest.mark.parametrize("base", ["develop", "master"])
+@pytest.mark.parametrize("draft", [False, True])
+@pytest.mark.parametrize("platform,version,system", [
+    ("Linux", "3.13", "ubuntu-24.04"), ("Linux", "3.14", "ubuntu-24.04"),
+    ("Windows", "3.13", "windows-2022"), ("macOS", "3.13", "macos-15"),
+])
+@pytest.mark.parametrize("profile", ["full", "passive", "hold", ""])
+def test_ActualPythonAndContainerProfilesSelectExactlyOneGate(
+    event, base, draft, platform, version, system, profile,
+):
+    """All 128 actual event/base/matrix/readiness/profile routes keep their genuine checks."""
+
+    context = {"github.event_name": event, "github.event.pull_request.base.ref": base,
+               "github.base_ref": base, "github.event.pull_request.draft": draft,
+               "runner.os": platform, "matrix.os": system, "matrix.python": version,
+               "route.profile": profile}
+
+    def Admit(node):
+        """Interpret only boolean composition and literal equality from actual gate conditions."""
+
+        if isinstance(node, ast.Expression):
+            return Admit(node.body)
+
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
+            values = [Admit(value) for value in node.values]
+
+            return all(values) if isinstance(node.op, ast.And) else any(values)
+
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return not Admit(node.operand)
+
+        if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators) == 1 and (
+            isinstance(node.ops[0], ast.Eq)
+        ):
+            return Admit(node.left) == Admit(node.comparators[0])
+
+        if isinstance(node, ast.Attribute) and ast.unparse(node) in context:
+            return context[ast.unparse(node)]
+
+        if isinstance(node, ast.Name) and node.id in {"true", "false"}:
+            return node.id == "true"
+
+        if isinstance(node, ast.Constant) and type(node.value) is str:
+            return node.value
+
+        raise ValueError("Gate condition escaped its closed test grammar")
+
+    jobs = Workflow("python-quality.yml")["jobs"]
+    full = profile == "full" and (event == "push" or not draft)
+    passive = profile == "passive" and event == "pull_request" and base == "develop" and not draft
+    expected = [full, passive and platform == "Linux" and version == "3.13",
+                passive and (platform == "Windows" or version == "3.14"),
+                passive and platform == "macOS"]
+
+    for job, names, wanted in (
+        ("quality", ("Run repository quality gate",
+                     "Run all passive unit tests with branch coverage",
+                     "Run passive runtime compatibility tests",
+                     "Run focused macOS portability tests"),
+         expected),
+        ("container-quality", ("Run container quality gate", "Run container compatibility gate"),
+         [full, passive]),
+    ):
+        steps = {step.get("name"): step for step in jobs[job]["steps"]}
+        decisions = []
+
+        for name in names:
+            condition = " ".join(steps[name]["if"].split()).replace(
+                "needs.saved-report-acceptance.outputs.integration_profile", "route.profile",
+            )
+            tree = ast.parse(condition.replace("||", " or ").replace("&&", " and ")
+                             .replace("!(", "not ("), mode="eval")
+            decisions.append(Admit(tree))
+
+        assert decisions == wanted, (
+            "Each admitted integration must execute one real profile; drafts/hold execute none."
+        )
+
+
 @pytest.mark.parametrize("job_id", sorted(NATIVE_CRAWL_PORTABILITY_JOBS))
 def test_CrawlPortabilityJobsRequireDraftMarkerAndRetainTheirOwnEvidence(job_id: str) -> None:
     """Parallel focused portability diagnostics cannot replace a final ready integration job."""
@@ -222,7 +470,9 @@ def test_CrawlPortabilityJobsRequireDraftMarkerAndRetainTheirOwnEvidence(job_id:
     assert " ".join(job["if"].split()) == NATIVE_CRAWL_PORTABILITY_CONDITION, (
         "Portability diagnosis must require the explicit draft-only marker."
     )
-    assert "needs" not in job and job.get("continue-on-error", False) is False, (
+    assert job["needs"] == "integration-scope" and (
+        job.get("continue-on-error", False) is False
+    ), (
         "Independent portability jobs must run concurrently and fail on real prerequisite errors."
     )
     assert 1 <= job["timeout-minutes"] <= 10, "Focused jobs must keep finite short ceilings."
@@ -285,7 +535,9 @@ def test_TraversalRateCheckpointKeepsExactBoundedWindowsSelectionsAndOriginalEvi
     assert job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8, (
         "The failing Windows profile needs one bounded eight-minute job."
     )
-    assert "needs" not in job and job.get("continue-on-error", False) is False, (
+    assert job["needs"] == "integration-scope" and (
+        job.get("continue-on-error", False) is False
+    ), (
         "Independent feature feedback must neither wait for nor soften other gates."
     )
     steps = {step["name"]: step for step in job["steps"]}
@@ -362,7 +614,10 @@ def test_TraversalRateCheckpointKeepsExactBoundedWindowsSelectionsAndOriginalEvi
     )
     full = next(step for step in jobs["quality"]["steps"]
         if step.get("name") == "Run repository quality gate")
-    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
+    assert " ".join(full["if"].split()) == (
+        "needs.saved-report-acceptance.outputs.integration_profile == 'full' && ( "
+        + INTEGRATION_CONDITION + ")"
+    ), (
         "The existing final Ready/push gate must remain unchanged."
     )
 
@@ -541,8 +796,9 @@ def test_PortableProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate(
     feature = steps[step_name]
     condition = " ".join(feature["if"].split())
     assert condition == (
+        "needs.saved-report-acceptance.outputs.integration_profile == 'full' && ( "
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        f"&& contains(github.event.pull_request.body, '[{marker}]')"
+        f"&& contains(github.event.pull_request.body, '[{marker}]'))"
     ), "Focused protocol checks must require the explicit draft checkpoint."
     assert "-n 2 --dist=loadscope" in feature["run"], "Protocol checks lost bounded parallelism."
     assert feature["timeout-minutes"] == 5 and "--timeout=30" in feature["run"], (
@@ -565,7 +821,10 @@ def test_PortableProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate(
         "Portable checkpoint modules cannot share a prepend-mode pytest import name."
     )
     full = steps["Run repository quality gate"]
-    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
+    assert " ".join(full["if"].split()) == (
+        "needs.saved-report-acceptance.outputs.integration_profile == 'full' && ( "
+        + INTEGRATION_CONDITION + ")"
+    ), (
         "The complete gate must run unchanged at final readiness."
     )
     assert "1337-dev check" in full["run"], "Final integration no longer runs the complete gate."
@@ -645,8 +904,9 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
     job = jobs["stale-model-cas-content-header"]
     marker = "[owned-content-header-stale-model-cas-checkpoint]"
     assert " ".join(job["if"].split()) == (
+        OPTIONAL_ACTIVE_GUARD + " && ( "
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        f"&& contains(github.event.pull_request.body, '{marker}')"
+        f"&& contains(github.event.pull_request.body, '{marker}'))"
     ), "Only the explicit draft CAS marker may launch this one genuine case."
     assert all(marker not in jobs[name]["if"] for name in oldJobs), (
         "The CAS marker cannot enroll an already accepted cohort."
@@ -726,8 +986,9 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
     job = jobs[jobId]
     marker = "[owned-content-header-post-model-ack-expiry-checkpoint]"
     assert " ".join(job["if"].split()) == (
+        OPTIONAL_ACTIVE_GUARD + " && ( "
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        f"&& contains(github.event.pull_request.body, '{marker}')"
+        f"&& contains(github.event.pull_request.body, '{marker}'))"
     ), "Only the explicit draft expiry marker may launch this one installed partial-state case."
     assert all(marker not in jobs[name]["if"] for name in oldJobs), (
         "The expiry marker cannot reenroll an already accepted case."
@@ -801,8 +1062,9 @@ def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() ->
     job = jobs[jobId]
     marker = "[owned-content-header-ipv6-worker-checkpoint]"
     assert " ".join(job["if"].split()) == (
+        OPTIONAL_ACTIVE_GUARD + " && ( "
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        f"&& contains(github.event.pull_request.body, '{marker}')"
+        f"&& contains(github.event.pull_request.body, '{marker}'))"
     ), "Only this draft worker marker may enroll IPv6; ready behavior stays exact."
     assert all(marker not in jobs[name]["if"] for name in oldJobs), (
         "The worker-only IPv6 marker cannot reenroll any accepted case."
@@ -869,11 +1131,14 @@ def test_ContentUnitWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> Non
     job = workflow["jobs"][jobId]
     marker = "[owned-content-unit-windows-checkpoint]"
     assert " ".join(job["if"].split()) == (
+        OPTIONAL_ACTIVE_GUARD + " && ( "
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        f"&& contains(github.event.pull_request.body, '{marker}')"
+        f"&& contains(github.event.pull_request.body, '{marker}'))"
     ), "Only the explicit draft Windows marker may launch focused unit diagnostics."
     assert all(marker not in value["if"] for name, value in workflow["jobs"].items()
-        if name != jobId), "The Windows marker cannot reenroll any installed acceptance case."
+        if name not in {jobId, "integration-scope"}), (
+        "The Windows marker cannot reenroll any installed acceptance case."
+    )
     assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
         job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
     ), "Focused Windows diagnostics require one bounded non-advisory runner without opt-in effects."
@@ -945,7 +1210,10 @@ def test_InstalledConfigurationMaterialWorkflowRequiresExplicitAdmission() -> No
         "Installed configuration source must declare exactly its one dedicated read-helper job"
     )
     job = workflow["jobs"]["installed-read-helper"]
-    assert " ".join(job["if"].split()) == INSTALLED_CONFIGURATION_MATERIAL_CONDITION, (
+    assert " ".join(job["if"].split()) == (
+        OPTIONAL_ACTIVE_GUARD + " && ( "
+        + INSTALLED_CONFIGURATION_MATERIAL_CONDITION + ")"
+    ), (
         "Installed helper job must require readiness or its exact dedicated draft marker"
     )
     assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 15, (
@@ -995,8 +1263,11 @@ def test_InstalledConfigurationAdmissionUsesActualWorkflowCondition(draft, body,
     """Interpret only the real condition's closed grammar to prove its three PR admission states."""
 
     condition = Workflow("native-configuration-material.yml")["jobs"]["installed-read-helper"]["if"]
-    tree = ast.parse(condition.replace("||", " or ").replace("&&", " and "), mode="eval")
-    context = {"github.event_name": "pull_request", "github.event.pull_request.draft": draft,
+    tree = ast.parse(condition.replace("||", " or ").replace("&&", " and ")
+                     .replace("!(", "not ("), mode="eval")
+    context = {"github.base_ref": "develop", "github.head_ref": "feature/ordinary",
+               "github.event_name": "pull_request",
+               "github.event.pull_request.draft": draft,
                "github.event.pull_request.body": body}
 
     def Admit(node):
@@ -1024,15 +1295,18 @@ def test_InstalledConfigurationAdmissionUsesActualWorkflowCondition(draft, body,
         if isinstance(node, ast.Constant) and type(node.value) is str:
             return node.value
 
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return not Admit(node.operand)
+
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and (
-            node.func.id == "contains" and len(node.args) == 2 and not node.keywords
+            node.func.id in {"contains", "startsWith"} and len(node.args) == 2 and not node.keywords
         ):
             haystack, needle = (Admit(argument) for argument in node.args)
 
             if type(haystack) is not str or type(needle) is not str:
                 raise ValueError("Admission contains requires two literal or contextual strings")
 
-            return needle in haystack
+            return needle in haystack if node.func.id == "contains" else haystack.startswith(needle)
 
         raise ValueError("Workflow admission escaped its closed test grammar")
 
@@ -1207,19 +1481,21 @@ def test_NucleiContractWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> 
     job = jobs[NUCLEI_CONTRACT_WINDOWS_JOB]
     marker = "[nuclei-contract-windows-checkpoint]"
     assert " ".join(job["if"].split()) == (
+        "needs.integration-scope.outputs.profile == 'full' && ( "
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        f"&& contains(github.event.pull_request.body, '{marker}')"
+        f"&& contains(github.event.pull_request.body, '{marker}'))"
     ), "Only the explicit draft contract marker may launch this Windows checkpoint."
     assert all(marker not in other.get("if", "") for name, other in jobs.items()
         if name != NUCLEI_CONTRACT_WINDOWS_JOB), (
         "The contract checkpoint must not enroll any target, installed prerequisite or full gate")
-    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
+    assert set(job) == {"needs", "if", "name", "runs-on", "timeout-minutes", "steps"} and (
         job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
     ), "The Windows contract checkpoint must retain one bounded non-advisory job."
     steps = job["steps"]
     assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
         "Exactly one contract execution, its original-result gate and evidence upload are required")
-    original = jobs["quality"]["steps"]
+    original = [step for step in jobs["quality"]["steps"]
+                if step["name"] != "Require an admitted integration profile"]
     assert steps[0]["uses"] == original[0]["uses"] and steps[0]["with"] == {
         "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False,
     }, "Contract results must bind the exact PR head through pinned credential-free checkout."

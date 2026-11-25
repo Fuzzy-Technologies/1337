@@ -228,10 +228,22 @@ def test_JunitProjectsReportMetadataOnce(monkeypatch):
                   for item in root.findall("properties/property")}
 
     assert calls == 1, "JUnit repeated the complete report projection"
-    assert properties["snapshot_sha256"] == report.SnapshotDigest()
-    assert json.loads(properties["evidence_integrity"]) == expected["evidence_integrity"]
-    assert json.loads(properties["execution_outcomes"]) == expected["execution_outcomes"]
-    assert json.loads(properties["reference_context"]) == expected["reference_bindings"]
+    assert properties["snapshot_sha256"] == report.SnapshotDigest(), (
+        'JUnit metadata must preserve the canonical digest, evidence, execution '
+        'outcomes and reference context'
+    )
+    assert json.loads(properties["evidence_integrity"]) == expected["evidence_integrity"], (
+        'JUnit metadata must preserve the canonical digest, evidence, execution '
+        'outcomes and reference context'
+    )
+    assert json.loads(properties["execution_outcomes"]) == expected["execution_outcomes"], (
+        'JUnit metadata must preserve the canonical digest, evidence, execution '
+        'outcomes and reference context'
+    )
+    assert json.loads(properties["reference_context"]) == expected["reference_bindings"], (
+        'JUnit metadata must preserve the canonical digest, evidence, execution '
+        'outcomes and reference context'
+    )
 
 
 def test_EmptySnapshotDoesNotClaimACompletedCleanScan():
@@ -286,11 +298,23 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
     assert labels == [
         "operations-table-heading", "model-host-table-heading",
         "findings-severity-table-heading", "evidence-table-heading", "relationships-table-heading",
-    ]
-    assert dom.tableLabels == labels
-    assert set(labels) <= dom.headingIds
+    ], (
+        'Each retained table must share a real visible heading with its '
+        'keyboard-addressable scroll region'
+    )
+    assert dom.tableLabels == labels, (
+        'Each retained table must share a real visible heading with its '
+        'keyboard-addressable scroll region'
+    )
+    assert set(labels) <= dom.headingIds, (
+        'Each retained table must share a real visible heading with its '
+        'keyboard-addressable scroll region'
+    )
     assert all(region.get("role") == "region" and region.get("tabindex") == "0"
-               for region in dom.tableRegions)
+               for region in dom.tableRegions), (
+        'Each retained table must share a real visible heading with its '
+        'keyboard-addressable scroll region'
+    )
 
 
 def test_HtmlFindingsJumpToSavedDispositionGroups():
@@ -308,14 +332,23 @@ def test_HtmlFindingsJumpToSavedDispositionGroups():
     statuses = (("open", "Open (2)"), ("confirmed", "Confirmed (1)"),
                 ("dismissed", "Dismissed (1)"), ("resolved", "Resolved (1)"))
     navigation = findings.find('nav[@aria-label="Finding dispositions"]')
-    assert navigation is not None
+    assert navigation is not None, (
+        'Saved disposition navigation must link to the exact populated groups and '
+        'retained finding cards'
+    )
     assert [(link.get("href"), link.text) for link in navigation.findall("a")] == [
         (f"#findings-{status}", label) for status, label in statuses
-    ]
+    ], (
+        'Saved disposition navigation must link to the exact populated groups and '
+        'retained finding cards'
+    )
     assert [(heading.get("id"), heading.get("tabindex"), heading.text)
             for heading in findings.findall("h3")] == [
         (f"findings-{status}", "-1", label) for status, label in statuses
-    ]
+    ], (
+        'Saved disposition navigation must link to the exact populated groups and '
+        'retained finding cards'
+    )
 
     expected = []
     entities = state.Objects(ObjectKind.FINDING)
@@ -327,7 +360,10 @@ def test_HtmlFindingsJumpToSavedDispositionGroups():
 
     actual = [(element.tag, element.get("id")) for element in findings
               if element.tag in ("h3", "article")]
-    assert actual == expected
+    assert actual == expected, (
+        'Saved disposition navigation must link to the exact populated groups and '
+        'retained finding cards'
+    )
 
 
 def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
@@ -349,16 +385,31 @@ def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
     findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
     findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
     index, = findings.findall('details[@class="findings-severity-index"]')
-    assert index.get("open") is None
+    assert index.get("open") is None, (
+        'Severity index must retain saved ordering, accessible headers, canonical '
+        'cards and subject links'
+    )
     heading, = index.findall("summary/h3")
-    assert heading.text == "Findings by saved severity"
+    assert heading.text == "Findings by saved severity", (
+        'Severity index must retain saved ordering, accessible headers, canonical '
+        'cards and subject links'
+    )
     region, = index.findall('div[@role="region"]')
-    assert (region.get("aria-labelledby"), region.get("tabindex")) == (heading.get("id"), "0")
+    assert (region.get("aria-labelledby"), region.get("tabindex")) == (heading.get("id"), "0"), (
+        'Severity index must retain saved ordering, accessible headers, canonical '
+        'cards and subject links'
+    )
     table, = region.findall("table")
-    assert table.get("aria-labelledby") == heading.get("id")
+    assert table.get("aria-labelledby") == heading.get("id"), (
+        'Severity index must retain saved ordering, accessible headers, canonical '
+        'cards and subject links'
+    )
     assert [(header.get("scope"), header.text) for header in table.findall("thead/tr/th")] == [
         ("col", "Finding"), ("col", "Saved severity"), ("col", "Disposition"), ("col", "Subject"),
-    ]
+    ], (
+        'Severity index must retain saved ordering, accessible headers, canonical '
+        'cards and subject links'
+    )
     severityOrder = ("critical", "high", "medium", "low", "informational", "unknown")
     entities = state.Objects(ObjectKind.FINDING)
     ranked = [
@@ -372,20 +423,35 @@ def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
 
     for entry, entity in zip(table.findall("tbody/tr"), ranked, strict=True):
         title, severity, disposition, subject = entry
-        assert (title.tag, title.get("scope")) == ("th", "row")
+        assert (title.tag, title.get("scope")) == ("th", "row"), (
+            'Severity index must retain saved ordering, accessible headers, canonical '
+            'cards and subject links'
+        )
         findingLink, = title.findall("a")
         fragment = f"finding-{entity.Reference()[7:]}"
         assert (findingLink.get("href"), findingLink.text) == (
             f"#{fragment}", entity.attributes["summary"],
+        ), (
+            'Severity index must retain saved ordering, accessible headers, canonical '
+            'cards and subject links'
         )
-        assert fragment in cardIds
+        assert fragment in cardIds, (
+            'Severity index must retain saved ordering, accessible headers, canonical '
+            'cards and subject links'
+        )
         assert [severity.text, disposition.text] == [
             str(entity.attributes[field]).title() for field in ("severity", "status")
-        ]
+        ], (
+            'Severity index must retain saved ordering, accessible headers, canonical '
+            'cards and subject links'
+        )
         reference = str(entity.attributes["subject_reference"])
         subjectLink, = subject.findall("a")
         assert (subjectLink.get("href"), subjectLink.text) == (
             f"#object-{reference[7:]}", subjectLabels[reference],
+        ), (
+            'Severity index must retain saved ordering, accessible headers, canonical '
+            'cards and subject links'
         )
 
 
@@ -400,36 +466,66 @@ def test_HtmlFindingIndexPaginatesAboveFiftyWithNativeDisclosures():
     ) for ordinal in range(47))
     state, _ = ApplyFindings(report.state, detections[:-1])
     atLimit = RenderHtml(replace(report, state=state))
-    assert b'name="findings-severity-pages"' not in atLimit
-    assert b"data-paginated" not in atLimit
+    assert b'name="findings-severity-pages"' not in atLimit, (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
+    assert b"data-paginated" not in atLimit, (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
 
     state, _ = ApplyFindings(state, detections[-1:])
     rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
     findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
     findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
     index, = findings.findall('details[@class="findings-severity-index"]')
-    assert index.get("data-paginated") == "true"
-    assert index.get("open") is None
+    assert index.get("data-paginated") == "true", (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
+    assert index.get("open") is None, (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
     navigation, = index.findall('nav[@aria-label="Finding index row ranges"]')
     links = navigation.findall("a")
     assert [(link.get("href"), link.text) for link in links] == [
         ("#findings-severity-rows-1", "Rows 1–50"), ("#findings-severity-rows-51", "Row 51"),
-    ]
+    ], (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
     pages = index.findall('details[@name="findings-severity-pages"]')
-    assert [page.get("open") for page in pages] == ["open", None]
+    assert [page.get("open") for page in pages] == ["open", None], (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
     tables = []
 
     for link, page in zip(links, pages, strict=True):
         fragment = link.attrib["href"][1:]
         summary, = page.findall("summary")
-        assert (summary.get("id"), summary.text) == (f"{fragment}-heading", link.text)
+        assert (summary.get("id"), summary.text) == (f"{fragment}-heading", link.text), (
+            'Finding pages must preserve bounded row counts, canonical links and '
+            'accessible native disclosures'
+        )
         region, = page.findall(f'div[@role="region"][@id="{fragment}"]')
         table, = region.findall("table")
-        assert region.get("tabindex") == "0"
-        assert region.get("aria-labelledby") == table.get("aria-labelledby") == summary.get("id")
+        assert region.get("tabindex") == "0", (
+            'Finding pages must preserve bounded row counts, canonical links and '
+            'accessible native disclosures'
+        )
+        assert region.get("aria-labelledby") == table.get("aria-labelledby") == summary.get("id"), (
+            'Finding pages must preserve bounded row counts, canonical links and '
+            'accessible native disclosures'
+        )
         tables.append(table)
 
-    assert [len(table.findall("tbody/tr")) for table in tables] == [50, 1]
+    assert [len(table.findall("tbody/tr")) for table in tables] == [50, 1], (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
     entities = state.Objects(ObjectKind.FINDING)
     severities = ("high", "low", "informational", "unknown")
     expected = [
@@ -439,13 +535,25 @@ def test_HtmlFindingIndexPaginatesAboveFiftyWithNativeDisclosures():
     ]
     assert [link.get("href") for table in tables for link in table.findall("tbody/tr/th/a")] == (
         expected
+    ), (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
     )
-    assert tables[-1].findtext("tbody/tr/td") == "Unknown"
+    assert tables[-1].findtext("tbody/tr/td") == "Unknown", (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
     assert {card.get("id") for card in findings.findall("article")} == {
         link[1:] for link in expected
-    }
+    }, (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
     stylesheet = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert "@media print {.findings-severity-index[data-paginated] {display:none}}" in stylesheet
+    assert "@media print {.findings-severity-index[data-paginated] {display:none}}" in stylesheet, (
+        'Finding pages must preserve bounded row counts, canonical links and '
+        'accessible native disclosures'
+    )
 
 
 def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
@@ -460,9 +568,15 @@ def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
     findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
     findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
     filters, = findings.findall('nav[@aria-labelledby="finding-severity-filter-label"]')
-    assert filters.get("hidden") == "hidden"
+    assert filters.get("hidden") == "hidden", (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     assert filters.findtext('span[@id="finding-severity-filter-label"]') == (
         "Filter by saved severity"
+    ), (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
     )
     assert [(link.get("href"), link.text) for link in filters.findall("a")] == [
         ("#findings", "All (5)"),
@@ -470,19 +584,34 @@ def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
         ("#findings-severity-low", "Low (1)"),
         ("#findings-severity-informational", "Informational (1)"),
         ("#findings-severity-unknown", "Unknown (2)"),
-    ]
+    ], (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     selected, = findings.findall('p[@id="findings-severity-unknown"]')
-    assert (selected.get("tabindex"), selected.get("hidden")) == ("-1", "hidden")
-    assert selected.text.startswith("Showing Unknown (2).")
+    assert (selected.get("tabindex"), selected.get("hidden")) == ("-1", "hidden"), (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
+    assert selected.text.startswith("Showing Unknown (2)."), (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     assert {card.get("id"): card.get("data-finding-severities")
             for card in findings.findall("article")} == {
         f"finding-{entity.Reference()[7:]}": entity.attributes["severity"]
         for entity in state.Objects(ObjectKind.FINDING)
-    }
+    }, (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     assert [heading.get("id") for heading in findings.findall("h3")
             if "unknown" in heading.attrib["data-finding-severities"].split()] == [
         "findings-open", "findings-confirmed"
-    ]
+    ], (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     stylesheet = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
     unknownSelector = (
         '#findings-severity-unknown:target ~ [data-finding-severities]'
@@ -491,17 +620,32 @@ def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
     defaults, guard, conditional = stylesheet.partition(
         f"@media screen {{\n@supports selector({unknownSelector}) {{\n"
     )
-    assert guard
-    assert ".finding-severity-filter[hidden] {display:none}" in defaults
-    assert ".finding-severity-selection[hidden] {display:none}" in defaults
+    assert guard, (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
+    assert ".finding-severity-filter[hidden] {display:none}" in defaults, (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
+    assert ".finding-severity-selection[hidden] {display:none}" in defaults, (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     screenRules, closing, tail = conditional.partition("\n}\n}\n")
-    assert closing and not tail
+    assert closing and not tail, (
+        'Severity filters must preserve unknowns and limit visibility changes to the '
+        'intended screen rules'
+    )
     for rule in (
         ".finding-severity-filter[hidden] {display:flex}",
         ".finding-severity-selection[hidden]:target {display:block}",
         f"{unknownSelector} {{display:none}}",
     ):
-        assert rule not in defaults and rule in screenRules
+        assert rule not in defaults and rule in screenRules, (
+            'Severity filters must preserve unknowns and limit visibility changes to the '
+            'intended screen rules'
+        )
 
 
 @pytest.mark.parametrize("verify,expectedIntegrity", [
@@ -538,20 +682,41 @@ def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify,
     columns = ("Evidence", "Role", "Size", "Integrity", "Technical reference")
     assert [(cell.tag, cell.get("scope"), cell.text) for cell in table.findall("thead/tr/*")] == [
         ("th", "col", label) for label in columns
-    ]
-    assert len(table.findall("tbody/tr")) == 2
+    ], (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
+    )
+    assert len(table.findall("tbody/tr")) == 2, (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
+    )
     row = table.find(f'tbody/tr[@id="{fragment}"]')
-    assert row is not None
+    assert row is not None, (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
+    )
     identity, role, size, integrity, details = row
-    assert (identity.tag, identity.get("scope"), identity.text) == ("th", "row", "Evidence 2")
+    assert (identity.tag, identity.get("scope"), identity.text) == ("th", "row", "Evidence 2"), (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
+    )
     assert link.text == f"{identity.text}: {reference.role}", (
         "The finding link must display the evidence row number and role"
     )
-    assert [cell.tag for cell in (role, size, integrity, details)] == ["td"] * 4
+    assert [cell.tag for cell in (role, size, integrity, details)] == ["td"] * 4, (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
+    )
     assert (role.text, size.text, integrity.text) == (
         reference.role, f"{reference.size_bytes} bytes", expectedIntegrity,
+    ), (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
     )
-    assert details.findtext("details/pre") == CanonicalModelJson(reference).decode("utf-8")
+    assert details.findtext("details/pre") == CanonicalModelJson(reference).decode("utf-8"), (
+        'Finding evidence links must resolve to exact retained references in '
+        'accessible evidence rows'
+    )
     stylesheet = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
     assert (
         '@media screen {#evidence tbody tr:target > * {background:#15212b}\n'
@@ -579,7 +744,9 @@ def test_HtmlCalculatesCanonicalSnapshotDigestOnce(monkeypatch):
 
     monkeypatch.setattr(ReportSnapshot, "SnapshotDigest", CountSnapshotDigest)
 
-    assert f"<code>{expected}</code>".encode() in RenderHtml(report)
+    assert f"<code>{expected}</code>".encode() in RenderHtml(report), (
+        'HTML must display the exact canonical retained snapshot digest'
+    )
     assert calls == 1, "HTML recalculated the canonical snapshot digest"
 
 
@@ -620,18 +787,30 @@ def test_HtmlReusesEvidenceFragmentsByCompleteReference(monkeypatch):
 
     monkeypatch.setattr(report_formats, "EvidenceId", CountEvidenceId)
     payload = RenderHtml(report)
-    assert RenderHtml(report) == payload
+    assert RenderHtml(report) == payload, (
+        'Evidence anchors must deduplicate complete references while preserving '
+        'distinct roles and labels'
+    )
     rendered = payload.decode("utf-8")
     dom = Dom()
     dom.feed(rendered)
-    assert len(set(fragments.values())) == 2
+    assert len(set(fragments.values())) == 2, (
+        'Evidence anchors must deduplicate complete references while preserving '
+        'distinct roles and labels'
+    )
 
     expected = ((1, alternate, 1), (2, reference, len(state.Objects(ObjectKind.FINDING))))
 
     for index, item, findingLinks in expected:
         fragment = fragments[item]
-        assert dom.ids.count(fragment) == 1
-        assert f'<a href="#{fragment}">{item.role}</a>' in rendered
+        assert dom.ids.count(fragment) == 1, (
+            'Evidence anchors must deduplicate complete references while preserving '
+            'distinct roles and labels'
+        )
+        assert f'<a href="#{fragment}">{item.role}</a>' in rendered, (
+            'Evidence anchors must deduplicate complete references while preserving '
+            'distinct roles and labels'
+        )
         label = f'<a href="#{fragment}">Evidence {index}: {item.role}</a>'
         assert rendered.count(label) == findingLinks, (
             "Each finding link must use the display number for its complete evidence reference"
@@ -852,7 +1031,10 @@ def test_EmptyHtmlExplainsUnknownCoverageAndDoesNotSuggestASecureTarget():
     assert "No objects of this kind were retained" in visible, "Missing inventory must be explicit"
     assert [region["aria-labelledby"] for region in dom.tableRegions] == [
         "evidence-table-heading", "relationships-table-heading",
-    ]
+    ], (
+        'An empty report must retain accessible evidence and relationship tables '
+        'without invented inventory'
+    )
 
 
 
@@ -893,9 +1075,18 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         "model-service-table-heading", "model-endpoint-table-heading",
         "findings-severity-table-heading", "evidence-table-heading",
         "relationships-table-heading",
-    ]
-    assert dom.tableLabels == labels
-    assert set(labels) <= dom.headingIds
+    ], (
+        'Inventory must preserve saved identities and values in accessible canonical '
+        'rows without active addresses'
+    )
+    assert dom.tableLabels == labels, (
+        'Inventory must preserve saved identities and values in accessible canonical '
+        'rows without active addresses'
+    )
+    assert set(labels) <= dom.headingIds, (
+        'Inventory must preserve saved identities and values in accessible canonical '
+        'rows without active addresses'
+    )
 
     expected = {
         ObjectKind.HOST: (("Address", "Reported state"), ("Not recorded", "reported")),
@@ -910,16 +1101,31 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         columnHeaders = table.findall("thead/tr/*")
         assert [(cell.tag, cell.get("scope"), cell.text) for cell in columnHeaders] == [
             ("th", "col", column) for column in ("Saved identity", *columns, "Findings", "Details")
-        ]
+        ], (
+            'Inventory must preserve saved identities and values in accessible canonical '
+            'rows without active addresses'
+        )
         entity, = state.Objects(kind)
         row, = table.findall("tbody/tr")
         identity, *cells = row
-        assert row.get("id") == f"object-{entity.Reference()[7:]}"
+        assert row.get("id") == f"object-{entity.Reference()[7:]}", (
+            'Inventory must preserve saved identities and values in accessible canonical '
+            'rows without active addresses'
+        )
         assert (identity.tag, identity.get("scope"), identity.text) == (
             "th", "row", entity.identity.key,
+        ), (
+            'Inventory must preserve saved identities and values in accessible canonical '
+            'rows without active addresses'
         )
-        assert [cell.tag for cell in cells] == ["td"] * (len(values) + 2)
-        assert [cell.text for cell in cells[:-2]] == list(values)
+        assert [cell.tag for cell in cells] == ["td"] * (len(values) + 2), (
+            'Inventory must preserve saved identities and values in accessible canonical '
+            'rows without active addresses'
+        )
+        assert [cell.text for cell in cells[:-2]] == list(values), (
+            'Inventory must preserve saved identities and values in accessible canonical '
+            'rows without active addresses'
+        )
 
 
 def test_HtmlPortsOrderRetainedIntegersWithCanonicalTies():
@@ -948,7 +1154,10 @@ def test_HtmlPortsOrderRetainedIntegersWithCanonicalTies():
     model = ElementTree.fromstring(f"<section>{modelHtml}</section>")
     table, = model.findall('.//table[@aria-labelledby="model-port-table-heading"]')
     numberHeader, = table.findall('thead/tr/th[@aria-sort="ascending"]')
-    assert numberHeader.text == "Number"
+    assert numberHeader.text == "Number", (
+        'Port ordering must preserve exact saved values, stable ties and canonical '
+        'finding links'
+    )
     canonical = state.Objects(ObjectKind.PORT)
     ties = [entity for entity in canonical if entity.attributes.get("number") == 443]
     other = [entity for entity in canonical if type(entity.attributes.get("number")) is not int]
@@ -956,16 +1165,28 @@ def test_HtmlPortsOrderRetainedIntegersWithCanonicalTies():
     portRows = table.findall("tbody/tr")
     assert [(row.get("id"), row.findtext("th")) for row in portRows] == [
         (f"object-{entity.Reference()[7:]}", entity.identity.key) for entity in expected
-    ]
+    ], (
+        'Port ordering must preserve exact saved values, stable ties and canonical '
+        'finding links'
+    )
     assert [row.findall("td")[1].text for row in portRows] == [
         "80", "443", "443", "8080",
         *(str(entity.attributes.get("number", "Not recorded")) for entity in other),
-    ]
+    ], (
+        'Port ordering must preserve exact saved values, stable ties and canonical '
+        'finding links'
+    )
     ownerRow, = table.findall(f'.//tr[@id="object-{ports[2].Reference()[7:]}"]')
     findingLink, = ownerRow.findall("td/ul/li/a")
     fragment = f"finding-{finding.ToObject(state.workspace_id).Reference()[7:]}"
-    assert findingLink.get("href") == f"#{fragment}"
-    assert f'id="{fragment}"' in rendered
+    assert findingLink.get("href") == f"#{fragment}", (
+        'Port ordering must preserve exact saved values, stable ties and canonical '
+        'finding links'
+    )
+    assert f'id="{fragment}"' in rendered, (
+        'Port ordering must preserve exact saved values, stable ties and canonical '
+        'finding links'
+    )
 
 
 def test_HtmlAssetPagesPreserveSortedRowsAndLinkedTargets():
@@ -979,8 +1200,14 @@ def test_HtmlAssetPagesPreserveSortedRowsAndLinkedTargets():
     ) for number in range(50, 0, -1))
     state, _ = report.state.Apply(objects=ports)
     atLimit = RenderHtml(replace(report, state=state))
-    assert b"asset-page-links" not in atLimit
-    assert b"asset-table-page" not in atLimit
+    assert b"asset-page-links" not in atLimit, (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
+    assert b"asset-table-page" not in atLimit, (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
 
     latePort = SecurityObject(
         ObjectIdentity("synthetic", ObjectKind.PORT, "127.0.0.1/tcp/unknown"),
@@ -996,35 +1223,65 @@ def test_HtmlAssetPagesPreserveSortedRowsAndLinkedTargets():
     links, = model.findall('nav[@class="asset-page-links"]')
     table, = model.findall('.//table[@aria-labelledby="model-port-table-heading"]')
     pages = table.findall("tbody")
-    assert links.get("hidden") == "hidden"
-    assert [len(page.findall("tr")) for page in pages] == [50, 1]
+    assert links.get("hidden") == "hidden", (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
+    assert [len(page.findall("tr")) for page in pages] == [50, 1], (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
     assert [(link.get("href"), link.text) for link in links.findall("a")] == [
         ("#model-port-table-rows-1", "Rows 1–50"), ("#model-port-table-rows-51", "Row 51"),
-    ]
+    ], (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
     for page, link in zip(pages, links.findall("a"), strict=True):
         assert (page.get("id"), page.get("tabindex"), page.get("aria-label")) == (
             link.attrib["href"][1:], "-1", link.text,
+        ), (
+            'Inventory pagination must retain bounded ordered rows, focusable targets and '
+            'exact finding links'
         )
 
-    assert table.findtext('thead/tr/th[@aria-sort="ascending"]') == "Number"
+    assert table.findtext('thead/tr/th[@aria-sort="ascending"]') == "Number", (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
     orderedRows = pages[0].findall("tr")
     assert [row.findall("td")[1].text for row in orderedRows] == [
         str(number) for number in range(1, 51)
-    ]
-    assert {row.get("data-asset-findings") for row in orderedRows} == {"none"}
+    ], (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
+    assert {row.get("data-asset-findings") for row in orderedRows} == {"none"}, (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
     lateRow, = pages[1].findall("tr")
     objectId = f"object-{latePort.Reference()[7:]}"
     assert (lateRow.get("id"), lateRow.get("tabindex"),
             lateRow.get("data-asset-findings"), lateRow.findall("td")[1].text) == (
         objectId, "-1", "present", "Not recorded",
+    ), (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
     )
 
     findingId = f"finding-{finding.ToObject(state.workspace_id).Reference()[7:]}"
-    assert lateRow.find("td/ul/li/a").get("href") == f"#{findingId}"
+    assert lateRow.find("td/ul/li/a").get("href") == f"#{findingId}", (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
     findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
     findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
     card, = findings.findall(f'article[@id="{findingId}"]')
-    assert card.find("p/a").get("href") == f"#{objectId}"
+    assert card.find("p/a").get("href") == f"#{objectId}", (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
 
     screen = "#model:not(:has(> .asset-findings-selection:target))"
     target = "> .asset-table-page:target, > .asset-table-page > tr:target"
@@ -1037,8 +1294,14 @@ def test_HtmlAssetPagesPreserveSortedRowsAndLinkedTargets():
         f"{chosen} > .asset-table-page:not(:target):not(:has(> tr:target)) {{display:none}}\n"
     )
     style = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert ".asset-page-links[hidden] {display:none}\n" + expect in style
-    assert style.count(".asset-page-links[hidden]") == 2
+    assert ".asset-page-links[hidden] {display:none}\n" + expect in style, (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
+    assert style.count(".asset-page-links[hidden]") == 2, (
+        'Inventory pagination must retain bounded ordered rows, focusable targets and '
+        'exact finding links'
+    )
 
 
 def test_HtmlWebAddressesOrderSavedHttpStatuses():
@@ -1067,7 +1330,10 @@ def test_HtmlWebAddressesOrderSavedHttpStatuses():
     model = ElementTree.fromstring(f"<section>{modelHtml}</section>")
     table, = model.findall('.//table[@aria-labelledby="model-endpoint-table-heading"]')
     statusHeader, = table.findall('thead/tr/th[@aria-sort="descending"]')
-    assert statusHeader.text == "HTTP status"
+    assert statusHeader.text == "HTTP status", (
+        'HTTP status ordering must preserve saved errors, unknown values and '
+        'canonical finding links'
+    )
     canonical = state.Objects(ObjectKind.ENDPOINT)
     ties = [entity for entity in canonical if entity.attributes.get("status") == 503]
     other = [entity for entity in canonical if type(entity.attributes.get("status")) is not int]
@@ -1075,16 +1341,28 @@ def test_HtmlWebAddressesOrderSavedHttpStatuses():
     endpointRows = table.findall("tbody/tr")
     assert [(row.get("id"), row.findtext("th")) for row in endpointRows] == [
         (f"object-{entity.Reference()[7:]}", entity.identity.key) for entity in expected
-    ]
+    ], (
+        'HTTP status ordering must preserve saved errors, unknown values and '
+        'canonical finding links'
+    )
     assert [row.findall("td")[1].text for row in endpointRows] == [
         "503 Service Unavailable", "503 Service Unavailable", "404 Not Found", "200 OK",
         *(str(entity.attributes.get("status", "Not recorded")) for entity in other),
-    ]
+    ], (
+        'HTTP status ordering must preserve saved errors, unknown values and '
+        'canonical finding links'
+    )
     ownerRow, = table.findall(f'.//tr[@id="object-{endpoints[2].Reference()[7:]}"]')
     findingLink, = ownerRow.findall("td/ul/li/a")
     fragment = f"finding-{finding.ToObject(state.workspace_id).Reference()[7:]}"
-    assert findingLink.get("href") == f"#{fragment}"
-    assert f'id="{fragment}"' in rendered
+    assert findingLink.get("href") == f"#{fragment}", (
+        'HTTP status ordering must preserve saved errors, unknown values and '
+        'canonical finding links'
+    )
+    assert f'id="{fragment}"' in rendered, (
+        'HTTP status ordering must preserve saved errors, unknown values and '
+        'canonical finding links'
+    )
 
 
 def test_HtmlAssetTypesJumpToPopulatedInventoryGroups():
@@ -1108,15 +1386,30 @@ def test_HtmlAssetTypesJumpToPopulatedInventoryGroups():
 
     assert [(link.get("href"), link.text) for link in navigation.findall("a")] == [
         (f"#{headingId}", label) for headingId, label in groups
-    ]
+    ], (
+        'Asset navigation must expose only populated groups and retain focusable '
+        'canonical headings'
+    )
 
     for headingId, label in groups:
         heading, = inventory.findall(f'h3[@id="{headingId}"]')
-        assert (heading.get("tabindex"), heading.text) == ("-1", label)
+        assert (heading.get("tabindex"), heading.text) == ("-1", label), (
+            'Asset navigation must expose only populated groups and retain focusable '
+            'canonical headings'
+        )
 
-    assert inventory.findtext('h3[@id="model-port-table-heading"]') == "Ports (0)"
-    assert inventory.findtext('h3[@id="model-service-table-heading"]') == "Services (0)"
-    assert b'aria-label="Asset types"' not in RenderHtml(ReportSnapshot(ModelState("empty")))
+    assert inventory.findtext('h3[@id="model-port-table-heading"]') == "Ports (0)", (
+        'Asset navigation must expose only populated groups and retain focusable '
+        'canonical headings'
+    )
+    assert inventory.findtext('h3[@id="model-service-table-heading"]') == "Services (0)", (
+        'Asset navigation must expose only populated groups and retain focusable '
+        'canonical headings'
+    )
+    assert b'aria-label="Asset types"' not in RenderHtml(ReportSnapshot(ModelState("empty"))), (
+        'Asset navigation must expose only populated groups and retain focusable '
+        'canonical headings'
+    )
 
 
 def test_HtmlAssetFindingsUseExactSavedSubjects():
@@ -1153,21 +1446,42 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
     cards = {f"#{card.get('id')}": card for card in findings.findall("article")}
     entities = state.Objects(ObjectKind.FINDING)
 
-    assert len(cards) == len(entities)
-    assert inventory.find(".//script") is None
+    assert len(cards) == len(entities), (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
+    assert inventory.find(".//script") is None, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     filters, = inventory.findall('nav[@aria-labelledby="asset-findings-filter-label"]')
-    assert filters.get("hidden") == "hidden"
+    assert filters.get("hidden") == "hidden", (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     assert [(link.get("href"), link.text) for link in filters.findall("a")] == [
         ("#model", "All (5)"), ("#assets-with-findings", "With findings (3)"),
         ("#assets-without-findings", "Without findings (2)"),
-    ]
+    ], (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     withFindings, = inventory.findall('p[@id="assets-with-findings"]')
     withoutFindings, = inventory.findall('p[@id="assets-without-findings"]')
-    assert (withFindings.get("hidden"), withFindings.get("tabindex")) == ("hidden", "-1")
-    assert (withoutFindings.get("hidden"), withoutFindings.get("tabindex")) == ("hidden", "-1")
+    assert (withFindings.get("hidden"), withFindings.get("tabindex")) == ("hidden", "-1"), (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
+    assert (withoutFindings.get("hidden"), withoutFindings.get("tabindex")) == ("hidden", "-1"), (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     assert withoutFindings.text == (
         "Showing 2 of 5 objects without retained findings for manual review. "
         "Security and check coverage remain unassessed. Group counts describe the full snapshot."
+    ), (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
     )
     withSelector = (
         "#model:has(> #assets-with-findings:target) [data-asset-findings]"
@@ -1182,20 +1496,35 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
         f"    and selector({withoutSelector}) {{\n"
     )
     defaults, guardStart, conditional = rendered.partition(guard)
-    assert guardStart
+    assert guardStart, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     assert ".asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}" in (
         defaults
+    ), (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
     )
     screenRules = conditional.split("\n}\n}\n", 1)[0]
-    assert f"{withSelector} {{display:none}}" in screenRules
-    assert f"{withoutSelector} {{display:none}}" in screenRules
+    assert f"{withSelector} {{display:none}}" in screenRules, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
+    assert f"{withoutSelector} {{display:none}}" in screenRules, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
 
     for subject in (host, endpoint, asset):
         reference = subject.Reference()
         objectId = f"object-{reference[7:]}"
         entry, = (inventory.findall(f'.//tr[@id="{objectId}"]')
                   + inventory.findall(f'.//details[@id="{objectId}"]/..'))
-        assert entry.get("data-asset-findings") == "present"
+        assert entry.get("data-asset-findings") == "present", (
+            'Asset finding filters must use exact retained subjects without inferred '
+            'matches or injected markup'
+        )
         expected = [
             (
                 f"#finding-{entity.Reference()[7:]}",
@@ -1205,33 +1534,72 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
         ]
         links = inventory.findall(f'.//tr[@id="{objectId}"]/td/ul/li/a')
         links += inventory.findall(f'.//details[@id="{objectId}"]/../ul/li/a')
-        assert [(link.get("href"), link.text) for link in links] == expected
+        assert [(link.get("href"), link.text) for link in links] == expected, (
+            'Asset finding filters must use exact retained subjects without inferred '
+            'matches or injected markup'
+        )
 
         for fragment, _ in expected:
             card = cards[fragment]
-            assert card.get("tabindex") == "-1"
-            assert card.findtext("h4") == summary
-            assert card.find("p/a").get("href") == f"#{objectId}"
+            assert card.get("tabindex") == "-1", (
+                'Asset finding filters must use exact retained subjects without inferred '
+                'matches or injected markup'
+            )
+            assert card.findtext("h4") == summary, (
+                'Asset finding filters must use exact retained subjects without inferred '
+                'matches or injected markup'
+            )
+            assert card.find("p/a").get("href") == f"#{objectId}", (
+                'Asset finding filters must use exact retained subjects without inferred '
+                'matches or injected markup'
+            )
 
     serviceRow = inventory.find(f'.//tr[@id="object-{service.Reference()[7:]}"]')
-    assert serviceRow is not None
-    assert serviceRow.get("data-asset-findings") == "none"
-    assert serviceRow.findall("td")[-2].text == "None retained"
-    assert serviceRow.findall(".//a") == []
+    assert serviceRow is not None, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
+    assert serviceRow.get("data-asset-findings") == "none", (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
+    assert serviceRow.findall("td")[-2].text == "None retained", (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
+    assert serviceRow.findall(".//a") == [], (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     assert inventory.find('h3[@id="model-service-table-heading"]').get("data-asset-findings") == (
         "none"
+    ), (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
     )
     assert inventory.find('div[@aria-labelledby="model-service-table-heading"]').get(
         "data-asset-findings"
-    ) == "none"
+    ) == "none", (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     assert inventory.find(f'.//tr[@id="object-{otherEndpoint.Reference()[7:]}"]').get(
         "data-asset-findings"
-    ) == "none"
+    ) == "none", (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     endpointHeading, = inventory.findall('h3[@id="model-endpoint-table-heading"]')
-    assert endpointHeading.get("data-asset-findings") is None
+    assert endpointHeading.get("data-asset-findings") is None, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
     assert inventory.find('div[@aria-labelledby="model-endpoint-table-heading"]').get(
         "data-asset-findings"
-    ) is None
+    ) is None, (
+        'Asset finding filters must use exact retained subjects without inferred '
+        'matches or injected markup'
+    )
 
 
 def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):
@@ -1283,7 +1651,7 @@ def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypa
 
     with monkeypatch.context() as counting:
         counting.setattr(Observation, "__getattribute__", CountSubjectReads)
-        rows = reporting._ProjectRetainedReportRows(state)
+        rows = reporting.ProjectRetainedReportRows(state)
 
     assert subjectReads == len(state.observations), "Projection rescanned observation history"
     assert tuple(rows.objects.values()) == state.objects, "Canonical object order changed"
@@ -1344,9 +1712,18 @@ def test_HtmlNativeResponseRowsRequireAttributedEvidenceAndAnExactObservation():
         link[1:] in dom.ids for link in dom.links if link.startswith("#")
     ), "Native response subject labels must stay inert and all evidence links must resolve."
     assert any(region.get("aria-labelledby") == "native-response-table-heading"
-               and region.get("tabindex") == "0" for region in dom.tableRegions)
-    assert "native-response-table-heading" in dom.headingIds
-    assert dom.tableLabels == [region["aria-labelledby"] for region in dom.tableRegions]
+               and region.get("tabindex") == "0" for region in dom.tableRegions), (
+        'Native response rows must share their visible heading with an accessible '
+        'canonical table region'
+    )
+    assert "native-response-table-heading" in dom.headingIds, (
+        'Native response rows must share their visible heading with an accessible '
+        'canonical table region'
+    )
+    assert dom.tableLabels == [region["aria-labelledby"] for region in dom.tableRegions], (
+        'Native response rows must share their visible heading with an accessible '
+        'canonical table region'
+    )
 
 
 def IntelReport(assertions, *, unmatched=None):

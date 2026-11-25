@@ -47,7 +47,7 @@ _IDENTIFIERS = {
 
 
 @dataclass(frozen=True, slots=True)
-class _RetainedFindingRow:
+class RetainedFindingRow:
     """Keep the canonical finding, its linked evidence and its own observation history."""
 
     reference: str
@@ -58,15 +58,15 @@ class _RetainedFindingRow:
 
 
 @dataclass(frozen=True, slots=True)
-class _RetainedReportRows:
+class RetainedReportRows:
     """Index canonical objects for the read-only asset and finding presentation."""
 
     objects: Mapping[str, SecurityObject]
     assetsByKind: Mapping[ObjectKind, tuple[tuple[str, SecurityObject], ...]]
-    findings: tuple[_RetainedFindingRow, ...]
+    findings: tuple[RetainedFindingRow, ...]
 
 
-def _ProjectRetainedReportRows(state: ModelState) -> _RetainedReportRows:
+def ProjectRetainedReportRows(state: ModelState) -> RetainedReportRows:
     """Index each object and observation once while preserving canonical content and order.
 
     Args:
@@ -98,19 +98,19 @@ def _ProjectRetainedReportRows(state: ModelState) -> _RetainedReportRows:
             if selected is not None:
                 selected.append(observation)
 
-    findings: list[_RetainedFindingRow] = []
+    findings: list[RetainedFindingRow] = []
 
     for reference, observations in findingObservations.items():
         entity = objects[reference]
         evidence = {
             item for provenance in entity.provenance for item in provenance.evidence_references
         }
-        findings.append(_RetainedFindingRow(
+        findings.append(RetainedFindingRow(
             reference, entity, Finding.FromObject(entity),
             tuple(sorted(evidence, key=CanonicalModelJson)), tuple(observations),
         ))
 
-    return _RetainedReportRows(
+    return RetainedReportRows(
         MappingProxyType(objects),
         MappingProxyType({kind: tuple(assets) for kind, assets in assetsByKind.items()}),
         tuple(findings),

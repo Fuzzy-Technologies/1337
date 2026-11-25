@@ -50,7 +50,9 @@ def test_EmptyWorkspaceExportsWithoutScopeOrCleanScanClaim(tmp_path, monkeypatch
     status, outcome = Run(root, destination)
     document = json.loads(destination.read_bytes())
     assert status == 0 and outcome["model_revision"] == 0, "An empty saved model is exportable."
-    assert outcome["checked_model_evidence_references"] == 0
+    assert outcome["checked_model_evidence_references"] == 0, (
+        'An empty saved model must report zero checked evidence references'
+    )
     assert document["summary"]["findings"] == 0 and document["scan_completeness"] == (
         "not-assessed"
     ), "An empty report must not become a clean scan or successful check."
@@ -182,7 +184,10 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
     modelStore.WriteState(modelPath, selected)
     selectedBytes = CanonicalModelJson(selected.ToDict())
     changedBytes = CanonicalModelJson(changed.ToDict())
-    assert selected == changed and selectedBytes != changedBytes
+    assert selected == changed and selectedBytes != changedBytes, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
 
     openModel = LocalModelStore.Open
     modelDocument = ModelState.ToDict
@@ -255,26 +260,64 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
     status, outcome = Run(root, destination)
 
     selectedModel, reopenedModel = openedModels
-    assert reopenedModel is not selectedModel
-    assert sum(model is reopenedModel for model in projectedModels) == 1
-    assert reopenedHashes == [changedBytes if change else selectedBytes]
+    assert reopenedModel is not selectedModel, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
+    assert sum(model is reopenedModel for model in projectedModels) == 1, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
+    assert reopenedHashes == [changedBytes if change else selectedBytes], (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
     assert len(hashedReports) == 2, "Reuse the selected snapshot digest in the recheck."
     outcomeReport, renderedReport = hashedReports
-    assert outcomeReport is renderedReport and outcomeReport.state is selectedModel
-    assert outcome["snapshot_sha256"] == expected and outcome["model_revision"] == selected.revision
+    assert outcomeReport is renderedReport and outcomeReport.state is selectedModel, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
+    assert (
+        outcome["snapshot_sha256"] == expected and outcome["model_revision"] == selected.revision
+    ), (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
     assert len(traversedReports) == 3, "Only quotas, verification, and JSON need the reference set."
     quotaReport, verifierReport, rendererReport = traversedReports
-    assert quotaReport is verifierReport and rendererReport is outcomeReport
-    assert outcome["checked_model_evidence_references"] == 1
-    assert outcome["verified_retained_acquisitions"] == 2
+    assert quotaReport is verifierReport and rendererReport is outcomeReport, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
+    assert outcome["checked_model_evidence_references"] == 1, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
+    assert outcome["verified_retained_acquisitions"] == 2, (
+        'Export must retain the selected digest and reject changed reopened content '
+        'before publication'
+    )
 
     if change:
-        assert status == 4 and outcome["failure"] == "input-changed"
-        assert not outcome["output_published"] and not destination.exists()
+        assert status == 4 and outcome["failure"] == "input-changed", (
+            'Export must retain the selected digest and reject changed reopened content '
+            'before publication'
+        )
+        assert not outcome["output_published"] and not destination.exists(), (
+            'Export must retain the selected digest and reject changed reopened content '
+            'before publication'
+        )
 
     else:
-        assert status == 0 and outcome["output_published"]
-        assert json.loads(destination.read_bytes())["snapshot_sha256"] == expected
+        assert status == 0 and outcome["output_published"], (
+            'Export must retain the selected digest and reject changed reopened content '
+            'before publication'
+        )
+        assert json.loads(destination.read_bytes())["snapshot_sha256"] == expected, (
+            'Export must retain the selected digest and reject changed reopened content '
+            'before publication'
+        )
 
 
 
@@ -309,10 +352,22 @@ def test_OutOfRangeSavedObservationTimeFailsInputIntegrity(tmp_path, monkeypatch
     DenyExecution(monkeypatch)
     destination = tmp_path / "invalid-observation-time.json"
     status, outcome = Run(root, destination)
-    assert status == 4 and outcome["failure"] == "integrity"
-    assert not outcome["output_published"] and not destination.exists()
-    assert invalidTime not in json.dumps(outcome)
-    assert Files(root) == {**before, modelName: invalidModel}
+    assert status == 4 and outcome["failure"] == "integrity", (
+        'Unrepresentable saved time must fail integrity without output, disclosure, '
+        'or source mutation'
+    )
+    assert not outcome["output_published"] and not destination.exists(), (
+        'Unrepresentable saved time must fail integrity without output, disclosure, '
+        'or source mutation'
+    )
+    assert invalidTime not in json.dumps(outcome), (
+        'Unrepresentable saved time must fail integrity without output, disclosure, '
+        'or source mutation'
+    )
+    assert Files(root) == {**before, modelName: invalidModel}, (
+        'Unrepresentable saved time must fail integrity without output, disclosure, '
+        'or source mutation'
+    )
 
 
 def test_ReopenedCanonicalModelByteLimitPreventsPublication(tmp_path, monkeypatch):
@@ -324,7 +379,10 @@ def test_ReopenedCanonicalModelByteLimitPreventsPublication(tmp_path, monkeypatc
     selectedBytes = CanonicalModelJson(selected.ToDict())
     largerHost = replace(selected.objects[0], attributes={"fixture": "x" * 128})
     larger = replace(selected, objects=(largerHost,))
-    assert len(CanonicalModelJson(larger.ToDict())) > len(selectedBytes)
+    assert len(CanonicalModelJson(larger.ToDict())) > len(selectedBytes), (
+        'A reopened model exceeding the canonical byte limit must fail integrity '
+        'before publication'
+    )
     serialize = commands.SerializeJson
 
     def SerializeThenGrow(report):
@@ -341,9 +399,18 @@ def test_ReopenedCanonicalModelByteLimitPreventsPublication(tmp_path, monkeypatc
     destination = tmp_path / "oversize-reopen.json"
     status, outcome = Run(root, destination)
 
-    assert outcome["snapshot_sha256"] == hashlib.sha256(selectedBytes).hexdigest()
-    assert status == 4 and outcome["failure"] == "integrity"
-    assert not outcome["output_published"] and not destination.exists()
+    assert outcome["snapshot_sha256"] == hashlib.sha256(selectedBytes).hexdigest(), (
+        'A reopened model exceeding the canonical byte limit must fail integrity '
+        'before publication'
+    )
+    assert status == 4 and outcome["failure"] == "integrity", (
+        'A reopened model exceeding the canonical byte limit must fail integrity '
+        'before publication'
+    )
+    assert not outcome["output_published"] and not destination.exists(), (
+        'A reopened model exceeding the canonical byte limit must fail integrity '
+        'before publication'
+    )
 
 
 
@@ -465,18 +532,30 @@ def test_QuotaAccountingRetainsDistinctBytesAcrossEvidenceReads(tmp_path, monkey
                         first.reference.size_bytes + second.reference.size_bytes)
     bounded = commands.BoundedReportEvidenceStore(evidenceRoot)
 
-    assert bounded.Get(first.evidence_id) == first
-    assert bounded.Get(shared.evidence_id) == shared
+    assert bounded.Get(first.evidence_id) == first, (
+        'Distinct-blob accounting must preserve accepted acquisition reads and the '
+        'remaining quota'
+    )
+    assert bounded.Get(shared.evidence_id) == shared, (
+        'Distinct-blob accounting must preserve accepted acquisition reads and the '
+        'remaining quota'
+    )
 
     with pytest.raises(commands.ReportFailure, match="limit"):
         bounded.Read(excess.reference)
 
-    assert bounded.Get(second.evidence_id) == second
+    assert bounded.Get(second.evidence_id) == second, (
+        'Distinct-blob accounting must preserve accepted acquisition reads and the '
+        'remaining quota'
+    )
 
     with pytest.raises(commands.ReportFailure, match="limit"):
         bounded.Read(empty.reference)
 
-    assert bounded.Read(first.reference) == payload
+    assert bounded.Read(first.reference) == payload, (
+        'Distinct-blob accounting must preserve accepted acquisition reads and the '
+        'remaining quota'
+    )
     assert Files(root) == before, "Quota accounting must preserve all retained source bytes."
 
 
@@ -762,9 +841,18 @@ def test_DirectEvidenceQuotaPrecedesMalformedAcquisition(tmp_path, monkeypatch):
     destination = tmp_path / "over-budget.json"
     status, outcome = Run(root, destination)
 
-    assert status == 4 and outcome["failure"] == "limit"
-    assert not outcome["output_published"] and not destination.exists()
-    assert Files(root) == before
+    assert status == 4 and outcome["failure"] == "limit", (
+        'Direct-read quota failure must precede malformed acquisition parsing and '
+        'preserve source bytes'
+    )
+    assert not outcome["output_published"] and not destination.exists(), (
+        'Direct-read quota failure must precede malformed acquisition parsing and '
+        'preserve source bytes'
+    )
+    assert Files(root) == before, (
+        'Direct-read quota failure must precede malformed acquisition parsing and '
+        'preserve source bytes'
+    )
 
 
 def test_DirectEvidenceIntegrityPrecedesAcquisitionQuota(tmp_path, monkeypatch):
@@ -782,9 +870,18 @@ def test_DirectEvidenceIntegrityPrecedesAcquisitionQuota(tmp_path, monkeypatch):
     destination = tmp_path / "corrupt.json"
     status, outcome = Run(root, destination)
 
-    assert status == 4 and outcome["failure"] == "integrity"
-    assert not outcome["output_published"] and not destination.exists()
-    assert Files(root) == before
+    assert status == 4 and outcome["failure"] == "integrity", (
+        'Direct evidence corruption must fail integrity before acquisition quota '
+        'checks or publication'
+    )
+    assert not outcome["output_published"] and not destination.exists(), (
+        'Direct evidence corruption must fail integrity before acquisition quota '
+        'checks or publication'
+    )
+    assert Files(root) == before, (
+        'Direct evidence corruption must fail integrity before acquisition quota '
+        'checks or publication'
+    )
 
 
 

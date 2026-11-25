@@ -439,8 +439,8 @@ equal to `evidence.initial-topology`, `type` equal to `topology-seed` and
 can belong to multiple acquisitions, so leave attribution unresolved when the
 original acquisition cannot be identified.
 The third line reports whether the verified acquisition ID is registered in the
-opened workspace snapshot. The finding-replay fixture stores the acquisition
-and leaves the workspace registry empty.
+opened workspace snapshot. The finding-replay fixture registers the acquisition
+and its retained reference in that workspace snapshot.
 
 The fourth line gives the saved model observation's kind, source and recorded
 time. The fifth line shows the report's `scan_completeness` value of

@@ -8,6 +8,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 43 — v0.4.43 — 2026-11-25
+
+#### Digest
+
+- Run the full unit suite once for reviewed offline development batches and
+  retain separate evidence for platform, packaging and container checks.
+
+#### Changed
+
+- Check the complete unit inventory in parallel, run shared-resource tests
+  separately, and measure changed production modules with offline product tests.
+- Exercise the isolated service lifecycle and its cleanup in the batch. Keep
+  the existing full validation for normal integration and stable-branch runs.
+
+#### Fixed
+
+- Surface serial-test collection errors and retain test outcomes on timeouts.
+
+
 ### Patch 42 — v0.4.42 — 2026-11-25
 
 #### Digest

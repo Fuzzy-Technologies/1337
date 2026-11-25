@@ -73,8 +73,14 @@ def test_InstalledConsoleExportsVerifiedCandidatesAfterSourceRemoval(tmp_path):
         "Candidate export failed or attempted to publish additional evidence"
     )
     exported = result["candidate_export"]
-    assert exported["schema_version"] == 1 and exported["profile"] == "ascii-ioc-tsv-v1"
-    assert exported["parser_id"] == "ioc-artifacts" and exported["parser_version"] == "1"
+    assert exported["schema_version"] == 1 and exported["profile"] == "ascii-ioc-tsv-v1", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert exported["parser_id"] == "ioc-artifacts" and exported["parser_version"] == "1", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
     assert exported["raw_evidence_id"] == imported["raw_id"] and exported[
         "acquisition_evidence_id"
     ] == imported["receipt_id"], "Export lost its independently selected original evidence pins"
@@ -85,11 +91,26 @@ def test_InstalledConsoleExportsVerifiedCandidatesAfterSourceRemoval(tmp_path):
     assert [item["normalized_token"] for item in candidates] == [
         "192.0.2.7", "2001:db8::1", "example.invalid", "a" * 64, "example.invalid"
     ], "Export changed canonical values or collapsed repeated original occurrences"
-    assert [item["line_number"] for item in candidates] == [1, 2, 3, 4, 5]
-    assert candidates[2]["raw_token"] == "EXAMPLE.Invalid."
-    assert candidates[-1]["observed_at"] == "2099-01-01T12:00:00+05:30"
-    assert candidates[-1]["observation_timezone"] == "+05:30"
-    assert candidates[-1]["observed_at_utc"] == "2099-01-01T06:30:00.000000+00:00"
+    assert [item["line_number"] for item in candidates] == [1, 2, 3, 4, 5], (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[2]["raw_token"] == "EXAMPLE.Invalid.", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[-1]["observed_at"] == "2099-01-01T12:00:00+05:30", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[-1]["observation_timezone"] == "+05:30", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[-1]["observed_at_utc"] == "2099-01-01T06:30:00.000000+00:00", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
     assert candidates[0]["observed_at"] is None, "Export invented a source observation time"
 
     for item in candidates:

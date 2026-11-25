@@ -17,10 +17,12 @@ concurrency:
 jobs:
   installed-native-configuration:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[native-config-product-checkpoint]'))
+      && contains(github.event.pull_request.body, '[native-config-product-checkpoint]')))
     name: Installed configuration product / Linux x86_64
     runs-on: ubuntu-24.04
     timeout-minutes: 20

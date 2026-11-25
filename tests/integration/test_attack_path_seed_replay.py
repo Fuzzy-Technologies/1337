@@ -66,12 +66,26 @@ def test_ReopeningAndReapplyingSeedPreservesSingleAsset(tmp_path: Path) -> None:
     assert first == persisted == replayed == saved == reopened, "Persisted state changed on replay"
     assert reopened.Objects() == (seed,), "Seed replay must leave one Asset and no Finding"
     storedAsset = reopened.Objects(ObjectKind.ASSET)[0]
-    assert storedAsset.Reference() == reference and storedAsset.attributes["provenance"] == "seeded"
+    assert (
+        storedAsset.Reference() == reference and storedAsset.attributes["provenance"] == "seeded"
+    ), (
+        'Seed replay must preserve its identity and seeded attribution without '
+        'acquiring evidence or execution'
+    )
     assert reopened.observations == (
         Observation("object-update", reference, seed.attributes, provenance),
     ), "Seed replay duplicated attribution"
-    assert reopened.relations == ()
-    assert storedAsset.provenance[0].evidence_references == ()
-    assert storedAsset.provenance[0].execution is None
+    assert reopened.relations == (), (
+        'Seed replay must preserve its identity and seeded attribution without '
+        'acquiring evidence or execution'
+    )
+    assert storedAsset.provenance[0].evidence_references == (), (
+        'Seed replay must preserve its identity and seeded attribution without '
+        'acquiring evidence or execution'
+    )
+    assert storedAsset.provenance[0].execution is None, (
+        'Seed replay must preserve its identity and seeded attribution without '
+        'acquiring evidence or execution'
+    )
     assert workspaceStore.Open() == workspace, "Seed replay changed workspace attribution"
     assert tuple((root / "evidence").iterdir()) == (), "Seed replay acquired evidence"

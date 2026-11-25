@@ -10,9 +10,131 @@ import json
 import os
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 from fuzzy1337 import test_progress, test_runner
+
+
+def test_DefaultRunnerPartitionsCasesAcrossOverlappingWorkersThenAppendsSerialCoverage(
+    tmp_path, monkeypatch,
+):
+    """Exercise actual scheduling, exact-once partitions and appended branch measurements."""
+
+    root = Path(__file__).resolve().parents[2]
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join((str(tmp_path), str(root), str(root / "src"))))
+    monkeypatch.setenv("COVERAGE_FILE", str(tmp_path / ".coverage"))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "pytest.ini").write_text(
+        "[pytest]\nmarkers = serial: owns shared state\n"
+        "addopts = --strict-markers --cov=subject --cov-branch "
+        "--cov-report=json:coverage/coverage.json\n", encoding="utf-8",
+    )
+    (tmp_path / "subject.py").write_text(textwrap.dedent('''\
+        """Measure different branches in the parallel and serial partitions."""
+
+        def Select(mode):
+            """Expose one branch owned by each partition."""
+
+            if mode == "parallel":
+                return 1
+
+            return 2
+        '''), encoding="utf-8")
+    (tmp_path / "rendezvous.py").write_text(textwrap.dedent('''\
+        """Require two genuinely overlapping workers without timing-based speed claims."""
+
+        import json
+        import os
+        import time
+        from pathlib import Path
+
+        def Arrive():
+            """Wait for a second worker while this worker still owns an active test."""
+
+            worker = os.environ["PYTEST_XDIST_WORKER"]
+            Path("ready-" + worker).write_text(str(os.getpid()), encoding="utf-8")
+            deadline = time.monotonic() + 10
+
+            while len(list(Path(".").glob("ready-*"))) < 2:
+                assert time.monotonic() < deadline, "Two active workers never overlapped."
+                time.sleep(0.01)
+
+        def Record(name):
+            """Create exactly one receipt, rejecting repeat execution of any case."""
+
+            with Path("case-" + name).open("x", encoding="utf-8") as stream:
+                json.dump({"worker": os.environ.get("PYTEST_XDIST_WORKER", "controller"),
+                           "pid": os.getpid()}, stream)
+        '''), encoding="utf-8")
+
+    for name in ("alpha", "beta"):
+        (tmp_path / f"test_{name}.py").write_text(textwrap.dedent(f'''\
+            """Independent module with bounded deterministic cases."""
+
+            import pytest
+            import subject
+            from rendezvous import Arrive, Record
+
+            @pytest.mark.parametrize("value", range(4))
+            def test_Parallel(value):
+                """All cases must run once across two actual worker processes."""
+
+                Arrive()
+                assert subject.Select("parallel") == 1
+                Record("{name}-" + str(value))
+            '''), encoding="utf-8")
+
+    (tmp_path / "test_serial.py").write_text(textwrap.dedent('''\
+        """Shared-state exception must execute after every independent case."""
+
+        import os
+        from pathlib import Path
+        import pytest
+        import subject
+        from rendezvous import Record
+
+        @pytest.mark.serial
+        def test_Serial():
+            """Refuse early, worker-owned or repeated serial execution."""
+
+            assert "PYTEST_XDIST_WORKER" not in os.environ
+            assert len(list(Path(".").glob("case-*"))) == 8
+            assert subject.Select("serial") == 2
+            Record("serial")
+        '''), encoding="utf-8")
+    assert test_runner.RunTests(str(tmp_path), test_runner.TestOptions(jobs="2")) == 0, (
+        "The actual default parallel/serial orchestration must succeed without retries."
+    )
+    receipts = {path.name.removeprefix("case-"): json.loads(path.read_text(encoding="utf-8"))
+                for path in tmp_path.glob("case-*")}
+    assert set(receipts) == {"serial"} | {
+        f"{name}-{value}" for name in ("alpha", "beta") for value in range(4)
+    }, "All nine cases must execute exactly once in disjoint partitions."
+    workers = {receipt["worker"]: receipt["pid"] for name, receipt in receipts.items()
+               if name != "serial"}
+    assert set(workers) == {"gw0", "gw1"} and len(set(workers.values())) == 2, (
+        "Both overlapping workers must be distinct operating-system processes."
+    )
+    assert receipts["serial"]["worker"] == "controller", "Serial work must not own an xdist worker."
+    assert receipts["serial"]["pid"] not in workers.values(), (
+        "Serial work must run in its own interpreter after the pool completes."
+    )
+
+    for name, count in (("parallel", 8), ("serial", 1)):
+        summary = test_runner.ReadJunitSummary(tmp_path / "coverage" / f"{name}-tests.xml")
+        assert (summary.total, summary.passed, summary.failed, summary.skipped) == (
+            count, count, 0, 0,
+        ), "JUnit must independently establish both actual partition counts without skips."
+
+    measured = json.loads((tmp_path / "coverage" / "coverage.json").read_text(encoding="utf-8"))
+    assert measured["meta"]["branch_coverage"] is True, "Both partitions must measure branches."
+    subject = next(value for name, value in measured["files"].items()
+                   if Path(name).name == "subject.py")
+    assert subject["summary"]["num_branches"] == 2 and subject["missing_branches"] == [], (
+        "Serial coverage must append its branch to the parallel measurement without overwriting it."
+    )
 
 
 def test_InstalledPluginPersistsTwoActualCasesWithoutChangingFailureEvidence(

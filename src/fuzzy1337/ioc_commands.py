@@ -276,7 +276,15 @@ def VerifiedAcquisition(root: Path, acquired: IocAcquisition,
 
 
 def DescribeIocMatches(snapshot: IocSnapshot, match: tuple[str, str]) -> str:
-    """Describe every exact match in a verified original without copying its tokens."""
+    """Describe every exact match in a verified original without copying its tokens.
+
+    Args:
+        snapshot: Independently verified retained occurrence snapshot.
+        match: Exact candidate kind and normalized token supplied by the caller.
+
+    Returns:
+        Human-readable occurrence coordinates and original evidence attribution.
+    """
 
     matches = [candidate for candidate in snapshot.candidates
                if (candidate.kind, candidate.normalized_token) == match]

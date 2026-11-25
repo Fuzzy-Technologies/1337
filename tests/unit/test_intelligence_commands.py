@@ -140,7 +140,9 @@ def test_PreviewLateFailureNeverPublishesTheStagedProposal(tmp_path, monkeypatch
 
     monkeypatch.setattr(commands, "CanonicalModelJson", Encode)
     status, rejected = Run(arguments)
-    assert status == (130 if error is KeyboardInterrupt else 4)
+    assert status == (130 if error is KeyboardInterrupt else 4), (
+        'Late preview failure must retain its error or interruption exit status'
+    )
     assert rejected["status"] == "failed" and "preview" not in rejected, (
         "Late preview failure emitted an unverified or unbounded staged proposal."
     )

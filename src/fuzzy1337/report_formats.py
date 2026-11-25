@@ -27,10 +27,10 @@ from fuzzy1337.model import CanonicalModelJson, ObjectKind, Observation, Securit
 from fuzzy1337.reporting import (
     MAX_REPORT_BYTES,
     REPORT_SCHEMA_VERSION,
+    ProjectRetainedReportRows,
     ReportSnapshot,
-    _ProjectRetainedReportRows,
-    _RetainedFindingRow,
-    _RetainedReportRows,
+    RetainedFindingRow,
+    RetainedReportRows,
 )
 
 __all__ = ["RenderHtml", "SerializeJson", "SerializeSarif", "SerializeJunit"]
@@ -321,8 +321,17 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
-def _TableStart(headingId: str, *, assetFindingsMarker: str = "", regionId: str = "") -> str:
-    """Name the native table and its keyboard scroll region with the same heading."""
+def TableStart(headingId: str, *, assetFindingsMarker: str = "", regionId: str = "") -> str:
+    """Name the native table and its keyboard scroll region with the same heading.
+
+    Args:
+        headingId: Canonical identifier of the visible table heading.
+        assetFindingsMarker: Authored optional filter attribute for this retained group.
+        regionId: Optional canonical fragment for direct keyboard navigation.
+
+    Returns:
+        Opening HTML for the named region, table and header row.
+    """
 
     fragment = f' id="{regionId}"' if regionId else ""
 
@@ -331,10 +340,18 @@ def _TableStart(headingId: str, *, assetFindingsMarker: str = "", regionId: str 
             f'<table aria-labelledby="{headingId}"><thead><tr>')
 
 
-def _AssetGroupFindingsMarker(
+def AssetGroupFindingsMarker(
     entities: Collection[tuple[str, SecurityObject]], findingSubjects: Collection[str],
 ) -> str:
-    """Mark a group that has rows for only one filter or neither filter."""
+    """Mark a group that has rows for only one filter or neither filter.
+
+    Args:
+        entities: Canonical object references and their unchanged retained objects.
+        findingSubjects: Exact saved subject references with retained findings.
+
+    Returns:
+        An authored filter marker, or no marker when the group contains both kinds.
+    """
 
     if not entities:
         return ' data-asset-findings="empty"'
@@ -350,33 +367,57 @@ def _AssetGroupFindingsMarker(
     return ""
 
 
-def _FindingId(reference: str) -> str:
-    """Address the readable card for a canonical finding reference."""
+def FindingId(reference: str) -> str:
+    """Address the readable card for a canonical finding reference.
+
+    Args:
+        reference: Canonical finding object reference from the retained snapshot.
+
+    Returns:
+        The corresponding report card fragment identifier.
+    """
 
     return f"finding-{reference[7:]}"
 
 
-def _FindingLinks(rows: list[_RetainedFindingRow]) -> str:
-    """List readable links to the finding cards that name the asset as their saved subject."""
+def FindingLinks(rows: list[RetainedFindingRow]) -> str:
+    """List readable links to the finding cards that name the asset as their saved subject.
+
+    Args:
+        rows: Retained finding rows already joined to their exact saved subject.
+
+    Returns:
+        An HTML list with escaped readable labels and canonical finding links.
+    """
 
     links = []
 
     for row in rows:
         finding = row.finding
         label = Html(f"{finding.summary} · {finding.status.value} · {finding.location_key}")
-        links.append(f'<li><a href="#{_FindingId(row.reference)}">{label}</a></li>')
+        links.append(f'<li><a href="#{FindingId(row.reference)}">{label}</a></li>')
 
     return "<ul>" + "".join(links) + "</ul>"
 
 
-def _FindingIndexTable(
-    rows: _RetainedReportRows, findings: Iterable[_RetainedFindingRow], headingId: str, *,
+def FindingIndexTable(
+    rows: RetainedReportRows, findings: Iterable[RetainedFindingRow], headingId: str, *,
     regionId: str = "",
 ) -> str:
-    """Render one named index table with saved subject and finding links."""
+    """Render one named index table with saved subject and finding links.
+
+    Args:
+        rows: Indexed canonical snapshot objects used for subject labels.
+        findings: Selected retained findings in their accepted display order.
+        headingId: Visible heading identifier shared by the table and scroll region.
+        regionId: Optional direct fragment target for this bounded table page.
+
+    Returns:
+        One accessible HTML table with canonical subject and finding links.
+    """
 
     lines = [
-        _TableStart(headingId, regionId=regionId)
+        TableStart(headingId, regionId=regionId)
         + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
         '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>',
     ]
@@ -386,7 +427,7 @@ def _FindingIndexTable(
         subject = rows.objects[finding.subject_reference]
         subjectLink = ObjectLink(finding.subject_reference, ObjectLabel(subject))
         lines.append(
-            f'<tr><th scope="row"><a href="#{_FindingId(row.reference)}">'
+            f'<tr><th scope="row"><a href="#{FindingId(row.reference)}">'
             f"{Html(finding.summary)}</a></th>"
             f"<td>{finding.severity.value.title()}</td><td>{finding.status.value.title()}</td>"
             f"<td>{subjectLink}</td></tr>"
@@ -397,10 +438,19 @@ def _FindingIndexTable(
     return "\n".join(lines)
 
 
-def _FindingSeverityIndex(
-    rows: _RetainedReportRows, rankedFindings: Iterable[_RetainedFindingRow], *, paginated: bool,
+def FindingSeverityIndex(
+    rows: RetainedReportRows, rankedFindings: Iterable[RetainedFindingRow], *, paginated: bool,
 ) -> str:
-    """Compare saved findings in one table or in consecutive native page disclosures."""
+    """Compare saved findings in one table or in consecutive native page disclosures.
+
+    Args:
+        rows: Indexed retained report rows establishing the complete finding count.
+        rankedFindings: Saved findings in deterministic severity and identity order.
+        paginated: Whether to split the accepted rows into bounded native disclosures.
+
+    Returns:
+        The saved-severity index and its optional keyboard-addressable page ranges.
+    """
 
     headingId = "findings-severity-table-heading"
     marker = ' data-paginated="true"' if paginated else ""
@@ -408,7 +458,7 @@ def _FindingSeverityIndex(
                f'<h3 id="{headingId}">Findings by saved severity</h3></summary>')
 
     if not paginated:
-        return f"{summary}\n{_FindingIndexTable(rows, rankedFindings, headingId)}</details>"
+        return f"{summary}\n{FindingIndexTable(rows, rankedFindings, headingId)}</details>"
 
     total = len(rows.findings)
     ranges = []
@@ -431,7 +481,7 @@ def _FindingSeverityIndex(
                      f'<summary id="{pageHeadingId}">{label}</summary>')
         # Target the table region so fragment navigation reveals the closed disclosure.
         lines.append(
-            _FindingIndexTable(rows, page, pageHeadingId, regionId=fragment) + "</details>",
+            FindingIndexTable(rows, page, pageHeadingId, regionId=fragment) + "</details>",
         )
 
     lines.append("</details>")
@@ -439,8 +489,16 @@ def _FindingSeverityIndex(
     return "\n".join(lines)
 
 
-def _RetainedIntegerSortKey(value: object, *, descending: bool) -> tuple[int, int]:
-    """Order stored integers while keeping other values last in canonical order."""
+def RetainedIntegerSortKey(value: object, *, descending: bool) -> tuple[int, int]:
+    """Order stored integers while keeping other values last in canonical order.
+
+    Args:
+        value: Unmodified saved attribute value, including unknown or noninteger values.
+        descending: Whether genuine integer values should sort from largest to smallest.
+
+    Returns:
+        A stable integer-first sort key that leaves nonintegers tied in canonical order.
+    """
 
     if type(value) is int:
         return (0, -value if descending else value)
@@ -448,7 +506,7 @@ def _RetainedIntegerSortKey(value: object, *, descending: bool) -> tuple[int, in
     return (1, 0)
 
 
-def ObjectTables(rows: _RetainedReportRows) -> str:
+def ObjectTables(rows: RetainedReportRows) -> str:
     """Present retained objects as readable inventory without claiming discovery or reachability.
 
     Args:
@@ -459,7 +517,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         disclosed object metadata; no objects, relationships or reachability are inferred.
     """
 
-    findingsBySubject: dict[str, list[_RetainedFindingRow]] = {}
+    findingsBySubject: dict[str, list[RetainedFindingRow]] = {}
 
     for row in rows.findings:
         findingsBySubject.setdefault(row.finding.subject_reference, []).append(row)
@@ -480,7 +538,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         sortField, sortDirection = sortOptions.get(kind, ("", ""))
 
         if sortField:
-            entities = tuple(sorted(entities, key=lambda row: _RetainedIntegerSortKey(
+            entities = tuple(sorted(entities, key=lambda row: RetainedIntegerSortKey(
                 row[1].attributes.get(sortField), descending=sortDirection == "descending",
             )))
 
@@ -535,7 +593,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         )
 
     for headingId, label, fields, entities, sortField, sortDirection in inventory:
-        marker = _AssetGroupFindingsMarker(entities, findingsBySubject) if includeFilter else ""
+        marker = AssetGroupFindingsMarker(entities, findingsBySubject) if includeFilter else ""
         lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         if not entities:
@@ -558,7 +616,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
             lines.append("</nav>")
 
-        lines.append(_TableStart(headingId, assetFindingsMarker=marker)
+        lines.append(TableStart(headingId, assetFindingsMarker=marker)
                      + '<th scope="col">Saved identity</th>')
 
         for column, names in fields:
@@ -586,7 +644,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
             lines.append(f'<tr id="object-{reference[7:]}"{marker}{focusTarget}>'
                          f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
-            lines.append(f"<td>{_FindingLinks(findings) if findings else 'None retained'}</td>")
+            lines.append(f"<td>{FindingLinks(findings) if findings else 'None retained'}</td>")
             lines.append("<td><details><summary>Technical object</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details></td></tr>")
 
@@ -594,7 +652,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
     if others:
         headingId, label = otherGroup
-        marker = _AssetGroupFindingsMarker(others, findingsBySubject) if includeFilter else ""
+        marker = AssetGroupFindingsMarker(others, findingsBySubject) if includeFilter else ""
         lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         for reference, entity in others:
@@ -602,7 +660,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
             marker = (
                 _ASSET_WITH_FINDINGS if findings else _ASSET_WITHOUT_FINDINGS
             ) if includeFilter else ""
-            navigation = "<p>Findings</p>" + _FindingLinks(findings) if findings else ""
+            navigation = "<p>Findings</p>" + FindingLinks(findings) if findings else ""
             lines.append(f'<div{marker}><details id="object-{reference[7:]}"><summary>'
                          + Html(ObjectLabel(entity)) + "</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details>" + navigation + "</div>")
@@ -641,7 +699,7 @@ def RetainedOperations(
             "<p>The table shows retained execution records, which can repeat one run for "
             "different targets. A successful tool exit does not establish that a target is "
             "safe.</p>",
-            _TableStart("operations-table-heading") + '<th>Recorded source</th>'
+            TableStart("operations-table-heading") + '<th>Recorded source</th>'
             '<th>Operation profile</th><th>Outcome</th><th>Observed at (UTC)</th>'
             '<th>Details</th></tr></thead><tbody>',
         ])
@@ -703,7 +761,7 @@ def RetainedOperations(
             '<h3 id="native-response-table-heading">Selected native response observations</h3>',
             "<p>These rows describe individual retained responses. HTML reflection does not "
             "establish browser execution. A SQL sample alone does not assess injection.</p>",
-            _TableStart("native-response-table-heading") + '<th>Profile</th><th>Subject</th>'
+            TableStart("native-response-table-heading") + '<th>Profile</th><th>Subject</th>'
             '<th>Observation</th><th>Evidence</th></tr></thead><tbody>',
             *responseRows,
             "</tbody></table></div>",
@@ -894,7 +952,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     document = report.ToDict()
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
-    rows = _ProjectRetainedReportRows(report.state)
+    rows = ProjectRetainedReportRows(report.state)
     paginatedAssets = any(
         len(rows.assetsByKind.get(kind, ())) > _ASSET_TABLE_PAGE_SIZE
         for kind, _, _ in _ASSET_TABLE_GROUPS
@@ -963,10 +1021,10 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<section id="findings"><h2>Findings and next actions</h2>',
     ])
 
-    findingsByStatus: dict[FindingStatus, list[_RetainedFindingRow]] = {
+    findingsByStatus: dict[FindingStatus, list[RetainedFindingRow]] = {
         status: [] for status in FindingStatus
     }
-    findingsBySeverity: dict[FindingSeverity, list[_RetainedFindingRow]] = {
+    findingsBySeverity: dict[FindingSeverity, list[RetainedFindingRow]] = {
         severity: [] for severity in FindingSeverity
     }
 
@@ -981,7 +1039,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
 
     if findingGroups:
         rankedFindings = (row for group in reversed(findingsBySeverity.values()) for row in group)
-        lines.append(_FindingSeverityIndex(rows, rankedFindings, paginated=paginatedFindings))
+        lines.append(FindingSeverityIndex(rows, rankedFindings, paginated=paginatedFindings))
         lines.append('<nav aria-label="Finding dispositions">')
         lines.extend(f'<a href="#{groupId}">{label}</a>' for groupId, label, _ in findingGroups)
         lines.append("</nav>")
@@ -1025,7 +1083,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                                         "disposition alone.",
             }[finding.status]
             lines.extend([
-                f'<article class="finding" id="{_FindingId(reference)}" tabindex="-1" '
+                f'<article class="finding" id="{FindingId(reference)}" tabindex="-1" '
                 f'data-finding-severities="{finding.severity.value}">'
                 + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
                 + f'<span class="badge">{Html(finding.status.value)}</span>'
@@ -1089,7 +1147,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         "<p>Follow a finding's evidence link to its retained reference. Byte verification "
         "checks content integrity; it does not authenticate the publisher, establish "
         "provenance, scan success, or completeness. Raw artifact bytes are not embedded.</p>",
-        _TableStart("evidence-table-heading")
+        TableStart("evidence-table-heading")
         + '<th scope="col">Evidence</th><th scope="col">Role</th><th scope="col">Size</th>'
         '<th scope="col">Integrity</th><th scope="col">Technical reference</th>'
         '</tr></thead><tbody>',
@@ -1115,7 +1173,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '</tbody></table></div></section><section id="relations">'
         '<h2 id="relationships-table-heading">Stored relationships</h2>',
         "<p>Only stored relations appear here. No reachability or attack paths are inferred.</p>",
-        _TableStart("relationships-table-heading") + '<th>From</th><th>Relationship</th>'
+        TableStart("relationships-table-heading") + '<th>From</th><th>Relationship</th>'
         '<th>To</th><th>Attribution</th></tr></thead><tbody>',
     ])
 
