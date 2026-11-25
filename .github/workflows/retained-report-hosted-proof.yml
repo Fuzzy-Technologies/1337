@@ -1,5 +1,5 @@
 {
-  "name": "Measure one reusable sort key per model record against the existing durable SDK",
+  "name": "Accept multi-source enrichment and the measured model change together in the installed product",
   "on": {
     "push": {
       "branches": [
@@ -11,13 +11,13 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "7e7655a4f02f2eed4cca9c5bbc9ba178440c7350",
-    "PRODUCT_TREE": "fb86a51284bf50a3f9d0ee579c5ae771217f9ec1"
+    "APPROVED_SOURCE_SHA": "d21f73eebaad58e1ecec85a8a3c1766419ce0a27",
+    "PRODUCT_TREE": "5cdf66aade17f856c4058f887a22b07adcefab83"
   },
   "jobs": {
     "offline-milestones": {
       "runs-on": "ubuntu-24.04",
-      "timeout-minutes": 10,
+      "timeout-minutes": 12,
       "steps": [
         {
           "name": "Require the dedicated read-only proof invocation",
@@ -36,23 +36,7 @@
         {
           "name": "Retain the reviewed offline test driver from this workflow commit",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in model-pair.py model-behavior.py model-modules.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
-        },
-        {
-          "name": "Check out the accepted SDK with the same wire validation and original sorting behavior",
-          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-          "with": {
-            "ref": "36e2409dbf93b187462febf9c14813db40e4f7b0",
-            "clean": true,
-            "persist-credentials": false,
-            "fetch-depth": 1,
-            "path": "original-model-tree"
-          }
-        },
-        {
-          "name": "Retain the exact accepted source outside the candidate checkout",
-          "shell": "bash",
-          "run": "set -euo pipefail\np=\"$GITHUB_WORKSPACE/original-model-tree\"\ntest \"$(git -C \"$p\" rev-parse HEAD)\" = 36e2409dbf93b187462febf9c14813db40e4f7b0\ntest \"$(git -C \"$p\" rev-parse HEAD^{tree})\" = d9d8d09327732c704090af7dc9f919cc550bc864\nmv \"$p\" \"$RUNNER_TEMP/model-parent\"\n"
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
         },
         {
           "name": "Replace checkout with only the immutable product source",
@@ -74,38 +58,21 @@
         {
           "name": "Build and separately install the actual wheel with locked dependencies",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tests/unit/test_model_save_wire_boundary.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n"
+          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tests/unit/test_intelligence_sets.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n",
+          "id": "p64_setup"
         },
         {
-          "name": "Install the accepted wheel into a second isolated environment with identical locked tooling",
-          "id": "wheels",
+          "name": "Run both installed interfaces, complete changed-module suites and source contracts on two workers",
           "shell": "bash",
-          "run": "set -euo pipefail\nparent=\"$RUNNER_TEMP/model-parent\"\nprior=\"$RUNNER_TEMP/model-before-venv\"\ncmp \"$GITHUB_WORKSPACE/uv.lock\" \"$parent/uv.lock\"\ncmp \"$GITHUB_WORKSPACE/pyproject.toml\" \"$parent/pyproject.toml\"\ncd \"$parent\"\nUV_PROJECT_ENVIRONMENT=\"$prior\" uv sync --locked --extra dev --no-install-project --python \"$pythonLocation/bin/python\"\n\"$prior/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/model-before-wheel\"\nset -- \"$RUNNER_TEMP/model-before-wheel/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$prior/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$prior/bin/python\"\n"
+          "run": "set -euo pipefail\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/milestone-checks.py\"\n"
         },
         {
-          "name": "Run the existing wire-boundary suite against both wheels and all affected model tests on the candidate",
-          "shell": "bash",
-          "run": "set -euo pipefail\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/model-modules.py\"\n"
-        },
-        {
-          "name": "Measure ten alternating pairs on the original 236573-byte saved snapshot",
-          "if": "always() && steps.wheels.outcome == 'success'",
-          "shell": "bash",
-          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/model-pair.py\" \"$RUNNER_TEMP/model-before-venv/bin/python\" \"$RUNNER_TEMP/retained-proof-runtime/bin/python\" \"$RUNNER_TEMP/model-sorting-pair\"\n"
-        },
-        {
-          "name": "Compare compatible subclass behavior and original durable state across rejection cases",
-          "if": "always() && steps.wheels.outcome == 'success'",
-          "shell": "bash",
-          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\nout=\"$RUNNER_TEMP/model-sorting-behavior\"\nmkdir \"$out\"\n\"$RUNNER_TEMP/model-before-venv/bin/python\" -I \"$RUNNER_TEMP/model-behavior.py\" \"$RUNNER_TEMP/model-parent/tests/unit/test_model_save_wire_boundary.py\" before \"$out/before.json\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/model-behavior.py\" \"$GITHUB_WORKSPACE/tests/unit/test_model_save_wire_boundary.py\" after \"$out/after.json\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I - <<'PY'\nimport hashlib,json,os\nfrom pathlib import Path\nout=Path(os.environ[\"RUNNER_TEMP\"])/\"model-sorting-behavior\"\na,b=(json.loads((out/(x+\".json\")).read_bytes()) for x in (\"before\",\"after\"))\nassert a[\"fixture_blob\"]==b[\"fixture_blob\"]==\"70ca52cd3a1fbee6583c5ceb29994bbb86471792\"\nassert a[\"sdk\"]==b[\"sdk\"] and a[\"reads\"]==b[\"reads\"]\nassert len(a[\"sdk\"])==42 and len(a[\"reads\"])==17\nprint(\"PUBLIC_MODEL_DIFFERENTIAL\",json.dumps({\"sdk_cases\":len(a[\"sdk\"]),\"read_cases\":len(a[\"reads\"]),\n        \"outcomes_match\":True,\"receipt_sha256\":hashlib.sha256(json.dumps([a[\"sdk\"],a[\"reads\"]],sort_keys=True).encode()).hexdigest()}))\nPY\n"
-        },
-        {
-          "name": "Retain matched timings, profiles and exact JUnit results",
-          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "name": "Retain actual JUnit identities and changed-module coverage",
           "if": "always()",
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
           "with": {
-            "name": "retained-model-sorting-differential",
-            "path": "${{ runner.temp }}/model-sorting-pair\n${{ runner.temp }}/model-sorting-behavior\n${{ runner.temp }}/model-sorting-tests-*.xml",
+            "name": "retained-intelligence-selection-results",
+            "path": "${{ runner.temp }}/local-source-set.xml\n${{ runner.temp }}/local-source-set-coverage.json",
             "if-no-files-found": "error",
             "retention-days": 14
           }

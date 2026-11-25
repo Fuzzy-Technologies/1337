@@ -1091,3 +1091,44 @@ module = "fuzzy1337.business_commands"
 source = "src/fuzzy1337/business_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.business_commands.md"
+
+[[surfaces]]
+# Experimental source-only SDK for explicit saved RFC 5424 originals.
+module = "fuzzy1337.syslog_records"
+source = "src/fuzzy1337/syslog_records.py"
+mode = "authored"
+page = "api/fuzzy1337.syslog_records.md"
+
+[[surfaces]]
+# Experimental source-only SDK for explicit saved RFC 5424 originals.
+module = "fuzzy1337.syslog_artifacts"
+source = "src/fuzzy1337/syslog_artifacts.py"
+mode = "authored"
+page = "api/fuzzy1337.syslog_artifacts.md"
+
+[[surfaces]]
+# Internal CLI transport for explicit saved RFC 5424 originals.
+module = "fuzzy1337.syslog_commands"
+source = "src/fuzzy1337/syslog_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.syslog_commands.md"
+[[surfaces]]
+# Internal source-only saved SARIF parser and original-byte custody, without executor authority.
+module = "fuzzy1337.bridge_sarif"
+source = "src/fuzzy1337/bridge_sarif.py"
+mode = "authored"
+page = "api/fuzzy1337.bridge_sarif.md"
+
+[[surfaces]]
+# Internal IMPORT-only file/retained operator facade; no public Python SDK.
+module = "fuzzy1337.bridge_commands"
+source = "src/fuzzy1337/bridge_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.bridge_commands.md"
+
+[[surfaces]]
+# Internal combined retained-local-snapshot transport; SDK and model owners unchanged.
+module = "fuzzy1337.intelligence_set_commands"
+source = "src/fuzzy1337/intelligence_set_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_set_commands.md"
