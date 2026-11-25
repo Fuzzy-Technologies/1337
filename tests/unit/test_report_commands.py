@@ -278,6 +278,43 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
 
 
 
+@pytest.mark.parametrize("timing", ["initial", "prepublication"])
+def test_OutOfRangeSavedObservationTimeFailsInputIntegrity(tmp_path, monkeypatch, timing):
+    """Refuse an unrepresentable stored observation time at either owning model read."""
+
+    root, _ = Context(tmp_path, findings=False)
+    modelName = "state/model/model.json"
+    modelPath = root / modelName
+    before = Files(root)
+    model = json.loads(before[modelName])
+    invalidTime = "0001-01-01T00:00:00+01:00"
+    model["observations"][0]["provenance"]["observed_at"] = invalidTime
+    invalidModel = json.dumps(model).encode("utf-8")
+    serialize = commands.SerializeJson
+
+    def SerializeThenChange(report):
+        """Model an owner input change after the initial valid snapshot was rendered."""
+
+        payload = serialize(report)
+        modelPath.write_bytes(invalidModel)
+
+        return payload
+
+    if timing == "initial":
+        modelPath.write_bytes(invalidModel)
+
+    else:
+        monkeypatch.setattr(commands, "SerializeJson", SerializeThenChange)
+
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "invalid-observation-time.json"
+    status, outcome = Run(root, destination)
+    assert status == 4 and outcome["failure"] == "integrity"
+    assert not outcome["output_published"] and not destination.exists()
+    assert invalidTime not in json.dumps(outcome)
+    assert Files(root) == {**before, modelName: invalidModel}
+
+
 def test_ReopenedCanonicalModelByteLimitPreventsPublication(tmp_path, monkeypatch):
     """Keep the canonical model limit at the recheck after the selected model fits exactly."""
 
@@ -796,6 +833,7 @@ def test_ExplicitHelpAndHumanSuccessDoNotReadImplicitWorkspace(tmp_path, monkeyp
 @pytest.mark.parametrize("error,category,status", [
     (ValueError("synthetic-private-render-path"), "rendering", 4),
     (RuntimeError("synthetic-private-internal-detail"), "internal", 4),
+    (OverflowError("synthetic-private-render-overflow"), "internal", 4),
     (KeyboardInterrupt(), "interrupted", 130),
 ])
 def test_RenderingFailuresAndInterruptionCannotPublishOrExposeExceptionText(

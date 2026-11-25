@@ -163,6 +163,16 @@ class ReportInput:
         return digest
 
 
+def _OpenReportModel(root: Path) -> ModelState:
+    """Classify out-of-range saved model values as input integrity failures."""
+
+    try:
+        return LocalModelStore(root).Open()
+
+    except OverflowError as error:
+        raise ReportFailure("integrity") from error
+
+
 def OpenReportInput(root: Path) -> ReportInput:
     """Reopen retained acquisitions/context before verifying the exact saved model projection.
 
@@ -174,7 +184,7 @@ def OpenReportInput(root: Path) -> ReportInput:
     """
 
     workspace = LocalWorkspaceStore(root).Open()
-    state = LocalModelStore(root).Open()
+    state = _OpenReportModel(root)
     report = ReportSnapshot(state)
     evidence = BoundedReportEvidenceStore(root / "evidence")
     scopes = set(workspace.scope_references)
@@ -335,7 +345,7 @@ def CheckReportSnapshot(root: Path, original: ReportInput) -> None:
     """
 
     workspace = LocalWorkspaceStore(root).Open()
-    state = LocalModelStore(root).Open()
+    state = _OpenReportModel(root)
 
     if workspace != original.workspace:
         raise ReportFailure("input-changed")
