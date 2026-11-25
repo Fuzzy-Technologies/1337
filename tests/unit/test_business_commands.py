@@ -89,13 +89,13 @@ def test_ChangedOrUnpersistedFactsRefuseWithoutPartialOperatorRecords(
             declaration = next(item for item in model.objects
                 if item.attributes.get("asset_type") == "business-event-definition")
             altered = replace(declaration,
-                attributes={**declaration.attributes, "owner_reference": "PRIVATE_FORGED_OWNER"})
+                attributes={**declaration.attributes, "owner_reference": "synthetic.forged-owner"})
             changed, delta = model.Apply(objects=(altered,))
 
         else:
             link = model.relations[0]
             altered = replace(link, provenance=(replace(link.provenance[0],
-                                                       source_id="PRIVATE_FORGED_OWNER"),))
+                                                       source_id="synthetic.forged-owner"),))
             changed, delta = model.Apply(relations=(altered,))
 
         model = LocalModelStore(root).Save(changed, expected_revision=delta.previous_revision)
@@ -128,7 +128,7 @@ def test_ChangedOrUnpersistedFactsRefuseWithoutPartialOperatorRecords(
     assert status == 4 and result["status"] == "failed" and result["failure"] == "integrity", (
         "Unverified or unpersisted business facts must refuse the whole inspection"
     )
-    assert "inspection" not in result and "PRIVATE_FORGED_OWNER" not in json.dumps(result), (
+    assert "inspection" not in result and "synthetic.forged-owner" not in json.dumps(result), (
         "A refusal must publish no partial declaration, owner text or asset list"
     )
     assert Files(tmp_path) == before, "Refusal must not repair or rewrite source facts"
