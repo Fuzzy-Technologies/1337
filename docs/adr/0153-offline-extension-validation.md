@@ -54,3 +54,30 @@ validation refuses honestly, and the declared optional extra enables ordinary
 console/module validation. Audit-denied network/process/import and source-directed
 file operations prove that source schema and implementation locators remain
 inert. Shared final-head CI remains the integration gate.
+
+## Opt-in version-string supplement
+
+The owner-authorized M9 follow-up adds `--version-profile semver-2.0.0` as an
+explicit supplementary consumer policy. Preserve the Stable v1 schema and its
+default acceptance, result fields and exit meanings. Run the canonical schema
+first; only canonical acceptance permits checking the extension's own version
+against the ASCII version-string grammar in
+[SemVer 2.0.0 sections 2, 9 and 10](https://semver.org/spec/v2.0.0.html).
+Keep numeric components as strings and retain existing input bounds rather
+than introducing a version-specific digit cap.
+
+Numeric prerelease identifiers forbid leading zeros; numeric build metadata
+permits them. Empty identifiers, non-ASCII characters and trailing whitespace
+fail the supplement. Record only the explicit selected profile and a fixed
+`semver-2.0.0` diagnostic at `/extension/version`, never the rejected value.
+Use exit 1 for metadata invalidity and preserve operational failures. Unknown
+profiles fail configuration admission before any manifest read. No profile
+selects another schema, evaluates Core ranges, compares precedence, certifies
+release history, imports or activates extensions.
+
+Verify differential acceptance against the actual canonical schema, including
+legacy version-pattern holes, hyphen identifiers, numeric build metadata,
+non-ASCII/control characters and long numeric components without integer
+conversion. Preserve default DTO parity, source bytes, schema/example bytes,
+optional-validator refusal and the existing no-activation boundary. Exercise
+the selected policy through the installed module as well as the local handler.

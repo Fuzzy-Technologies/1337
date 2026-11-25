@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 60 — v0.4.60 — 2026-11-25
+
+#### Digest
+
+- Check an extension's declared version against an explicitly selected offline SemVer profile.
+
+#### Added
+
+- Add `extension validate --version-profile semver-2.0.0` after canonical manifest
+  validation, with fixed diagnostics at `/extension/version`, explicit profile
+  reporting and unchanged default Stable v1 schema acceptance.
+- Distinguish numeric prerelease leading zeros from permitted build metadata;
+  reject empty identifiers, non-ASCII characters and trailing whitespace without
+  integer conversion, extension activation or Core range interpretation.
+
 ### Patch 59 — v0.4.59 — 2026-11-25
 
 #### Digest
