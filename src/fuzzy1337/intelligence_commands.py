@@ -509,6 +509,7 @@ def RunIntelCommands(
     }
     status = 4
     phase = "configuration"
+    preview: dict[str, object] | None = None
 
     try:
         options = parser.parse_args(arguments)
@@ -580,7 +581,7 @@ def RunIntelCommands(
             )
             if options.action == "preview":
                 outcome["model_revision"] = state.revision
-                outcome["preview"] = {
+                preview = {
                     "profile_version": 1, "finding_reference": options.finding,
                     "proposed_revision": proposed.revision,
                     "already_applied": not delta.created,
@@ -591,8 +592,7 @@ def RunIntelCommands(
                     "target_applicability": "not-evaluated",
                 }
 
-                if len(CanonicalModelJson(outcome["preview"])) > MAX_INSPECTION_BYTES:
-                    del outcome["preview"]
+                if len(CanonicalModelJson(preview)) > MAX_INSPECTION_BYTES:
                     raise IntelFailure("inspection-limit")
 
             else:
@@ -623,6 +623,9 @@ def RunIntelCommands(
     except (EvidenceError, OSError, ValueError, OverflowError, RecursionError):
         outcome["failure"] = phase
         status = 2 if phase == "configuration" else 4
+
+    if status == 0 and preview is not None:
+        outcome["preview"] = preview
 
     if json_output:
         output.write(CanonicalModelJson(outcome).decode("utf-8") + "\n")

@@ -120,6 +120,36 @@ def test_PreviewNeverCallsModelSaveAndBoundsItsProjectionBeforePrinting(tmp_path
     assert Files(model.root) == before, "Preview success or failure changed retained bytes."
 
 
+@pytest.mark.parametrize("error", [OSError, KeyboardInterrupt], ids=("storage", "interrupt"))
+def test_PreviewLateFailureNeverPublishesTheStagedProposal(tmp_path, monkeypatch, error):
+    """Refuse late serialization failure without including already constructed candidate data."""
+
+    model, finding, imported = Imported(tmp_path)
+    arguments = ApplyArguments(model, finding, imported)
+    arguments[0] = "preview"
+    before = Files(model.root)
+    original = commands.CanonicalModelJson
+
+    def Encode(value):
+        """Fail only the candidate bound check while preserving terminal refusal serialization."""
+
+        if isinstance(value, dict) and value.get("profile_version") == 1:
+            raise error("untrusted-value")
+
+        return original(value)
+
+    monkeypatch.setattr(commands, "CanonicalModelJson", Encode)
+    status, rejected = Run(arguments)
+    assert status == (130 if error is KeyboardInterrupt else 4)
+    assert rejected["status"] == "failed" and "preview" not in rejected, (
+        "Late preview failure emitted an unverified or unbounded staged proposal."
+    )
+    assert rejected["model_commit"] == "not-attempted" and "untrusted-value" not in (
+        json.dumps(rejected)
+    ), "Late preview failure claimed a save or exposed rejected exception text."
+    assert Files(model.root) == before, "Late preview refusal changed retained state."
+
+
 @pytest.mark.parametrize("path", ["../owned", "owned/../source", "owned\x1bsource", "x" * 4097])
 def test_PathConfigurationRejectsTraversalControlsAndUnboundedValues(path):
     """Lexical rejection happens before any input file can be opened."""
