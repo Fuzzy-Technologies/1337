@@ -55,7 +55,7 @@ not a new global custody or Core format. Existing IOC TSV, acquisition receipt v
 portable IOC bundle and Core model semantics remain unchanged.
 
 This does not close all #85/#83 incident/entity/process/timeline criteria.
-There is no live input, data acquisition/provider, network transport, actor
+There is no live input, remote acquisition/provider, network transport, actor
 authentication, signing, retention policy, scanner or operation execution.
 The physical owner excludes hostile concurrent writers under the existing
 filesystem contract. No new runtime dependency is required.
