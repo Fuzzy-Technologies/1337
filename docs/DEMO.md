@@ -296,7 +296,12 @@ parser.add_argument("workspace", type=Path)
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--observation", metavar="REFERENCE")
 mode.add_argument("--list-observations", action="store_true")
+parser.add_argument("--finding", metavar="REFERENCE", help="Filter the observation list by Finding.")
 args = parser.parse_args()
+
+if args.finding is not None and not args.list_observations:
+    parser.error("--finding requires --list-observations")
+
 root = args.workspace
 snapshot = ReportSnapshot(LocalModelStore(root).Open())
 report = VerifyReportEvidence(snapshot, root).ToDict()
@@ -311,7 +316,14 @@ observations = [
 ]
 
 if args.list_observations:
-    markerFindings = {item["reference"]: item for item in findings}
+    markerFindings = {
+        item["reference"]: item for item in findings
+        if args.finding is None or item["reference"] == args.finding
+    }
+
+    if args.finding is not None and not markerFindings:
+        raise SystemExit("No saved showcase marker Finding for that reference.")
+
     rows = []
 
     for observation in observations:
@@ -390,10 +402,14 @@ PY
 
 To list matching saved observations, add `--list-observations` after the quoted
 workspace path and before `<<'PY'`. Each row gives the observation reference,
-its saved observation time and the linked Finding reference. To verify a listed
-observation's acquisition, replace `--list-observations` with
-`--observation 'observation:…'`, using the full reference from that row's first
-field.
+its saved observation time and the linked Finding reference. Add
+`--finding 'object:…'` to `--list-observations` to see only observations for a
+specific Finding. Use the full Finding reference from the third field of a list
+row or the first field of an acquisition inspection.
+
+To verify a listed observation's acquisition, use
+`--observation 'observation:…'` after the workspace path and before `<<'PY'`,
+with the full observation reference from the row's first field.
 
 A successful acquisition inspection prints the Finding, saved observation and
 acquisition IDs on its first line. The original marker has `id` equal to
