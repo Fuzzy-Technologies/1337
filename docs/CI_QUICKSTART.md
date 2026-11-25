@@ -74,6 +74,69 @@ Only successful readback writes `artifacts/owned-teardown.json`. Retain that
 original alongside the product receipts; a best-effort cleanup trap or green
 workflow header alone does not prove teardown.
 
+## Optional GitLab report from a saved workspace
+
+The [retained-report template](examples/ci/gitlab-retained-report.yml) exports an
+**existing** saved workspace. It starts no target or scanner, installs nothing,
+and needs no token. Including its hidden `.1337-retained-report` job schedules
+nothing. Copy the file into your repository from a reviewed immutable revision,
+then explicitly opt in with a concrete job:
+
+```yaml
+include:
+  - local: ci/gitlab-retained-report.yml
+
+retained-security-report:
+  extends: .1337-retained-report
+  needs:
+    - job: saved-workspace
+      artifacts: true
+  variables:
+    F1337_SAVED_WORKSPACE: retained-workspace
+```
+
+Here `saved-workspace` is your existing artifact producer, not a new scan recipe.
+Provide a trusted runner/runtime with Python 3.13 or newer and an already
+installed approved 1337 wheel. Retain the complete workspace and evidence at the
+selected project-relative path; freeze it while exporting. The hidden job does
+not inherit default setup, services or cleanup. Configure your own stage, runtime,
+runner and artifact access/retention policy before enabling it. Exported JSON
+contains retained model/provenance facts and may contain sensitive information.
+
+The job invokes the existing offline CLI entry point for JSON and JUnit, checks
+both receipts describe the same snapshot and verification counts, and publishes
+one complete bundle only after both exports succeed. It retains the original
+CLI receipts and full canonical `report.json` alongside `report.junit.xml`.
+The JSON retains evidence references and integrity facts, not raw evidence bytes;
+keep the producer's complete saved workspace separately for later reopening.
+Missing/corrupt evidence, mismatched snapshots or an oversized JUnit projection
+fail the job without publishing a partial bundle. The numeric
+`1337-retained-report-$CI_JOB_ID` directory is reserved exclusively for this job;
+never put a workspace there or select the project root as input. Every invocation
+first retires any older bundle outside artifact selection, before validating the
+source; the reserved namespace is moved even when selected as an invalid input.
+GitLab uploads report artifacts regardless of job status, so `when: on_success`
+alone cannot prevent an older JUnit report from being uploaded after a failure. GitLab retries normally receive a new job ID. Temporary staging is
+removed on normal failure; interrupted staging is outside artifact paths.
+
+GitLab's [Tests UI](https://docs.gitlab.com/ci/testing/unit_test_reports/) displays
+this existing JUnit **finding adapter**: one fingerprint-named case per retained
+finding, grouped by check ID; open/confirmed findings are failures and
+resolved/dismissed findings are skipped. These are saved interpretations, not
+newly executed tests. Zero findings means zero cases, not a clean scan. Export
+success exits zero even when JUnit has failures; this job adds no finding threshold
+to the caller's pipeline. GitLab's MR comparison needs a target-branch baseline.
+GitLab ignores JUnit properties: snapshot identity, evidence verification,
+unknown severity, original execution failures and full provenance remain in the
+JSON/receipts and XML download, not a GitLab security dashboard.
+
+This is not a Code Quality or vulnerability report. GitLab's
+[Code Quality format](https://docs.gitlab.com/ci/testing/code_quality/) requires
+repository-relative source paths, actual line numbers and its own severity enum;
+generic saved findings do not establish those facts. This template invents no
+file/line, severity conversion or repository binding. Local template/fixture
+checks do not establish acceptance by a live GitLab runner.
+
 ## Optional finding thresholds
 
 The demo creates no Findings and has no vulnerability threshold. For a selected

@@ -5585,7 +5585,7 @@ state = "missing"
 id = "page:api.fuzzy1337.ioc-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.ioc_commands.md"
-sourceHash = "sha256:671eba92520a1c10d0df1fceabcb6a9f639486c9e7021cbfc124bf4f7c2a03e2"
+sourceHash = "sha256:17b715708f2283e65ee3a55130465568791c59a57c7ba9a7caed61246cdc273a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -5651,7 +5651,7 @@ state = "missing"
 id = "symbol:fuzzy1337.ioc_commands.IocParser"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/ioc_commands.py"
-sourceHash = "sha256:5444e8189ffd9cf3e450692dfb0ba2eedd3244948c0180c9e27726d3469565cf"
+sourceHash = "sha256:9f1958dcf95b04f868b2c04c06fd01de21577d9702459df089eb736be9308a25"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -5673,7 +5673,7 @@ state = "missing"
 id = "symbol:fuzzy1337.ioc_commands.RunIocCommands"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/ioc_commands.py"
-sourceHash = "sha256:d77db39aedb394e8f4a686c893e88aa4481379a0e069f6174ae3888d792845d8"
+sourceHash = "sha256:8b6c839bef8f9b7c578546946441ef842f97e21ec7571ce03156a29c2bf7f162"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -28138,6 +28138,61 @@ id = "symbol:fuzzy1337.sql_boolean_assessment.SqlBooleanOutcome"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/sql_boolean_assessment.py"
 sourceHash = "sha256:4346ecf276198507d023732a8907fdbe74638a65a43c1f7694237ba2780243ee"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.ioc-bundle"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.ioc_bundle.md"
+sourceHash = "sha256:5f52409062baf03b209a5ff469eba24b0f6202e69111fdb50245c514f260732b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ioc_bundle.DecodePart"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ioc_bundle.py"
+sourceHash = "sha256:9d847113ae32b79a3e6b237620dede3dcaf9a14598d45e945d61fd267d3afd6a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ioc_bundle.ExportIocBundle"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ioc_bundle.py"
+sourceHash = "sha256:54786719a94dd8a35e836eca209d248b005bdd237310fb7a0d11e0e04c4bb053"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ioc_bundle.RunIocBundleCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ioc_bundle.py"
+sourceHash = "sha256:a2d4fd2a37d653ba1af16563b392b2a0757094ad8ee138dd8cd391ec71f84617"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ioc_bundle.VerifyIocBundle"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ioc_bundle.py"
+sourceHash = "sha256:55cbe22dcdfc087ba65c2355edf434e6094fdb2d4953e88af69c64b24c1fc2cf"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

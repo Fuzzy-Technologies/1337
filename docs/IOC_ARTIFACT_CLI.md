@@ -136,6 +136,11 @@ file and performs no acquisition or Core/workspace save. An ordinary shell may
 redirect its stdout when a local file is needed. It never resolves or assesses
 the exported indicators. See [ADR 0148](adr/0148-verified-ioc-candidate-export.md).
 
+To transfer the selected original TSV, receipt and snapshot for verification
+without their workspace, use the separate explicit
+[original evidence bundle](IOC_EVIDENCE_BUNDLE.md). Candidate export alone does
+not contain those originals.
+
 ## Inspect one normalized occurrence
 
 Use the Python SDK with the `snapshot_id` and independent `receipt_id` saved from

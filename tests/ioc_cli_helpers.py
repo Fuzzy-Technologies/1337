@@ -47,6 +47,20 @@ def InspectArguments(root: Path, result: dict) -> list[str]:
             "--receipt", result["receipt_id"]]
 
 
+def ExportArguments(root: Path, result: dict, destination: Path) -> list[str]:
+    """Select one original chain and explicitly opt in to disclosing its original bytes."""
+
+    return ["ioc", "export-bundle", str(root), "--snapshot", result["snapshot_id"],
+            "--receipt", result["receipt_id"], "--include-originals", "--output", str(destination)]
+
+
+def BundleVerifyArguments(path: Path, result: dict) -> list[str]:
+    """Require the independently retained transfer digest and original acquisition receipt pin."""
+
+    return ["ioc", "verify-bundle", str(path), "--receipt", result["receipt_id"],
+            "--expected-sha256", result["bundle_sha256"]]
+
+
 def Run(arguments: list[str]) -> tuple[int, dict]:
     """Execute the actual handler over real owners and require one safe terminal JSON outcome."""
 

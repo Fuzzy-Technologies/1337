@@ -4,6 +4,9 @@ The installed CLI and foreground shell expose Experimental contract-version-one
 `trace ioc import|inspect`. This module is their Internal implementation: all
 classes, methods, functions and helpers, including `IocParser` and
 `RunIocCommands`, remain Internal and do not establish a supported Python SDK.
+The additive `export-bundle|verify-bundle` actions delegate to the separate
+[selected original transfer owner](fuzzy1337.ioc_bundle.md); they do not change
+the acquisition or inspection contracts below.
 `IocFailure`, `IocArgumentParser`, `SelectedPath`, `ReadOwnedIoc` and
 `VerifiedAcquisition` keep that same implementation status.
 

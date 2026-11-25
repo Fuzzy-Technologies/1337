@@ -528,7 +528,7 @@ class InteractiveShell(cmd.Cmd):
                 "intel <import|inspect|preview|apply>, model <workspace-path>, palette [query], "
                 "paths analyze, raw <plan|run|replay>, report export, "
                 "runtime import <docker-inspect|kubernetes-list>, "
-                "trace ioc <import|inspect>, "
+                "trace ioc <import|inspect|export-bundle|verify-bundle>, "
                 "select <object-id>, "
                 "sbom <image|import spdx-graph>, scan <quick|crawl|ports|web|nuclei|image|config>, "
                 "scope create, "
@@ -587,8 +587,8 @@ class InteractiveShell(cmd.Cmd):
                 "declared image identity, scope and exact owner revision bases."
             ),
             "trace": (
-                "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
-                "independent snapshot/receipt anchors without changing the Security Object Model."
+                "trace ioc <import|inspect|export-bundle|verify-bundle>: import selected "
+                "candidates, inspect originals or transfer and verify one explicit evidence bundle."
             ),
             "scan": (
                 "scan <quick|crawl|ports|web|nuclei|image|config> <workspace>: run governed scans; "

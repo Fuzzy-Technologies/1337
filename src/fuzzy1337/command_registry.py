@@ -285,7 +285,7 @@ COMMAND_REGISTRY = CommandRegistry(
             summary=(
                 "Import explicit local IOC candidates or inspect independently anchored artifacts."
             ),
-            usage="1337 trace ioc <import|inspect> <workspace>",
+            usage="1337 trace ioc <import|inspect|export-bundle|verify-bundle> ...",
             capabilities=("trace.local-ioc-candidates",),
         ),
     )

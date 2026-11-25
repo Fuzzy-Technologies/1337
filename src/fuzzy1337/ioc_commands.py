@@ -76,7 +76,7 @@ def IocParser(action: str | None = None) -> argparse.ArgumentParser:
     """Declare the closed product grammar without reading files, scope or evidence.
 
     Args:
-        action: Optional import/inspect help selection after the explicit ioc namespace.
+        action: Optional known action's help selection after the explicit ioc namespace.
 
     Returns:
         Complete trace parser, or its selected known action's parser.
@@ -105,6 +105,17 @@ def IocParser(action: str | None = None) -> argparse.ArgumentParser:
                            help="locate one supplied IOC's occurrences in text output")
     inspector.add_argument("--export-candidates", action="store_true",
                            help="include verified original tokens and provenance with --json")
+
+    exporter = actions.add_parser("export-bundle", add_help=False)
+    exporter.add_argument("workspace", type=Path)
+    exporter.add_argument("--snapshot", required=True)
+    exporter.add_argument("--receipt", required=True)
+    exporter.add_argument("--include-originals", action="store_true", required=True)
+    exporter.add_argument("--output", type=Path, required=True)
+    verifier = actions.add_parser("verify-bundle", add_help=False)
+    verifier.add_argument("file", type=Path)
+    verifier.add_argument("--receipt", required=True)
+    verifier.add_argument("--expected-sha256", required=True)
 
     return actions.choices[action] if action in actions.choices else parser
 
@@ -303,7 +314,7 @@ def DescribeIocMatches(snapshot: IocSnapshot, match: tuple[str, str]) -> str:
 
 
 def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: bool = False) -> int:
-    """Import explicit non-secret local bytes or inspect an independently anchored snapshot.
+    """Import or inspect IOC artifacts, or transfer one verified original evidence bundle.
 
     Args:
         arguments: Explicit ioc namespace, action, owning workspace and selected inputs.
@@ -324,6 +335,13 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
         IocParser(action).print_help(file=output)
 
         return 0
+
+    if len(arguments) > 1 and arguments[0] == "ioc" and arguments[1] in (
+        "export-bundle", "verify-bundle"
+    ):
+        from fuzzy1337.ioc_bundle import RunIocBundleCommands
+
+        return RunIocBundleCommands(list(arguments), output, machine=json_output)
 
     outcome: dict[str, object] = {"schema_version": 1, "command": "trace.ioc", "status": "failed",
         "failure": None, "acquisition_state": None, "evidence_commit": "not-attempted",

@@ -8,6 +8,50 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 49 — v0.4.49 — 2026-11-25
+
+#### Digest
+
+- Transfer one verified retained IOC acquisition without copying its workspace.
+
+#### Added
+
+- Explicitly export original IOC raw bytes, acquisition receipt and derived
+  snapshot with their original manifests to a deterministic bounded bundle.
+- Verify the bundle independently after source-workspace deletion using separately
+  retained transfer and receipt pins, with no evidence or model write.
+- Reuse complete atomic no-clobber publication and report any complete output
+  retained after a lost acknowledgement without claiming a partial success.
+
+
+### Patch 48 — v0.4.48 — 2026-11-25
+
+#### Digest
+
+- Export already saved workspaces into opt-in GitLab finding reports without starting scans.
+
+#### Added
+
+- Provide a reusable hidden GitLab job with the existing JUnit finding adapter,
+  complete canonical JSON and original offline export receipts. Publish only
+  matched complete bundles and keep stale results outside artifact selection.
+- Document GitLab's Tests UI projection, preserved JSON facts and the distinction
+  between successful export, finding failures and source execution outcomes.
+
+
+### Patch 47 — v0.4.47 — 2026-11-25
+
+#### Digest
+
+- Make the Stable extension manifest contract available from an installed wheel offline.
+
+#### Fixed
+
+- Include the canonical extension-manifest schema and example in wheels directly
+  from their existing contract sources, including builds from the source distribution.
+  Document local `importlib.resources` access without changing schema-v1 semantics.
+
+
 ### Patch 46 — v0.4.46 — 2026-11-25
 
 #### Digest
