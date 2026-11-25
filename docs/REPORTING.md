@@ -80,6 +80,10 @@ record order and source attribution.
 Each table uses its visible heading as its accessible name. The scroll region
 shares that name and supports keyboard focus.
 
+Use the Findings disposition links to jump to open, confirmed, dismissed or
+resolved findings. Each populated group shows its count and keeps its findings
+in canonical order. All finding cards remain visible when printing the report.
+
 A finding's evidence link uses the number on its row in the Evidence table.
 Follow the link to read the retained reference and its byte-integrity status.
 

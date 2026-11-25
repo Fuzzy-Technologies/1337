@@ -291,6 +291,43 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
                for region in dom.tableRegions)
 
 
+def test_HtmlFindingsJumpToSavedDispositionGroups():
+    """Expose populated dispositions with direct links and visible canonical finding cards."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    extra = Finding(host.Reference(), "synthetic.second-open", "stored",
+                    "Second open finding", host.provenance)
+    state, _ = ApplyFindings(report.state, (extra,))
+    report = replace(report, state=state)
+    rendered = RenderHtml(report).decode("utf-8")
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    statuses = (("open", "Open (2)"), ("confirmed", "Confirmed (1)"),
+                ("dismissed", "Dismissed (1)"), ("resolved", "Resolved (1)"))
+    navigation = findings.find('nav[@aria-label="Finding dispositions"]')
+    assert navigation is not None
+    assert [(link.get("href"), link.text) for link in navigation.findall("a")] == [
+        (f"#findings-{status}", label) for status, label in statuses
+    ]
+    assert [(heading.get("id"), heading.get("tabindex"), heading.text)
+            for heading in findings.findall("h3")] == [
+        (f"findings-{status}", "-1", label) for status, label in statuses
+    ]
+
+    expected = []
+    entities = state.Objects(ObjectKind.FINDING)
+
+    for status, _ in statuses:
+        expected.append(("h3", f"findings-{status}"))
+        expected.extend(("article", f"finding-{entity.Reference()[7:]}")
+                        for entity in entities if entity.attributes["status"] == status)
+
+    actual = [(element.tag, element.get("id")) for element in findings
+              if element.tag in ("h3", "article")]
+    assert actual == expected
+
+
 @pytest.mark.parametrize("verify,expectedIntegrity", [
     (False, "not verified"), (True, "verified bytes"),
 ], ids=["unverified", "verified"])

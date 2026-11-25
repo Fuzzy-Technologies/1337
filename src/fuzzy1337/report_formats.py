@@ -28,6 +28,7 @@ from fuzzy1337.reporting import (
     REPORT_SCHEMA_VERSION,
     ReportSnapshot,
     _ProjectRetainedReportRows,
+    _RetainedFindingRow,
     _RetainedReportRows,
 )
 
@@ -44,7 +45,8 @@ a {color:var(--pink);overflow-wrap:anywhere} .brand {color:var(--green)}
 border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0}
 .card {flex:1;min-width:160px} .count {font-size:2rem;color:var(--green)}
 .finding {background:var(--panel);border:1px solid var(--border);border-left:4px solid
-var(--pink);border-radius:8px;padding:1.2rem;margin:1rem 0}.finding h3 {margin-top:0}
+var(--pink);border-radius:8px;padding:1.2rem;margin:1rem 0}.finding > h4 {margin-top:0;color:var(--cyan)}
+.finding h5,.finding h6 {font-size:1em}
 .badge {display:inline-block;padding:.1rem .5rem;border:1px solid var(--border);
 border-radius:4px;font-size:.85rem}.notice {border-left:3px solid var(--cyan);padding-left:1rem}
 .meter {display:flex;gap:.25rem;align-items:end;min-height:3rem;margin:1rem 0}
@@ -63,7 +65,7 @@ thead th {color:var(--cyan)} th[scope="row"] {font-weight:inherit}
 a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid var(--cyan)}
 @media screen {#evidence tbody tr:target > * {background:#15212b}
 #evidence tbody tr:target > th[scope="row"] {outline:2px solid var(--cyan);outline-offset:-2px}}
-@media print {body {background:white;color:black} a,h1,h2,h3,summary {color:black}}
+@media print {body {background:white;color:black} a,h1,h2,h3,.finding > h4,summary {color:black}}
 """
 
 
@@ -485,7 +487,7 @@ def IntelligenceDetails(observations: tuple[Observation, ...]) -> str:
     if not intelligence:
         return "<p>No vulnerability-intelligence assertions were retained for this finding.</p>"
 
-    lines = ["<h4>Vulnerability intelligence</h4>",
+    lines = ["<h5>Vulnerability intelligence</h5>",
              "<p>These are source assertions associated by an explicit identifier. A candidate "
              "association does not prove that this target is affected. CVSS describes technical "
              "severity, KEV records known exploitation, and EPSS is a source forecast.</p>"]
@@ -533,8 +535,8 @@ def IntelligenceDetails(observations: tuple[Observation, ...]) -> str:
             freshness = "stale" if stale is True else "within the selected age budget" if (
                 stale is False
             ) else "unknown"
-            lines.append('<div class="card"><h4>' + Html(record.get("identifier", "Unknown"))
-                         + " · " + Html(feed) + "</h4>"
+            lines.append('<div class="card"><h6>' + Html(record.get("identifier", "Unknown"))
+                         + " · " + Html(feed) + "</h6>"
                          + f"<p>Source origin: {Html(origin)} · Publisher: {Html(publisher)}"
                          + " · source version: "
                          + Html(record.get("catalog_version", "Not recorded")) + "</p>"
@@ -662,79 +664,99 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<section id="findings"><h2>Findings and next actions</h2>',
     ])
 
-    if not rows.findings:
+    findingsByStatus: dict[FindingStatus, list[_RetainedFindingRow]] = {
+        status: [] for status in FindingStatus
+    }
+
+    for row in rows.findings:
+        findingsByStatus[row.finding.status].append(row)
+
+    findingGroups = [
+        (f"findings-{status.value}", f"{status.value.title()} ({len(group)})", group)
+        for status, group in findingsByStatus.items() if group
+    ]
+
+    if findingGroups:
+        lines.append('<nav aria-label="Finding dispositions">')
+        lines.extend(f'<a href="#{groupId}">{label}</a>' for groupId, label, _ in findingGroups)
+        lines.append("</nav>")
+
+    else:
         lines.append("<p>No finding records were retained. To assess a vulnerability, run an "
                      "appropriate authorized check and retain its evidence; opening this "
                      "report does not perform one.</p>")
 
-    for row in rows.findings:
-        finding = row.finding
-        reference = row.reference
-        subject = rows.objects[finding.subject_reference]
-        statusExplanation = {
-            FindingStatus.OPEN: "Retained interpretation awaiting an operator disposition.",
-            FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
-            FindingStatus.DISMISSED: "An operator dismissed this interpretation; "
-                                     "history is retained.",
-            FindingStatus.RESOLVED: "Marked resolved by an operator; successful retesting is not "
-                                    "established by this disposition alone.",
-        }[finding.status]
-        lines.extend([
-            f'<article class="finding" id="finding-{reference[7:]}">'
-            + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
-            + f'<span class="badge">{Html(finding.status.value)}</span>'
-            + f"<h3>{Html(finding.summary)}</h3>",
-            "<p>Subject: " + ObjectLink(finding.subject_reference, ObjectLabel(subject)) + "</p>",
-            f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
-            "<p>Disposition: " + statusExplanation + " Reason: "
-            + Html(finding.status_reason or "No reason recorded") + "</p>",
-            f"<p>Attributed confidence: {finding.confidence}. This retained detector metadata "
-            "is not a probability of compromise.</p>",
-            "<h4>What to do next</h4><p>" + Html(finding.remediation.summary or
-                "No remediation advice was retained. Review the evidence and determine an "
-                "appropriate correction before repeating the check.") + "</p>",
-        ])
+    for groupId, label, findings in findingGroups:
+        lines.append(f'<h3 id="{groupId}" tabindex="-1">{label}</h3>')
 
-        if finding.remediation.steps:
-            lines.append("<ol>" + "".join("<li>" + Html(step) + "</li>"
-                                          for step in finding.remediation.steps) + "</ol>")
+        for row in findings:
+            finding = row.finding
+            reference = row.reference
+            subject = rows.objects[finding.subject_reference]
+            statusExplanation = {
+                FindingStatus.OPEN: "Retained interpretation awaiting an operator disposition.",
+                FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
+                FindingStatus.DISMISSED: "An operator dismissed this interpretation; "
+                                         "history is retained.",
+                FindingStatus.RESOLVED: "Marked resolved by an operator; successful retesting is not "
+                                        "established by this disposition alone.",
+            }[finding.status]
+            lines.extend([
+                f'<article class="finding" id="finding-{reference[7:]}">'
+                + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
+                + f'<span class="badge">{Html(finding.status.value)}</span>'
+                + f"<h4>{Html(finding.summary)}</h4>",
+                "<p>Subject: " + ObjectLink(finding.subject_reference, ObjectLabel(subject)) + "</p>",
+                f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
+                "<p>Disposition: " + statusExplanation + " Reason: "
+                + Html(finding.status_reason or "No reason recorded") + "</p>",
+                f"<p>Attributed confidence: {finding.confidence}. This retained detector metadata "
+                "is not a probability of compromise.</p>",
+                "<h5>What to do next</h5><p>" + Html(finding.remediation.summary or
+                    "No remediation advice was retained. Review the evidence and determine an "
+                    "appropriate correction before repeating the check.") + "</p>",
+            ])
 
-        if finding.remediation.references:
-            lines.append("<p>Retained advisory references (inert text): "
-                         + "; ".join(Html(item) for item in finding.remediation.references)
-                         + "</p>")
+            if finding.remediation.steps:
+                lines.append("<ol>" + "".join("<li>" + Html(step) + "</li>"
+                                              for step in finding.remediation.steps) + "</ol>")
 
-        lines.append(IntelligenceDetails(row.observations))
-        lines.append("<h4>Evidence for this interpretation</h4><ul>")
+            if finding.remediation.references:
+                lines.append("<p>Retained advisory references (inert text): "
+                             + "; ".join(Html(item) for item in finding.remediation.references)
+                             + "</p>")
 
-        for evidenceReference in row.evidence:
-            fragment = evidenceId(evidenceReference)
-            number = evidenceNumbers[evidenceReference]
-            lines.append(f'<li><a href="#{fragment}">'
-                         f"Evidence {number}: {Html(evidenceReference.role)}</a></li>")
+            lines.append(IntelligenceDetails(row.observations))
+            lines.append("<h5>Evidence for this interpretation</h5><ul>")
 
-        lines.append("</ul>")
-        binding = bindings.get(reference)
+            for evidenceReference in row.evidence:
+                fragment = evidenceId(evidenceReference)
+                number = evidenceNumbers[evidenceReference]
+                lines.append(f'<li><a href="#{fragment}">'
+                             f"Evidence {number}: {Html(evidenceReference.role)}</a></li>")
 
-        if binding is not None:
-            lines.append("<h4>Attributed reference context</h4>"
-                         "<p>Context links do not prove classification, observed behavior, "
-                         "exploitability, or control fulfillment.</p><ul>")
+            lines.append("</ul>")
+            binding = bindings.get(reference)
 
-            for externalReference in binding.references:
-                lines.append(f'<li><a href="{Html(externalReference.Url())}" '
-                             'rel="noopener noreferrer">'
-                             f'{Html(externalReference.external_id)}</a>'
-                             f" · catalog {Html(externalReference.catalog_version)}"
-                             f" · {Html(externalReference.ToDict()['link_revision'])}</li>")
+            if binding is not None:
+                lines.append("<h5>Attributed reference context</h5>"
+                             "<p>Context links do not prove classification, observed behavior, "
+                             "exploitability, or control fulfillment.</p><ul>")
 
-            lines.append("</ul><details><summary>Reference attribution</summary>"
-                         + JsonBlock(binding.ToDict()) + "</details>")
+                for externalReference in binding.references:
+                    lines.append(f'<li><a href="{Html(externalReference.Url())}" '
+                                 'rel="noopener noreferrer">'
+                                 f'{Html(externalReference.external_id)}</a>'
+                                 f" · catalog {Html(externalReference.catalog_version)}"
+                                 f" · {Html(externalReference.ToDict()['link_revision'])}</li>")
 
-        observations = [JsonValue(item) for item in row.observations]
-        lines.append(f'<details id="object-{reference[7:]}"><summary>Technical finding record '
-                     "and observation history</summary>" + JsonBlock(JsonValue(row.entity))
-                     + JsonBlock(observations) + "</details></article>")
+                lines.append("</ul><details><summary>Reference attribution</summary>"
+                             + JsonBlock(binding.ToDict()) + "</details>")
+
+            observations = [JsonValue(item) for item in row.observations]
+            lines.append(f'<details id="object-{reference[7:]}"><summary>Technical finding record '
+                         "and observation history</summary>" + JsonBlock(JsonValue(row.entity))
+                         + JsonBlock(observations) + "</details></article>")
 
     lines.extend([
         '</section><section id="evidence"><h2 id="evidence-table-heading">'
