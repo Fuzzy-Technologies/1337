@@ -29,6 +29,7 @@ DEFAULT_VIEW = "context"
 LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
     "api",
+    "bridge",
     "business",
     "ci",
     "commands",
@@ -285,7 +286,8 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "paths", "sbom", "api", "trace", "raw", "image", "extension", "business"
+                "paths", "sbom", "api", "trace", "raw", "image", "extension", "business",
+                "bridge"
             }:
                 position = index - firstIndex
 
@@ -456,14 +458,16 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "paths", "sbom", "api", "trace", "raw", "image", "extension", "business"
+                    "paths", "sbom", "api", "trace", "raw", "image", "extension", "business",
+                    "bridge"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension", "business"
+            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension", "business",
+            "bridge"
         }:
             handlers = {"business": self.do_business,
                         "workspace": self.do_workspace, "scope": self.do_scope,
@@ -478,6 +482,7 @@ class InteractiveShell(cmd.Cmd):
                         "response": self.do_response,
                         "raw": self.do_raw,
                         "trace": self.do_trace,
+                        "bridge": self.do_bridge,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -573,7 +578,8 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         helpText = {
             "": (
-                "api import graphql-introspection, business inspect, ci scan, commands, "
+                "api import graphql-introspection, bridge sarif <import|inspect>, "
+                "business inspect, ci scan, commands, "
                 "context, demo local, "
                 "history [query], image export-local, extension validate, "
                 "lens [<name>] [--json], "
@@ -647,6 +653,10 @@ class InteractiveShell(cmd.Cmd):
                 "sbom import <spdx-graph|cyclonedx> <workspace>: import an owned file or replay "
                 "original product custody with explicit image/scope/run and both revision bases; "
                 "CycloneDX file mode requires --expected-sha256."
+            ),
+            "bridge": (
+                "bridge sarif <import|inspect> <workspace>: retain an explicit saved file or "
+                "verify original/receipt/SHA pins; source URI/path strings are never opened."
             ),
             "trace": (
                 "trace ioc <import|inspect|export-bundle|verify-bundle>: import selected "
@@ -747,6 +757,12 @@ class InteractiveShell(cmd.Cmd):
 
                 status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
                                             json_output=jsonOutput)
+
+            elif command == "bridge":
+                from fuzzy1337.bridge_commands import RunBridgeCommands
+
+                status = RunBridgeCommands(arguments, cast(TextIO, self.stdout),
+                                           jsonOutput=jsonOutput)
 
             elif command == "trace":
                 from fuzzy1337.ioc_commands import RunIocCommands
@@ -865,6 +881,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("report", argument)
+
+    def do_bridge(self, argument: str) -> None:
+        """Import or inspect saved external reports without deriving source or execution authority.
+
+        Args:
+            argument: Explicit saved-report action, file or original custody and SHA selections.
+        """
+
+        self.RunLocalCommand("bridge", argument)
 
     def do_trace(self, argument: str) -> None:
         """Use explicit local IOC or saved syslog sources without implicit shell authority.

@@ -1,5 +1,5 @@
 {
-  "name": "Verify the corrected saved syslog parser on the separately installed product",
+  "name": "Verify original local syslog and SARIF evidence in one installed workbench",
   "on": {
     "push": {
       "branches": [
@@ -11,13 +11,13 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "a02ddae0eb3623eef33eccd874f991716eb93558",
-    "PRODUCT_TREE": "785017b38cd95cb0a8bea3c73f8f125276a2ac28"
+    "APPROVED_SOURCE_SHA": "4218d481d97310d0bd19347fd86ca09ca0e0310c",
+    "PRODUCT_TREE": "5014b0c6649f411eed409b6d3e72a1bbc9b6d90d"
   },
   "jobs": {
     "offline-milestones": {
       "runs-on": "ubuntu-24.04",
-      "timeout-minutes": 9,
+      "timeout-minutes": 12,
       "steps": [
         {
           "name": "Require the dedicated read-only proof invocation",
@@ -36,7 +36,7 @@
         {
           "name": "Retain the reviewed offline test driver from this workflow commit",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py syslog-review.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py syslog-review.py shared-source.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
         },
         {
           "name": "Replace checkout with only the immutable product source",
@@ -62,7 +62,7 @@
           "id": "p64_setup"
         },
         {
-          "name": "Check source and run the complete saved-syslog and existing IOC regressions",
+          "name": "Run complete changed-profile units, pinned installed cases, five-module branch coverage and static checks",
           "shell": "bash",
           "run": "python3 -I \"$RUNNER_TEMP/milestone-checks.py\""
         },
@@ -71,6 +71,12 @@
           "if": "always() && steps.p64_setup.outcome == 'success'",
           "shell": "bash",
           "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/syslog-review.py\" \"$RUNNER_TEMP/retained-proof-runtime/bin/1337\"\n"
+        },
+        {
+          "name": "Reopen both saved original sources after file deletion and folder copy; refuse crossed original handles",
+          "if": "always() && steps.p64_setup.outcome == 'success'",
+          "shell": "bash",
+          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/shared-source.py\" \"$GITHUB_WORKSPACE/tests/contract/fixtures/sarif/external-eslint.sarif\"\n"
         }
       ]
     }
