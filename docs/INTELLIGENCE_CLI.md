@@ -86,6 +86,9 @@ membership is not evidence of no vulnerability, exploitation or risk. Omit
 For a matched EPSS record, the text summary shows the publisher's score
 timestamp normalized to UTC alongside its probability and percentile. This
 timestamp comes from the record's `effective_at` field.
+For a matched KEV record, the text summary shows the catalog's remediation due
+date alongside the required action. The date comes from the record's `due_date`
+field.
 
 For a selected CVE Record `5.2`/`5.2.0`, `cve_source_profiles` exposes the existing
 independent inspection results without repeating snapshots:

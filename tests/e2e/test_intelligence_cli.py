@@ -118,8 +118,9 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
         "Inspection silently changed source family or failed to reparse its one actual record."
     )
     identifier = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
-    status, selected = Run([*Selection("inspect", model.root, imported),
-                            "--identifier", identifier, "--identifier", "CVE-1900-8888"])
+    selection = [*Selection("inspect", model.root, imported),
+                 "--identifier", identifier, "--identifier", "CVE-1900-8888"]
+    status, selected = Run(selection)
     assert status == 0 and set(selected) == set(inspected) | {"details"}, (
         "Actual selected inspection changed the default terminal output contract."
     )
@@ -131,6 +132,19 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     ]["target_applicability"] == "not-evaluated", (
         "Actual selected source absence became target applicability or disappeared."
     )
+
+    if feed is IntelligenceFeed.KEV:
+        human = subprocess.run(
+            [sys.executable, "-m", "fuzzy1337", "intel", *selection],
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        assert human.returncode == 0 and not human.stderr, (
+            "Actual selected KEV text inspection failed."
+        )
+        assert "Source remediation due date: 2026-10-31" in human.stdout.splitlines(), (
+            "Selected KEV text omitted the retained source remediation due date."
+        )
+
     assert model.Open() == beforeModel and Files(model.root) == before, (
         "Import or inspection implicitly enriched the model or mutated retained acquisitions."
     )

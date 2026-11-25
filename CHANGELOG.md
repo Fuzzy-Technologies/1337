@@ -12,12 +12,14 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Digest
 
-- Show when selected EPSS scores took effect in offline inspection.
+- Surface score timing and remediation deadlines in offline inspection.
 
 #### Fixed
 
 - Show the verified UTC score timestamp alongside probability and percentile
   in selected `1337 intel inspect` text output.
+- Show the retained KEV remediation due date beside the required action in
+  selected `1337 intel inspect` text output.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04

@@ -376,6 +376,7 @@ def WriteIntelDetails(details: dict[str, object], output: TextIO) -> None:
             output.write("Listed in the selected KEV catalog: source-reported exploitation, "
                          "not an observed attack on this target.\n")
             output.write(f"Required action: {IntelDisplay(data['required_action'])}\n")
+            output.write(f"Source remediation due date: {IntelDisplay(data['due_date'])}\n")
             output.write(f"Ransomware use: {IntelDisplay(data['ransomware_use'])}\n")
 
         elif record["feed"] == IntelligenceFeed.CWE.value:
