@@ -1,5 +1,5 @@
 {
-  "name": "Offline CLI acceptance and Python naming equivalence",
+  "name": "Saved business declarations, strict extension versions and offline CWE lookup",
   "on": {
     "push": {
       "branches": [
@@ -11,15 +11,11 @@
     "contents": "read"
   },
   "env": {
-    "FEATURE_SHA": "ad2e2eab434eafd016bef3b4abd1ad0f3cb77301",
-    "FEATURE_TREE": "4c28b2524a058fe3347f6f76d28258c981c6b540",
-    "STYLE_SHA": "de9f2cb729c974126a6cdc00c1d2d96976577415",
-    "STYLE_TREE": "d799aab5e060546ec022180c4a5f60763671d3f4",
-    "STYLE_BASE": "ad2e2eab434eafd016bef3b4abd1ad0f3cb77301",
-    "APPROVED_SOURCE_SHA": "ad2e2eab434eafd016bef3b4abd1ad0f3cb77301"
+    "APPROVED_SOURCE_SHA": "5c0ec0caa9986301e0a3259015618c66365168c6",
+    "PRODUCT_TREE": "aa5eb33e649b223c13bae70fb4a0bedc595aaae8"
   },
   "jobs": {
-    "offline-group": {
+    "offline-milestones": {
       "runs-on": "ubuntu-24.04",
       "timeout-minutes": 10,
       "steps": [
@@ -38,15 +34,15 @@
           }
         },
         {
-          "name": "Retain the two reviewed test drivers from this workflow commit",
+          "name": "Retain the reviewed offline test driver from this workflow commit",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor name in offline-group private-locals-proof; do\n  path=\".github/proof/$name.py\"\n  test \"$(git ls-tree HEAD -- \"$path\" | cut -d\" \" -f1)\" = 100644\n  git --no-replace-objects show \"HEAD:$path\" > \"$RUNNER_TEMP/$name.py\"\ndone"
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\npath=.github/proof/milestone-checks.py\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/milestone-checks.py\"\n"
         },
         {
-          "name": "Check out the exact IOC and shell product commit",
+          "name": "Replace checkout with only the immutable product source",
           "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
           "with": {
-            "ref": "${{ env.FEATURE_SHA }}",
+            "ref": "${{ env.APPROVED_SOURCE_SHA }}",
             "clean": true,
             "persist-credentials": false,
             "fetch-depth": 1
@@ -62,27 +58,12 @@
         {
           "name": "Build and separately install the actual wheel with locked dependencies",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest -f tests/e2e/test_ioc_bundle_candidate_export_cli.py\ntest -f tests/unit/test_ioc_bundle_candidate_export.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n"
+          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tests/unit/test_business_commands.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n"
         },
         {
-          "name": "Run the installed IOC console, error-path tests and interactive help checks",
+          "name": "Run the actual installed CLI and offline SDK tests on two workers",
           "shell": "bash",
-          "run": "python3 -I \"$RUNNER_TEMP/offline-group.py\" feature"
-        },
-        {
-          "name": "Check out the exact style-only candidate and its feature parent",
-          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-          "with": {
-            "ref": "${{ env.STYLE_SHA }}",
-            "clean": true,
-            "persist-credentials": false,
-            "fetch-depth": 2
-          }
-        },
-        {
-          "name": "Prove source equivalence, baseline removals and execute the existing offline cases",
-          "shell": "bash",
-          "run": "python3 -I \"$RUNNER_TEMP/offline-group.py\" style"
+          "run": "python3 -I \"$RUNNER_TEMP/milestone-checks.py\""
         }
       ]
     }

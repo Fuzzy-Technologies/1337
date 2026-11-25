@@ -228,6 +228,11 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.report-export",),
         ),
         CommandDescriptor(
+            identifier="business",
+            summary="Inspect a retained owner-declared outcome and its critical Assets offline.",
+            usage="1337 business inspect <workspace> --definition <original-manifest>",
+        ),
+        CommandDescriptor(
             identifier="extension",
             summary="Validate local extension metadata offline without activating it.",
             usage="1337 extension validate <manifest>",

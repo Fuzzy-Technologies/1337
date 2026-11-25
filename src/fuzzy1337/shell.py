@@ -29,6 +29,7 @@ DEFAULT_VIEW = "context"
 LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
     "api",
+    "business",
     "ci",
     "commands",
     "context",
@@ -284,7 +285,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "paths", "sbom", "api", "trace", "raw", "image", "extension"
+                "paths", "sbom", "api", "trace", "raw", "image", "extension", "business"
             }:
                 position = index - firstIndex
 
@@ -455,16 +456,17 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "paths", "sbom", "api", "trace", "raw", "image", "extension"
+                    "paths", "sbom", "api", "trace", "raw", "image", "extension", "business"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension"
+            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension", "business"
         }:
-            handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
+            handlers = {"business": self.do_business,
+                        "workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
                         "ci": self.do_ci,
                         "image": self.do_image,
@@ -571,7 +573,8 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         helpText = {
             "": (
-                "api import graphql-introspection, ci scan, commands, context, demo local, "
+                "api import graphql-introspection, business inspect, ci scan, commands, "
+                "context, demo local, "
                 "history [query], image export-local, extension validate, "
                 "lens [<name>] [--json], "
                 "intel <import|inspect|preview|apply>, model <workspace-path>, palette [query], "
@@ -588,6 +591,10 @@ class InteractiveShell(cmd.Cmd):
             "api": (
                 "api import graphql-introspection <workspace>: import one explicit owned offline "
                 "file or retained original manifest with endpoint/scope and exact revision bases."
+            ),
+            "business": (
+                "business inspect <workspace>: verify one retained owner declaration and "
+                "its saved critical Assets with explicit original and model pins."
             ),
             "extension": (
                 "extension validate <manifest>: validate metadata offline without activation."
@@ -683,7 +690,13 @@ class InteractiveShell(cmd.Cmd):
             jsonOutput = "--json" in prefix
             arguments = [item for item in prefix if item != "--json"] + native
 
-            if command == "extension":
+            if command == "business":
+                from fuzzy1337.business_commands import RunBusinessCommands
+
+                status = RunBusinessCommands(arguments, cast(TextIO, self.stdout),
+                                             machine=jsonOutput)
+
+            elif command == "extension":
                 from fuzzy1337.extension_commands import RunExtensionCommands
 
                 status = RunExtensionCommands(arguments, cast(TextIO, self.stdout),
@@ -794,6 +807,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("scope", argument)
+
+    def do_business(self, argument: str) -> None:
+        """Inspect explicit retained owner declarations without deriving facts from shell context.
+
+        Args:
+            argument: Inspect action, workspace, original definition, scope and complete model pins.
+        """
+
+        self.RunLocalCommand("business", argument)
 
     def do_extension(self, argument: str) -> None:
         """Validate one explicit local manifest without resolving or activating its entry points.

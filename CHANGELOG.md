@@ -8,6 +8,52 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 61 — v0.4.61 — 2026-11-25
+
+#### Digest
+
+- Look up new CWE IDs in an already retained full catalog without reacquiring its ZIP.
+
+#### Added
+
+- Add read-only `intel cwe lookup` over exact original selection/receipt verification
+  and the existing bounded decoder. Keep the original saved selection distinct from
+  the on-demand source assertions, with unsupported kinds and absent IDs separate.
+  Preserve original version, source hash, notices and acquisition facts after input
+  deletion or workspace relocation, without new storage, provider, model or score.
+
+
+### Patch 60 — v0.4.60 — 2026-11-25
+
+#### Digest
+
+- Check an extension's declared version against an explicitly selected offline SemVer profile.
+
+#### Added
+
+- Add `extension validate --version-profile semver-2.0.0` after canonical manifest
+  validation, with fixed diagnostics at `/extension/version`, explicit profile
+  reporting and unchanged default Stable v1 schema acceptance.
+- Distinguish numeric prerelease leading zeros from permitted build metadata;
+  reject empty identifiers, non-ASCII characters and trailing whitespace without
+  integer conversion, extension activation or Core range interpretation.
+
+### Patch 59 — v0.4.59 — 2026-11-25
+
+#### Digest
+
+- Inspect a retained owner-declared business outcome and its saved critical Assets offline.
+
+#### Added
+
+- Add explicit console/shell inspection bound to the original declaration manifest,
+  scope attribution and complete current model pin. Reuse the accepted declaration
+  owner and exact persisted memberships, verify selected provenance evidence, and
+  return unchanged canonical records only after complete verification. Preserve
+  owner-declared scenario semantics without scoring, paths, incident inference or
+  model/workspace writes; failures emit no partial inspection.
+
+
 ### Patch 58 — v0.4.58 — 2026-11-25
 
 #### Digest
