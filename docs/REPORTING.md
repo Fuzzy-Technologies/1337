@@ -95,6 +95,11 @@ Use the Findings disposition links to jump to open, confirmed, dismissed or
 resolved findings. Each populated group shows its count and keeps its findings
 in canonical order.
 
+Expand Findings by saved severity to compare findings across dispositions.
+The index lists critical through informational findings before Unknown and
+keeps canonical order within each severity. Each row links to the finding card
+and the saved subject.
+
 Use the saved severity filter to show matching cards, including Unknown when
 present. All restores the full view, as does a link to another report section or
 record. Disposition counts describe the full snapshot. Printing includes every

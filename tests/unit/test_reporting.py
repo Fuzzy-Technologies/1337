@@ -12,7 +12,7 @@ import pytest
 
 from fuzzy1337 import report_formats, reporting
 from fuzzy1337.adapters.contracts import AdapterExecution, ExecutionState
-from fuzzy1337.findings import ApplyFindings, Finding
+from fuzzy1337.findings import ApplyFindings, Finding, FindingSeverity
 from fuzzy1337.intelligence import IntelligenceFeed
 from fuzzy1337.model import (
     CanonicalModelJson,
@@ -285,7 +285,7 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
 
     assert labels == [
         "operations-table-heading", "model-host-table-heading",
-        "evidence-table-heading", "relationships-table-heading",
+        "findings-severity-table-heading", "evidence-table-heading", "relationships-table-heading",
     ]
     assert dom.tableLabels == labels
     assert set(labels) <= dom.headingIds
@@ -328,6 +328,65 @@ def test_HtmlFindingsJumpToSavedDispositionGroups():
     actual = [(element.tag, element.get("id")) for element in findings
               if element.tag in ("h3", "article")]
     assert actual == expected
+
+
+def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
+    """Compare saved severities across dispositions with canonical ties and exact record links."""
+
+    report = Fixture(summary="Retained interpretation <marker>")
+    host, = report.state.Objects(ObjectKind.HOST)
+    asset, = report.state.Objects(ObjectKind.ASSET)
+    sourceRows = (
+        (asset, FindingSeverity.CRITICAL), (asset, FindingSeverity.HIGH),
+        (host, FindingSeverity.MEDIUM),
+    )
+    extra = tuple(Finding(
+        subject.Reference(), "synthetic.severity-index", severity.value,
+        f"{severity.value.title()} entry", subject.provenance, severity=severity,
+    ) for subject, severity in sourceRows)
+    state, _ = ApplyFindings(report.state, extra)
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    index, = findings.findall('details[@class="findings-severity-index"]')
+    assert index.get("open") is None
+    heading, = index.findall("summary/h3")
+    assert heading.text == "Findings by saved severity"
+    region, = index.findall('div[@role="region"]')
+    assert (region.get("aria-labelledby"), region.get("tabindex")) == (heading.get("id"), "0")
+    table, = region.findall("table")
+    assert table.get("aria-labelledby") == heading.get("id")
+    assert [(header.get("scope"), header.text) for header in table.findall("thead/tr/th")] == [
+        ("col", "Finding"), ("col", "Saved severity"), ("col", "Disposition"), ("col", "Subject"),
+    ]
+    severityOrder = ("critical", "high", "medium", "low", "informational", "unknown")
+    entities = state.Objects(ObjectKind.FINDING)
+    ranked = [
+        entity for severity in severityOrder for entity in entities
+        if entity.attributes["severity"] == severity
+    ]
+    cardIds = {card.get("id") for card in findings.findall("article")}
+    subjectLabels = {
+        host.Reference(): "Host: 127.0.0.1", asset.Reference(): "Asset: build:synthetic",
+    }
+
+    for entry, entity in zip(table.findall("tbody/tr"), ranked, strict=True):
+        title, severity, disposition, subject = entry
+        assert (title.tag, title.get("scope")) == ("th", "row")
+        findingLink, = title.findall("a")
+        fragment = f"finding-{entity.Reference()[7:]}"
+        assert (findingLink.get("href"), findingLink.text) == (
+            f"#{fragment}", entity.attributes["summary"],
+        )
+        assert fragment in cardIds
+        assert [severity.text, disposition.text] == [
+            str(entity.attributes[field]).title() for field in ("severity", "status")
+        ]
+        reference = str(entity.attributes["subject_reference"])
+        subjectLink, = subject.findall("a")
+        assert (subjectLink.get("href"), subjectLink.text) == (
+            f"#object-{reference[7:]}", subjectLabels[reference],
+        )
 
 
 def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
@@ -772,7 +831,8 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
     labels = [region["aria-labelledby"] for region in dom.tableRegions]
     assert labels == [
         "operations-table-heading", "model-host-table-heading", "model-port-table-heading",
-        "model-service-table-heading", "model-endpoint-table-heading", "evidence-table-heading",
+        "model-service-table-heading", "model-endpoint-table-heading",
+        "findings-severity-table-heading", "evidence-table-heading",
         "relationships-table-heading",
     ]
     assert dom.tableLabels == labels

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import html
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterable
 from functools import cache
 from http import HTTPStatus
 from typing import cast
@@ -58,6 +58,7 @@ caption {text-align:left;color:var(--muted);margin:.5rem 0}
 @media(max-width:600px) {main {padding:1rem .7rem}th,td {padding:.4rem}
 .cards {gap:.4rem}.card {padding:.7rem}.meter {flex-wrap:wrap}.meter div {min-width:70px}}
 summary {cursor:pointer;color:var(--green)} code,pre {overflow-wrap:anywhere}
+.findings-severity-index > summary h3 {display:inline;font-size:1em}
 pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 .table {overflow:auto} table {border-collapse:collapse;width:100%}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
@@ -332,6 +333,36 @@ def _FindingLinks(rows: list[_RetainedFindingRow]) -> str:
         links.append(f'<li><a href="#{_FindingId(row.reference)}">{label}</a></li>')
 
     return "<ul>" + "".join(links) + "</ul>"
+
+
+def _FindingSeverityIndex(
+    rows: _RetainedReportRows, rankedFindings: Iterable[_RetainedFindingRow],
+) -> str:
+    """Compare retained severities and dispositions with links to their cards and subjects."""
+
+    headingId = "findings-severity-table-heading"
+    lines = [
+        '<details class="findings-severity-index"><summary>'
+        f'<h3 id="{headingId}">Findings by saved severity</h3></summary>',
+        _TableStart(headingId)
+        + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
+        '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>',
+    ]
+
+    for row in rankedFindings:
+        finding = row.finding
+        subject = rows.objects[finding.subject_reference]
+        subjectLink = ObjectLink(finding.subject_reference, ObjectLabel(subject))
+        lines.append(
+            f'<tr><th scope="row"><a href="#{_FindingId(row.reference)}">'
+            f"{Html(finding.summary)}</a></th>"
+            f"<td>{finding.severity.value.title()}</td><td>{finding.status.value.title()}</td>"
+            f"<td>{subjectLink}</td></tr>"
+        )
+
+    lines.append("</tbody></table></div></details>")
+
+    return "\n".join(lines)
 
 
 def ObjectTables(rows: _RetainedReportRows) -> str:
@@ -812,11 +843,13 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     findingsByStatus: dict[FindingStatus, list[_RetainedFindingRow]] = {
         status: [] for status in FindingStatus
     }
-    severityCounts = dict.fromkeys(FindingSeverity, 0)
+    findingsBySeverity: dict[FindingSeverity, list[_RetainedFindingRow]] = {
+        severity: [] for severity in FindingSeverity
+    }
 
     for row in rows.findings:
         findingsByStatus[row.finding.status].append(row)
-        severityCounts[row.finding.severity] += 1
+        findingsBySeverity[row.finding.severity].append(row)
 
     findingGroups = [
         (f"findings-{status.value}", f"{status.value.title()} ({len(group)})", group)
@@ -824,12 +857,14 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     ]
 
     if findingGroups:
+        rankedFindings = (row for group in reversed(findingsBySeverity.values()) for row in group)
+        lines.append(_FindingSeverityIndex(rows, rankedFindings))
         lines.append('<nav aria-label="Finding dispositions">')
         lines.extend(f'<a href="#{groupId}">{label}</a>' for groupId, label, _ in findingGroups)
         lines.append("</nav>")
         severityFilters = [
-            (f"findings-severity-{severity.value}", f"{severity.value.title()} ({count})")
-            for severity, count in reversed(severityCounts.items()) if count
+            (f"findings-severity-{severity.value}", f"{severity.value.title()} ({len(group)})")
+            for severity, group in reversed(findingsBySeverity.items()) if group
         ]
         lines.append('<nav class="finding-severity-filter" '
                      'aria-labelledby="finding-severity-filter-label" hidden="hidden">'

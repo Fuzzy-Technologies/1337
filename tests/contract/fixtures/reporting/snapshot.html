@@ -27,6 +27,7 @@ caption {text-align:left;color:var(--muted);margin:.5rem 0}
 @media(max-width:600px) {main {padding:1rem .7rem}th,td {padding:.4rem}
 .cards {gap:.4rem}.card {padding:.7rem}.meter {flex-wrap:wrap}.meter div {min-width:70px}}
 summary {cursor:pointer;color:var(--green)} code,pre {overflow-wrap:anywhere}
+.findings-severity-index > summary h3 {display:inline;font-size:1em}
 pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 .table {overflow:auto} table {border-collapse:collapse;width:100%}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
@@ -114,6 +115,13 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 <div data-asset-findings="none"><details id="object-6b86e98ea3b650b9ae273f9e4ac42d6a774224384b696b4ede282bd3617125c1"><summary>Asset: build:synthetic</summary><pre>{&quot;attributes&quot;:{},&quot;identity&quot;:{&quot;key&quot;:&quot;build:synthetic&quot;,&quot;kind&quot;:&quot;asset&quot;,&quot;workspace_id&quot;:&quot;synthetic&quot;},&quot;provenance&quot;:[{&quot;evidence_references&quot;:[{&quot;locator&quot;:&quot;blobs/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;media_type&quot;:&quot;application/json&quot;,&quot;role&quot;:&quot;stdout&quot;,&quot;sha256&quot;:&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;size_bytes&quot;:2}],&quot;execution&quot;:{&quot;duration_seconds&quot;:0.1,&quot;exit_code&quot;:2,&quot;state&quot;:&quot;failed&quot;},&quot;observed_at&quot;:&quot;2026-10-13T00:00:00.000000+00:00&quot;,&quot;provider_version&quot;:null,&quot;run_reference&quot;:&quot;run:synthetic&quot;,&quot;scope_reference&quot;:&quot;scope:fixture&quot;,&quot;source_id&quot;:&quot;synthetic&quot;,&quot;target_reference&quot;:&quot;target:fixture&quot;}]}</pre></details></div>
 </section>
 <section id="findings"><h2>Findings and next actions</h2>
+<details class="findings-severity-index"><summary><h3 id="findings-severity-table-heading">Findings by saved severity</h3></summary>
+<div class="table" role="region" tabindex="0" aria-labelledby="findings-severity-table-heading"><table aria-labelledby="findings-severity-table-heading"><thead><tr><th scope="col">Finding</th><th scope="col">Saved severity</th><th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>
+<tr><th scope="row"><a href="#finding-14b87377d2391c6188878933342439a9f3eb8fdf1833b9edfdaf5d952cc997b8">Synthetic check interpretation</a></th><td>High</td><td>Open</td><td><a href="#object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6">Host: 127.0.0.1</a></td></tr>
+<tr><th scope="row"><a href="#finding-0c250ded9cc20410ac6c7edaf176ee02440d554a50923f30dad68975b4696595">Synthetic check interpretation</a></th><td>Low</td><td>Dismissed</td><td><a href="#object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6">Host: 127.0.0.1</a></td></tr>
+<tr><th scope="row"><a href="#finding-b761b3d8a0620e1c581f90ca1129fcb7fade0e52a53135331d4332ee5935bad9">Synthetic check interpretation</a></th><td>Informational</td><td>Resolved</td><td><a href="#object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6">Host: 127.0.0.1</a></td></tr>
+<tr><th scope="row"><a href="#finding-7af8781c657d09fd18dcb11ec6d197f565bf371a7c816cf0a95010f58ec723f9">Synthetic check interpretation</a></th><td>Unknown</td><td>Confirmed</td><td><a href="#object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6">Host: 127.0.0.1</a></td></tr>
+</tbody></table></div></details>
 <nav aria-label="Finding dispositions">
 <a href="#findings-open">Open (1)</a>
 <a href="#findings-confirmed">Confirmed (1)</a>
