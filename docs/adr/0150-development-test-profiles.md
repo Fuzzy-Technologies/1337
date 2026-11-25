@@ -23,13 +23,13 @@ Ordinary integration and stable/master routes retain their complete native and
 container gates. Only an independently admitted Ready passive batch to `develop`
 uses these profiles:
 
-| Job                           | Test responsibility                                            |
-| ----------------------------- | -------------------------------------------------------------- |
-| Ubuntu / Python 3.13          | Units/boundaries or verified test-only files; scoped coverage  |
-| Ubuntu / Python 3.14          | Runner, report, and workspace compatibility units              |
-| Windows / Python 3.13         | Compatibility units and actual owned TLS lifecycle boundary    |
-| macOS / Python 3.13           | Offline runner/progress portability selection from #512        |
-| Linux container / Python 3.13 | Clean wheel/runtime installation and actual worker execution   |
+| Job                           | Test responsibility                                           |
+| ----------------------------- | ------------------------------------------------------------- |
+| Ubuntu / Python 3.13          | Units/boundaries or verified test-only files; scoped coverage |
+| Ubuntu / Python 3.14          | Runner, report, and workspace compatibility units             |
+| Windows / Python 3.13         | Compatibility units and actual owned TLS lifecycle boundary   |
+| macOS / Python 3.13           | Offline runner/progress portability selection from #512       |
+| Linux container / Python 3.13 | Clean wheel/runtime installation and actual worker execution  |
 
 The authoritative Linux unit job retains compile, lint, typing, performance and
 build phases. The macOS and container profiles also retain those phases. The
@@ -41,8 +41,8 @@ repository-wide coverage and retain their actual JUnit outcomes. They do not
 claim complete repository coverage. Failures propagate; no retries or successful
 placeholders replace an executed required check.
 
-The passive gate invokes the real process-isolated pytest runner for all units,
-then appends the 14 reviewed contract/integration/E2E files for the actual batch.
+For a product change, the passive gate invokes the process-isolated pytest runner
+for all units, then appends the 14 reviewed contract/integration/E2E files.
 The supplemental coverage configuration enables subprocess measurement so the
 installed CLI children participate. The global project coverage configuration is
 unchanged. Each parallel/serial partition is independently collected and its
@@ -77,9 +77,10 @@ suppression. No rejected passive request falls back to active acceptance.
 
 Routine feature work uses focused selections; an owner-requested full unit run
 may execute locally. Reuse that exact measured checkpoint rather than duplicating
-it across agents or after integration into `develop`. A final admitted Ready
-passive batch is the shared full-unit checkpoint; platform and package
-compatibility establish their own narrower boundaries.
+it across agents or after integration into `develop`. A Ready passive batch that
+changes product code runs the shared full-unit checkpoint. Eligible test-only
+batches run the complete files described below. Platform and package jobs
+exercise their own compatibility boundaries.
 
 ### Independent policy registry migration
 
