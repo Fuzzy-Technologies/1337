@@ -1248,3 +1248,16 @@ never dereferenced. Existing model/report/export/ToolAdapter schemas are unchang
 `fuzzy1337.bridge_sarif`, `fuzzy1337.bridge_commands` and all their helpers are
 Internal; the distinct `bridge-sarif-source-cli-v1` terminal outcome is
 Experimental. No new public Python DTO, transport or canonical truth store is added.
+
+
+Experimental version-one `intel preview-set|apply-set` selects two to sixteen
+explicit original successful local snapshot/receipt pairs for one existing
+Finding, composing the unchanged verified enrichment SDK and model CAS.
+The distinct `local-intelligence-set-cli-v1` terminal profile returns the existing
+complete candidate preview shape plus original selection metadata. Metadata-first
+aggregate limits precede original reparse; refusal saves/presents no valid prefix.
+This adds no source/receipt/observation/Core schema or Python SDK.
+All `fuzzy1337.intelligence_set_commands` symbols remain Internal. Existing
+single-source output and separate selected ZIP/gzip/HTTPS families are unchanged.
+See [the operator guide](INTELLIGENCE_CLI.md#one-combined-preview-and-save-from-several-originals)
+and [ADR 0159](adr/0159-combined-local-intelligence-enrichment.md).

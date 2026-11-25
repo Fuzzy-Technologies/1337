@@ -1125,3 +1125,10 @@ module = "fuzzy1337.bridge_commands"
 source = "src/fuzzy1337/bridge_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.bridge_commands.md"
+
+[[surfaces]]
+# Internal combined retained-local-snapshot transport; SDK and model owners unchanged.
+module = "fuzzy1337.intelligence_set_commands"
+source = "src/fuzzy1337/intelligence_set_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_set_commands.md"
