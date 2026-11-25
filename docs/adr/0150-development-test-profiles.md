@@ -130,7 +130,8 @@ qualify. A tooling change, including this optimizer's own implementation, keeps
 the complete existing all-unit and offline-boundary selection.
 
 Inspect tracked Python consumers through a bounded, status-checked Git search
-and AST inspection. Visible imports, plugin names, module references, dynamic
+and AST inspection. A selected module's explicit `pytest_plugins` registration at either endpoint
+refuses narrowing. Visible imports, plugin names, module references, dynamic
 calls and reads using the module name refuse narrowing. Declarative pytest
 parameter data may name an existing test selector without importing its
 fixtures. Inspection errors and ambiguity retain the existing all-unit passive

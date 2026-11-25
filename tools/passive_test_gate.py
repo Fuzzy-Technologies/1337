@@ -163,15 +163,20 @@ def ChangedFiles(base: str) -> tuple[str, tuple[dict[str, str], ...]]:
     command = ["git", "--no-replace-objects"]
     head = subprocess.run([*command, "rev-parse", "--verify", "HEAD^{commit}"], check=True,
                           capture_output=True, text=True, timeout=30).stdout.strip()
+    if re.fullmatch(r"[0-9a-f]{40}", head) is None:
+        raise ValueError("Passive head is not an exact commit")
+
     ancestor = subprocess.run([*command, "merge-base", "--all", base, head], check=True,
                               capture_output=True, text=True, timeout=30).stdout.strip()
 
-    if re.fullmatch(r"[0-9a-f]{40}", head) is None or ancestor != base:
+    if ancestor != base:
         raise ValueError("Passive coverage base is not the actual integration ancestor")
 
-    subprocess.run([*command, "diff", "--no-ext-diff", "--quiet", "HEAD", "--"],
+    subprocess.run([*command, "diff", "--no-ext-diff", "--no-textconv",
+                    "--ignore-submodules=none", "--quiet", "HEAD", "--"],
                    check=True, capture_output=True, timeout=30)
-    raw = subprocess.run([*command, "diff", "--no-ext-diff", "--no-renames", "--raw",
+    raw = subprocess.run([*command, "diff", "--no-ext-diff", "--no-textconv",
+                          "--ignore-submodules=none", "--no-renames", "--raw",
                           "--abbrev=40", "-z", base, head, "--"], check=True,
                          capture_output=True, timeout=30).stdout
 
@@ -406,6 +411,15 @@ def TestOnlySelection(
 
             old, new = (ReadBlob(change[key]).decode("utf-8")
                         for key in ("old_blob", "new_blob"))
+            for source in (old, new):
+                tree = ast.parse(source, type_comments=True)
+
+                if any(getattr(node, "id", None) == "pytest_plugins"
+                       or getattr(node, "attr", None) == "pytest_plugins"
+                       or (isinstance(node, ast.Constant) and node.value == "pytest_plugins")
+                       for node in ast.walk(tree)):
+                    return (), "shared-pytest-plugin-registration"
+
             path = Path(change["path"])
 
             if path.is_symlink() or not path.is_file() or path.read_bytes() != new.encode("utf-8"):

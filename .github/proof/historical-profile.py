@@ -2,6 +2,7 @@
 """Run one P65 gate against immutable historical #537; never run a fallback suite."""
 
 import argparse
+import ast
 from collections import Counter
 from contextlib import contextmanager
 import hashlib
@@ -79,6 +80,7 @@ def Main():
     parser.add_argument("--baseline-xml", type=Path, required=True)
     parser.add_argument("--baseline-xml-sha256", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--selector-only", action="store_true")
     options = parser.parse_args()
     root, tools, output = (value.resolve() for value in
                            (options.source_root, options.candidate_tools, options.output))
@@ -130,10 +132,41 @@ def Main():
         assert head == HEAD and {item["path"] for item in changes} == {
             *FILES, "contracts/python-naming-baseline.json"
         }, "Historical complete diff differs"
-        selection, reason = gate.TestOnlySelection(BASE, head, changes)
-        assert selection == (*FILES, *CHECKS) and (
-            reason == "verified-leaf-unit-changes"
-        ), "Refusing execution: historical diff did not select the intended quick profile"
+        decisions = []
+
+        def Trace(frame, event, value):
+            if frame.f_code.co_filename == gate.__file__ and (
+                (event == "return" and value is False) or event == "exception"
+            ):
+                context = frame.f_locals
+                node = context.get("node")
+                decisions.append({"function": frame.f_code.co_name, "line": frame.f_lineno,
+                                  "event": event, "consumer": context.get("consumer"),
+                                  "path": str(context.get("path", "")),
+                                  "stem": context.get("stem"),
+                                  "node_line": getattr(node, "lineno", None),
+                                  "node": ast.dump(node)[:1200] if isinstance(node, ast.AST) else None,
+                                  "exception": str(value[1])[:500] if event == "exception" else None})
+            return Trace
+
+        previous_trace = sys.gettrace()
+        sys.settrace(Trace)
+        try:
+            selection, reason = gate.TestOnlySelection(BASE, head, changes)
+        finally:
+            sys.settrace(previous_trace)
+        eligible = selection == (*FILES, *CHECKS) and reason == "verified-leaf-unit-changes"
+        diagnostic = {"source": HEAD, "base": BASE, "tree": TREE,
+                      "gate_blob": options.gate_blob, "reason": reason,
+                      "selection": list(selection), "expected": [*FILES, *CHECKS],
+                      "eligible": eligible, "decisions": decisions[-10:],
+                      "mode": "read-only-selector-diagnostic"}
+        (output / "historical-selector-diagnostic.json").write_text(
+            json.dumps(diagnostic, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        print(json.dumps(diagnostic), flush=True)
+        if options.selector_only:
+            return 0 if eligible else 2
+        assert eligible, "Refusing execution: historical diff did not select quick; see diagnostic"
         controls["historical"] = reason
         for label, settings in (("master", {"base_ref": "master"}),
                                 ("unknown-event", {"event": "merge_group"})):

@@ -346,7 +346,7 @@ def test_MainRecordsScopedTruthWithoutClaimingTheGlobalMasterGate(tmp_path, monk
         )
 
 
-def GitCandidate(tmpPath, monkeypatch, *, consumer=""):
+def GitCandidate(tmpPath, monkeypatch, *, consumer="", plugin=""):
     """Create inert Git commits and original event metadata without executing test bodies."""
 
     monkeypatch.chdir(tmpPath)
@@ -368,6 +368,7 @@ def GitCandidate(tmpPath, monkeypatch, *, consumer=""):
     original = ('"""Owned inert test."""\n\ndef test_Owned():\n'
                 '    """Check one saved value."""\n\n    cache_value = 1\n'
                 '    assert cache_value == 1, "Owned value differs"\n')
+    original += plugin
     path.write_text(original, encoding="utf-8")
     Path("tests/unit/test_other.py").write_text(
         '"""Other inert test."""\n\ndef Other():\n    """Return a saved value."""\n\n'
@@ -657,4 +658,34 @@ def test_LeafBodyChangesNeedNoBaselineEditOrNewPerFeatureRule(tmp_path, monkeypa
     )
     assert reason == "verified-leaf-unit-changes" and len(changes) == count, (
         "Several eligible leaf test changes must retain the same complete-file acceptance"
+    )
+
+
+@pytest.mark.parametrize("phase", ["added", "removed", "preexisting"])
+def test_SelectedModulePluginRegistrationAtEitherEndpointKeepsTheFullPassiveGate(
+    tmp_path, monkeypatch, phase,
+):
+    """Refuse explicit global pytest plugin registration even without outside source consumers."""
+
+    declaration = '\npytest_plugins = ["tests.shared_plugin"]\n'
+    base, head, Git, eventPath = GitCandidate(
+        tmp_path, monkeypatch, plugin="" if phase == "added" else declaration,
+    )
+
+    if phase != "preexisting":
+        path = Path("tests/unit/test_owned.py")
+        source = path.read_text(encoding="utf-8")
+        path.write_text(source + declaration if phase == "added" else
+                        source.replace(declaration, ""), encoding="utf-8")
+        Git("add", "--all")
+        Git("commit", "--quiet", "-m", "Owned plugin declaration change")
+        head = Git("rev-parse", "HEAD")
+        event = json.loads(eventPath.read_text(encoding="utf-8"))
+        event["pull_request"]["head"]["sha"] = head
+        eventPath.write_text(json.dumps(event), encoding="utf-8")
+
+    actualHead, changes = gate.ChangedFiles(base)
+    selection, reason = gate.TestOnlySelection(base, actualHead, changes)
+    assert not selection and reason == "shared-pytest-plugin-registration", (
+        "Plugin registration is shared pytest configuration and must never receive quick acceptance"
     )
