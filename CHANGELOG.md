@@ -8,6 +8,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 64 — v0.4.64 — 2026-11-25
+
+#### Digest
+
+- Reopen an explicitly owned saved RFC 5424 log from exact retained bytes after
+  source removal or workspace relocation.
+
+#### Added
+
+- Add bounded source-only RFC 5424 v1 parsing and `trace syslog import|inspect`,
+  reusing the existing artifact/evidence owners. Preserve original header fields,
+  source timestamps/offset knowledge, NILs, ordered structured data, provenance
+  and byte coordinates behind independent original receipt and SHA-256 pins.
+- Keep raw and receipt acknowledgements independent; reproduce parser refusals
+  without partial records. Default output withholds SD values; explicit JSON
+  record export includes them. MSG content stays only in the retained original.
+  No live input, Core Event/Identity, incident, authentication or scoring follows.
+
+
 ### Patch 61 — v0.4.61 — 2026-11-25
 
 #### Digest
