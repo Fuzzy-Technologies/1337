@@ -8,6 +8,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 55 — v0.4.55 — 2026-11-25
+
+#### Digest
+
+- Remove repeated repository parsing from Python style validation.
+
+#### Changed
+
+- Check existing naming, documentation, comments, assertions and source-language
+  rules in one read and AST traversal per file. Exercise actual rejections with
+  inert source fixtures and observe changed/new files without a process cache.
+- Keep the independent compiler-backed naming and source-documentation audits
+  unchanged. Local focused timings do not establish a whole-CI speedup.
+- Select the complete repository audit with
+  `tests/unit/test_python_style.py::test_RepositoryPythonSourcesFollowCompleteStyleContract`.
+  Fixture-only matcher regressions use distinct names. Former separate repository
+  selectors are removed rather than running fixture checks: `-n0` reports
+  `NOT FOUND`; `-n2` exits nonzero with `no tests ran`.
+
 ### Patch 43 — v0.4.43 — 2026-11-25
 
 #### Digest
