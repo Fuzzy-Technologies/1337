@@ -19,7 +19,7 @@ from fuzzy1337.business_events import (
     Text,
 )
 from fuzzy1337.evidence import EvidenceError, RequireEvidenceDigest
-from fuzzy1337.model import LocalModelStore
+from fuzzy1337.model import LocalModelStore, Relation, SecurityObject
 from fuzzy1337.reachability import ReachabilityModelVersion
 from fuzzy1337.report_commands import BoundedReportEvidenceStore, ReportFailure
 from fuzzy1337.runtime_commands import RuntimeArgumentParser, RuntimeFailure, RuntimePath
@@ -83,8 +83,9 @@ def InspectBusinessEvent(
     declaration, links = Representation(definition)
     entities = {item.Reference(): item for item in model.objects}
     assets = tuple(entities[reference] for reference in definition.critical_asset_references)
+    evidenceOwners: tuple[SecurityObject | Relation, ...] = (declaration, *assets, *links)
     references = dict.fromkeys(
-        reference for entity in (declaration, *assets, *links)
+        reference for entity in evidenceOwners
         for provenance in entity.provenance for reference in provenance.evidence_references
     )
     evidence = BoundedReportEvidenceStore(root / "evidence")
