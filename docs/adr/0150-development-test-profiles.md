@@ -25,7 +25,7 @@ uses these profiles:
 
 | Job                           | Test responsibility                                            |
 | ----------------------------- | -------------------------------------------------------------- |
-| Ubuntu / Python 3.13          | All units once, offline boundaries and changed-module coverage |
+| Ubuntu / Python 3.13          | Units/boundaries or verified test-only files; scoped coverage  |
 | Ubuntu / Python 3.14          | Runner, report, and workspace compatibility units              |
 | Windows / Python 3.13         | Compatibility units and actual owned TLS lifecycle boundary    |
 | macOS / Python 3.13           | Offline runner/progress portability selection from #512        |
@@ -111,6 +111,55 @@ Independent cases run in process-isolated workers; declared `serial` cases run
 afterwards with `-n 0` and append branch coverage. Serial discovery accepts only
 pytest exit status 0 or the explicit no-tests status 5; collection failures must
 fail rather than silently omit the serial partition.
+
+### Verified test-only unit selection
+
+The existing passive/develop Linux invocation may use a smaller test-only
+selection. This is a selection optimization inside an already admitted batch,
+not another integration profile or a way to obtain passive admission. The
+workflow, optional/active job decisions, master/full gates and platform worker
+settings are unchanged. The original event must identify the exact Ready
+develop PR base and checked-out head on the existing passive request branch.
+
+Capture the complete raw base/head diff once, with full blob IDs, modes and no
+rename inference. Reuse it for changed-production coverage. Narrow only when
+every change modifies an existing regular `tests/unit/test_*.py` file, with an
+optional exact removal of naming-baseline rows. No additions, deletions,
+renames, mode changes, configuration, product, shared helpers or unknown paths
+qualify. A tooling change, including this optimizer's own implementation, keeps
+the complete existing all-unit and offline-boundary selection.
+
+Inspect tracked Python consumers through a bounded, status-checked Git search
+and AST inspection. Visible imports, plugin names, module references, dynamic
+calls and reads using the module name refuse narrowing. Declarative pytest
+parameter data may name an existing test selector without importing its
+fixtures. Inspection errors and ambiguity retain the existing all-unit passive
+gate. This conservative dependency check does not prove semantic independence
+of arbitrary Python code; the independently reviewed full raw diff remains
+the passive admission boundary.
+
+A changed baseline may only remove the exact existing `local` findings that
+disappeared from those selected source files. Compare compiler-derived naming
+findings before/after, the complete baseline multiset and the original bytes
+with only those rows removed. Added debt, other row kinds, unrelated removals
+and formatting changes retain the complete passive selection.
+
+Run every case in each affected file, plus the complete Python style,
+source-documentation/header, naming-regression, passive-gate and passive-profile
+regression files. The existing preceding naming command still checks the
+whole repository; it is not replaced by its fixture regressions. Preserve
+independent collection, exact JUnit identities with cases from every selected file, parallel/serial separation,
+timeouts, worker caps and failure propagation. Do not accept selectors from
+a PR body, label or input file.
+
+Retain the true collected counts and explicit selected files in the receipt,
+along with base/head and every changed blob/mode record. Test-only acceptance
+records no changed production modules and declines a global module claim.
+Raw branch coverage remains available. Every product or other ineligible
+change retains all units, all existing offline boundaries, subprocess
+measurement and the unchanged strict changed-module coverage algorithm.
+Several eligible leaf test modules may share one short run; a mixed product
+batch cannot.
 
 ## Validation
 
