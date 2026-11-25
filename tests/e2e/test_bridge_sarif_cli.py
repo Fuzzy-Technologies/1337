@@ -17,7 +17,13 @@ from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.sarif_helpers import (
-    SHA256, Document, Files, Golden, ImportArguments, InspectArguments, Raw,
+    SHA256,
+    Document,
+    Files,
+    Golden,
+    ImportArguments,
+    InspectArguments,
+    Raw,
 )
 
 
@@ -82,7 +88,8 @@ def test_InstalledSarifImportPreservesExternalFactsAfterSourceDeletionAndCopiedR
     root = tmp_path / "owned workspace"
     Console(tmp_path, ["workspace", "create", str(root), "--id", "sarif-console",
                       "--name", "Owned saved SARIF"])
-    Console(tmp_path, ["scope", "create", str(root), "--id", "owned"])
+    Console(tmp_path, ["scope", "create", str(root), "--id", "owned",
+                      "--allow-ip", "192.0.2.1"])
     source = tmp_path / "external ESLint.sarif"
     raw = Raw()
     source.write_bytes(raw)

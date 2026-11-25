@@ -19,7 +19,15 @@ from fuzzy1337.adapters import AdapterExecution, ExecutionState
 from fuzzy1337.artifact_inputs import ArtifactReadConsent
 from fuzzy1337.evidence import LocalEvidenceStore
 from tests.sarif_helpers import (
-    SHA256, Document, Files, Golden, ImportArguments, InspectArguments, Owned, Raw, Run,
+    SHA256,
+    Document,
+    Files,
+    Golden,
+    ImportArguments,
+    InspectArguments,
+    Owned,
+    Raw,
+    Run,
 )
 
 
@@ -62,7 +70,7 @@ def test_OfficialExternalSamplePreservesGoldenFieldsWithoutAnyDereference(monkey
     b"", b"{", b"\xff", b"[]", b'{"version":"2.1.0","version":"2.1.0","runs":[]}',
     b'{"version":"2.1.0","runs":[],"ignored":NaN}',
     b'{"version":"2.1.0","runs":[],"ignored":1e999}',
-    b'{"version":"2.1.0","runs":[],"ignored":"\uD800"}',
+    br'{"version":"2.1.0","runs":[],"ignored":"\uD800"}',
     b"x" * (1024 * 1024 + 1),
 ], ids=["empty", "truncated", "utf8", "root-array", "duplicate-key", "nan", "overflow",
         "surrogate", "byte-limit"])

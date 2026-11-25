@@ -79,10 +79,10 @@ categories and no rejected arguments, filenames, parameter values or MSG text.
 The grammar is [RFC 5424](https://www.rfc-editor.org/rfc/rfc5424.html), version `1`.
 RFC 5424 does not define saved-file framing. Select one explicitly:
 
-| Framing | Saved-file contract |
-| --- | --- |
-| `single` | The entire file is exactly one RFC message. LF, CR, NUL and arbitrary unmarked MSG octets remain data. No final newline is trimmed. |
-| `lines` | An explicit storage restriction: one message per byte LF or CRLF delimiter. Only that delimiter is excluded from the record span. No embedded LF is representable within a message. Final EOF without a delimiter is accepted. Unicode line separators are data. Blank frames are refused. |
+| Framing  | Saved-file contract                                                                                                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `single` | The entire file is exactly one RFC message. LF, CR, NUL and arbitrary unmarked MSG octets remain data. No final newline is trimmed.                                                                                                                                                        |
+| `lines`  | An explicit storage restriction: one message per byte LF or CRLF delimiter. Only that delimiter is excluded from the record span. No embedded LF is representable within a message. Final EOF without a delimiter is accepted. Unicode line separators are data. Blank frames are refused. |
 
 NILVALUE `-` becomes JSON `null`; an absent MSG is `null`, while a present-empty
 MSG after a significant final SP has a zero-length span. Headers remain opaque
@@ -98,13 +98,13 @@ fractional precision are preserved. Following
 as updated by [RFC 9557 section 2](https://www.rfc-editor.org/rfc/rfc9557.html#section-2),
 known UTC is separate from the declaration of a local numeric offset:
 
-| Original timestamp suffix | `offset_known` | UTC result when representable |
-| --- | --- | --- |
-| NILVALUE `-` | `null` | `null`, `utc_status: unknown` |
-| `Z` | `false` | Same known UTC clock, `utc_status: available` |
-| `-00:00` | `false` | Same known UTC clock, `utc_status: available` |
-| `+00:00` | `true` | Same known UTC clock, `utc_status: available` |
-| Other numeric offset | `true` | Convert the declared local time to UTC, `utc_status: available` |
+| Original timestamp suffix | `offset_known` | UTC result when representable                                   |
+| ------------------------- | -------------- | --------------------------------------------------------------- |
+| NILVALUE `-`              | `null`         | `null`, `utc_status: unknown`                                   |
+| `Z`                       | `false`        | Same known UTC clock, `utc_status: available`                   |
+| `-00:00`                  | `false`        | Same known UTC clock, `utc_status: available`                   |
+| `+00:00`                  | `true`         | Same known UTC clock, `utc_status: available`                   |
+| Other numeric offset      | `true`         | Convert the declared local time to UTC, `utc_status: available` |
 
 `offset_known` means only that the source declares its local numeric offset;
 it does not describe UTC availability, a geographic timezone, DST or clock

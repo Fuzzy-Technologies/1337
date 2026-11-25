@@ -23,7 +23,14 @@ from fuzzy1337.model import LocalModelStore
 from fuzzy1337.shell import InteractiveShell
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.sarif_helpers import (
-    SHA256, Document, Files, Golden, ImportArguments, InspectArguments, Owned, Run,
+    SHA256,
+    Document,
+    Files,
+    Golden,
+    ImportArguments,
+    InspectArguments,
+    Owned,
+    Run,
 )
 
 
