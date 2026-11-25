@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections import Counter
 from dataclasses import replace
 from io import StringIO
 from pathlib import Path
@@ -15,9 +16,12 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337 import report_commands as commands
+from fuzzy1337 import reporting
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import (
+    CanonicalModelJson,
     LocalModelStore,
+    ModelState,
     ObjectIdentity,
     ObjectKind,
     SecurityObject,
@@ -46,6 +50,7 @@ def test_EmptyWorkspaceExportsWithoutScopeOrCleanScanClaim(tmp_path, monkeypatch
     status, outcome = Run(root, destination)
     document = json.loads(destination.read_bytes())
     assert status == 0 and outcome["model_revision"] == 0, "An empty saved model is exportable."
+    assert outcome["checked_model_evidence_references"] == 0
     assert document["summary"]["findings"] == 0 and document["scan_completeness"] == (
         "not-assessed"
     ), "An empty report must not become a clean scan or successful check."
@@ -162,6 +167,186 @@ def test_ChangedSavedInputIsRejectedWithoutSubstitutingNewRevision(tmp_path, mon
 
 
 
+@pytest.mark.parametrize("change", [False, True], ids=["unchanged", "same-revision-change"])
+def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkeypatch, change):
+    """Build one reopened model document and hash it, including same-revision type drift."""
+
+    root, _ = Context(tmp_path, findings=False)
+    modelStore = LocalModelStore(root)
+    modelPath = root / "state" / "model"
+    initial = modelStore.Open()
+    selectedHost = replace(initial.objects[0], attributes={"fixture": 1})
+    selected = replace(initial, objects=(selectedHost,))
+    changedHost = replace(selectedHost, attributes={"fixture": True})
+    changed = replace(selected, objects=(changedHost,))
+    modelStore.WriteState(modelPath, selected)
+    selectedBytes = CanonicalModelJson(selected.ToDict())
+    changedBytes = CanonicalModelJson(changed.ToDict())
+    assert selected == changed and selectedBytes != changedBytes
+
+    openModel = LocalModelStore.Open
+    modelDocument = ModelState.ToDict
+    sha256 = hashlib.sha256
+    snapshotDigest = commands.ReportSnapshot.SnapshotDigest
+    evidenceReferences = commands.ReportSnapshot.EvidenceReferences
+    expected = commands.ReportSnapshot(selected).SnapshotDigest()
+    serialize = commands.SerializeJson
+    openedModels = []
+    projectedModels = []
+    reopenedHashes = []
+    hashedReports = []
+    traversedReports = []
+
+    def RecordOpen(store):
+        """Retain each actual owner-opened model for identity-based accounting."""
+
+        model = openModel(store)
+        openedModels.append(model)
+
+        return model
+
+    def RecordDocument(model):
+        """Count complete model projections rather than wrapper method invocations."""
+
+        projectedModels.append(model)
+
+        return modelDocument(model)
+
+    def RecordHash(payload=b"", **options):
+        """Observe the full canonical input hashed after the second owner open."""
+
+        if len(openedModels) == 2 and payload == (changedBytes if change else selectedBytes):
+            reopenedHashes.append(payload)
+
+        return sha256(payload, **options)
+
+    def RecordDigest(report):
+        """Count actual full canonical hashes and retain the inputs for comparison."""
+
+        hashedReports.append(report)
+
+        return snapshotDigest(report)
+
+    def RecordReferences(report):
+        """Record each full traversal of an immutable model's evidence references."""
+
+        traversedReports.append(report)
+
+        return evidenceReferences(report)
+
+    def SerializeThenChange(report):
+        """Optionally replace the owned model with valid changed bytes at the same revision."""
+
+        payload = serialize(report)
+
+        if change:
+            modelStore.WriteState(modelPath, changed)
+
+        return payload
+
+    DenyExecution(monkeypatch)
+    monkeypatch.setattr(LocalModelStore, "Open", RecordOpen)
+    monkeypatch.setattr(ModelState, "ToDict", RecordDocument)
+    monkeypatch.setattr(hashlib, "sha256", RecordHash)
+    monkeypatch.setattr(commands.ReportSnapshot, "SnapshotDigest", RecordDigest)
+    monkeypatch.setattr(commands.ReportSnapshot, "EvidenceReferences", RecordReferences)
+    monkeypatch.setattr(commands, "SerializeJson", SerializeThenChange)
+    destination = tmp_path / "pinned.json"
+    status, outcome = Run(root, destination)
+
+    selectedModel, reopenedModel = openedModels
+    assert reopenedModel is not selectedModel
+    assert sum(model is reopenedModel for model in projectedModels) == 1
+    assert reopenedHashes == [changedBytes if change else selectedBytes]
+    assert len(hashedReports) == 2, "Reuse the selected snapshot digest in the recheck."
+    outcomeReport, renderedReport = hashedReports
+    assert outcomeReport is renderedReport and outcomeReport.state is selectedModel
+    assert outcome["snapshot_sha256"] == expected and outcome["model_revision"] == selected.revision
+    assert len(traversedReports) == 3, "Only quotas, verification, and JSON need the reference set."
+    quotaReport, verifierReport, rendererReport = traversedReports
+    assert quotaReport is verifierReport and rendererReport is outcomeReport
+    assert outcome["checked_model_evidence_references"] == 1
+    assert outcome["verified_retained_acquisitions"] == 2
+
+    if change:
+        assert status == 4 and outcome["failure"] == "input-changed"
+        assert not outcome["output_published"] and not destination.exists()
+
+    else:
+        assert status == 0 and outcome["output_published"]
+        assert json.loads(destination.read_bytes())["snapshot_sha256"] == expected
+
+
+
+@pytest.mark.parametrize("timing", ["initial", "prepublication"])
+def test_OutOfRangeSavedObservationTimeFailsInputIntegrity(tmp_path, monkeypatch, timing):
+    """Refuse an unrepresentable stored observation time at either owning model read."""
+
+    root, _ = Context(tmp_path, findings=False)
+    modelName = "state/model/model.json"
+    modelPath = root / modelName
+    before = Files(root)
+    model = json.loads(before[modelName])
+    invalidTime = "0001-01-01T00:00:00+01:00"
+    model["observations"][0]["provenance"]["observed_at"] = invalidTime
+    invalidModel = json.dumps(model).encode("utf-8")
+    serialize = commands.SerializeJson
+
+    def SerializeThenChange(report):
+        """Model an owner input change after the initial valid snapshot was rendered."""
+
+        payload = serialize(report)
+        modelPath.write_bytes(invalidModel)
+
+        return payload
+
+    if timing == "initial":
+        modelPath.write_bytes(invalidModel)
+
+    else:
+        monkeypatch.setattr(commands, "SerializeJson", SerializeThenChange)
+
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "invalid-observation-time.json"
+    status, outcome = Run(root, destination)
+    assert status == 4 and outcome["failure"] == "integrity"
+    assert not outcome["output_published"] and not destination.exists()
+    assert invalidTime not in json.dumps(outcome)
+    assert Files(root) == {**before, modelName: invalidModel}
+
+
+def test_ReopenedCanonicalModelByteLimitPreventsPublication(tmp_path, monkeypatch):
+    """Keep the canonical model limit at the recheck after the selected model fits exactly."""
+
+    root, _ = Context(tmp_path, findings=False)
+    modelStore = LocalModelStore(root)
+    selected = modelStore.Open()
+    selectedBytes = CanonicalModelJson(selected.ToDict())
+    largerHost = replace(selected.objects[0], attributes={"fixture": "x" * 128})
+    larger = replace(selected, objects=(largerHost,))
+    assert len(CanonicalModelJson(larger.ToDict())) > len(selectedBytes)
+    serialize = commands.SerializeJson
+
+    def SerializeThenGrow(report):
+        """Save an owner-readable but report-oversize model before publication."""
+
+        payload = serialize(report)
+        modelStore.WriteState(root / "state" / "model", larger)
+
+        return payload
+
+    DenyExecution(monkeypatch)
+    monkeypatch.setattr(reporting, "MAX_MODEL_BYTES", len(selectedBytes))
+    monkeypatch.setattr(commands, "SerializeJson", SerializeThenGrow)
+    destination = tmp_path / "oversize-reopen.json"
+    status, outcome = Run(root, destination)
+
+    assert outcome["snapshot_sha256"] == hashlib.sha256(selectedBytes).hexdigest()
+    assert status == 4 and outcome["failure"] == "integrity"
+    assert not outcome["output_published"] and not destination.exists()
+
+
+
 def test_ExistingOutputAndConcurrentCreatorAreNeverClobbered(tmp_path, monkeypatch):
     """The no-clobber publication boundary preserves both preexisting and racing selected files."""
 
@@ -260,6 +445,39 @@ def test_ConsumerQuotasRejectBeforeAnyReportPublication(tmp_path, monkeypatch, l
     assert status == 4 and result["failure"] == "limit", "Fixed quotas must fail explicitly."
     assert not destination.exists(), "Over-budget export must not publish even an empty report."
     assert Files(root) == before, "The quota consumer must not truncate source evidence."
+
+
+
+def test_QuotaAccountingRetainsDistinctBytesAcrossEvidenceReads(tmp_path, monkeypatch):
+    """Count shared blobs once and preserve the budget after either quota denies a read."""
+
+    root, (first, second) = Context(tmp_path, findings=False)
+    evidenceRoot = root / "evidence"
+    owner = LocalEvidenceStore(evidenceRoot)
+    payload = owner.Read(first.reference)
+    shared = owner.Put(payload, "stderr", "text/plain", first.provenance)
+    excess = owner.Put(b"x" * (second.reference.size_bytes + 1), "stdout", "text/plain",
+                       first.provenance)
+    empty = owner.Put(b"", "stdout", "text/plain", first.provenance)
+    before = Files(root)
+    monkeypatch.setattr(commands, "MAX_EXPORT_BLOBS", 2)
+    monkeypatch.setattr(commands, "MAX_EXPORT_EVIDENCE_BYTES",
+                        first.reference.size_bytes + second.reference.size_bytes)
+    bounded = commands.BoundedReportEvidenceStore(evidenceRoot)
+
+    assert bounded.Get(first.evidence_id) == first
+    assert bounded.Get(shared.evidence_id) == shared
+
+    with pytest.raises(commands.ReportFailure, match="limit"):
+        bounded.Read(excess.reference)
+
+    assert bounded.Get(second.evidence_id) == second
+
+    with pytest.raises(commands.ReportFailure, match="limit"):
+        bounded.Read(empty.reference)
+
+    assert bounded.Read(first.reference) == payload
+    assert Files(root) == before, "Quota accounting must preserve all retained source bytes."
 
 
 
@@ -427,6 +645,89 @@ def test_HardLinkedEvidenceCannotBecomeAnOwnedReportInput(tmp_path):
 
 
 
+def test_MatchingWorkspaceReferenceReusesVerifiedAcquisitionRead(tmp_path, monkeypatch):
+    """Verify every acquisition and nonidentical reference without rereading the exact match."""
+
+    root, (linked, unused) = Context(tmp_path, findings=False)
+    store = LocalEvidenceStore(root / "evidence")
+    repeated = store.Put(
+        store.Read(linked.reference), linked.reference.role, linked.reference.media_type,
+        replace(linked.provenance, tool_version="repeat"),
+    )
+    standalone = store.Put(b"standalone evidence", "stdout", "text/plain", linked.provenance)
+    otherRole = replace(linked.reference, role="stderr")
+    otherMedia = replace(unused.reference, media_type="application/octet-stream")
+    workspaceStore = LocalWorkspaceStore(root)
+    workspace = workspaceStore.Open()
+    workspaceStore.Save(replace(
+        workspace,
+        evidence_references=(linked.reference, otherRole, otherMedia, standalone.reference),
+        evidence_record_references=(*workspace.evidence_record_references, repeated.evidence_id),
+    ))
+    before = Files(root)
+    ownerRead = LocalEvidenceStore.Read
+    reads = Counter()
+
+    def ObserveRead(store, reference):
+        """Count completed owner reads by consumer and full reference."""
+
+        payload = ownerRead(store, reference)
+        reads[type(store), reference] += 1
+
+        return payload
+
+    DenyExecution(monkeypatch)
+    monkeypatch.setattr(LocalEvidenceStore, "Read", ObserveRead)
+    destination = tmp_path / "verified.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 0 and outcome["output_published"], "All retained evidence is valid."
+    assert outcome["verified_retained_acquisitions"] == 3, "Check each acquisition."
+    assert outcome["checked_model_evidence_references"] == 1, "Verify the model independently."
+    bounded = commands.BoundedReportEvidenceStore
+    assert reads == {
+        (bounded, linked.reference): 2,
+        (bounded, unused.reference): 1,
+        (bounded, otherRole): 1,
+        (bounded, otherMedia): 1,
+        (bounded, standalone.reference): 1,
+        (LocalEvidenceStore, linked.reference): 1,
+    }, "Reuse only the exact direct reference while completing every other owner read."
+    assert Files(root) == before, "Evidence verification must preserve the source."
+
+
+@pytest.mark.parametrize("failure", ["missing", "corrupt"])
+def test_DirectOnlyEvidenceStillRequiresByteIntegrity(tmp_path, monkeypatch, failure):
+    """Reject a distinct invalid direct reference even with valid retained acquisitions."""
+
+    root, (linked, _) = Context(tmp_path, findings=False)
+    store = LocalEvidenceStore(root / "evidence")
+    standalone = store.Put(b"standalone evidence", "stdout", "text/plain", linked.provenance)
+    workspaceStore = LocalWorkspaceStore(root)
+    workspace = workspaceStore.Open()
+    workspaceStore.Save(replace(
+        workspace, evidence_references=(*workspace.evidence_references, standalone.reference),
+    ))
+    artifact = root / "evidence" / standalone.reference.locator
+
+    if failure == "missing":
+        artifact.unlink()
+
+    else:
+        artifact.write_bytes(b"x" * standalone.reference.size_bytes)
+
+    before = Files(root)
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "invalid.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 4 and outcome["failure"] == "integrity", "Reject invalid direct evidence."
+    assert not outcome["output_published"] and not destination.exists(), (
+        "Incomplete verification cannot publish."
+    )
+    assert Files(root) == before, "The command must preserve the rejected source."
+
+
 def test_AcquisitionOnlyAndModelOnlyReferencesShareTheSameReadQuotas(tmp_path, monkeypatch):
     """Removing a direct workspace link cannot bypass budgets on owning Get or report reads."""
 
@@ -447,6 +748,43 @@ def test_AcquisitionOnlyAndModelOnlyReferencesShareTheSameReadQuotas(tmp_path, m
         "Report-linked bytes must remain bounded even without a retained acquisition pointer."
     )
     assert not destination.exists(), "Both source paths must fail before publication."
+
+
+def test_DirectEvidenceQuotaPrecedesMalformedAcquisition(tmp_path, monkeypatch):
+    """Report the direct-read budget before opening a malformed acquisition manifest."""
+
+    root, (_, unused) = Context(tmp_path, findings=False)
+    manifest = root / "evidence" / "records" / f"{unused.evidence_id[7:]}.json"
+    manifest.write_bytes(b"{}")
+    monkeypatch.setattr(commands, "MAX_EXPORT_BLOBS", 1)
+    before = Files(root)
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "over-budget.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 4 and outcome["failure"] == "limit"
+    assert not outcome["output_published"] and not destination.exists()
+    assert Files(root) == before
+
+
+def test_DirectEvidenceIntegrityPrecedesAcquisitionQuota(tmp_path, monkeypatch):
+    """Report corrupt direct-only evidence before checking a larger retained blob."""
+
+    root, (linked, _) = Context(tmp_path, findings=False)
+    store = LocalEvidenceStore(root / "evidence")
+    direct = store.Put(b"direct", "stdout", "text/plain", linked.provenance)
+    workspaceStore = LocalWorkspaceStore(root)
+    workspaceStore.Save(replace(workspaceStore.Open(), evidence_references=(direct.reference,)))
+    (root / "evidence" / direct.reference.locator).write_bytes(b"broken")
+    monkeypatch.setattr(commands, "MAX_EXPORT_BLOB_BYTES", direct.reference.size_bytes)
+    before = Files(root)
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "corrupt.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 4 and outcome["failure"] == "integrity"
+    assert not outcome["output_published"] and not destination.exists()
+    assert Files(root) == before
 
 
 
@@ -495,6 +833,7 @@ def test_ExplicitHelpAndHumanSuccessDoNotReadImplicitWorkspace(tmp_path, monkeyp
 @pytest.mark.parametrize("error,category,status", [
     (ValueError("synthetic-private-render-path"), "rendering", 4),
     (RuntimeError("synthetic-private-internal-detail"), "internal", 4),
+    (OverflowError("synthetic-private-render-overflow"), "internal", 4),
     (KeyboardInterrupt(), "interrupted", 130),
 ])
 def test_RenderingFailuresAndInterruptionCannotPublishOrExposeExceptionText(
