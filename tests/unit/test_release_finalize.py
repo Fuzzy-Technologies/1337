@@ -74,7 +74,7 @@ def test_IndependentActualGitSourceFailuresNeverReachTagCreation(owned, fault):
     """Each source authority failure is causal before any release mutation."""
 
     root, head, remote = owned
-    selected_root, expected = root, head
+    selectedRoot, expected = root, head
 
     if fault == "expected-sha":
         expected = "0" * 40
@@ -109,14 +109,14 @@ def test_IndependentActualGitSourceFailuresNeverReachTagCreation(owned, fault):
     elif fault == "remote-master":
         remote["refs/heads/master"] = "0" * 40
     else:
-        selected_root = root / "docs"
+        selectedRoot = root / "docs"
 
-    original_tags = Git(root, "tag", "--list")
+    originalTags = Git(root, "tag", "--list")
 
     with pytest.raises((ValueError, subprocess.CalledProcessError)):
-        finalize.Preflight(selected_root, expected)
+        finalize.Preflight(selectedRoot, expected)
 
-    assert Git(root, "tag", "--list") == original_tags, (
+    assert Git(root, "tag", "--list") == originalTags, (
         "Failed source preflight must preserve all original tag identities")
 
 
