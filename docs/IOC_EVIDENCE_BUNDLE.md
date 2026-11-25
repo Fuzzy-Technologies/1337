@@ -45,7 +45,8 @@ Do not obtain trusted pins from the candidate file being verified. This action
 checks the transfer digest, all three canonical manifests and their exact
 payloads, common acquisition/parser provenance, original receipt/source/budget
 bindings and original-byte reparse. It works after deleting the original
-workspace and input TSV. It writes no files and prints no original tokens.
+workspace and input TSV. Verification writes no files; its default summary prints
+no original tokens.
 The returned IDs identify the same original acquisition and derived snapshot.
 
 Original timestamps/timezones, byte coordinates and duplicate occurrences remain
@@ -53,6 +54,37 @@ unchanged. Receiver acquisition clocks remain their original recorded values.
 The result establishes local integrity against the separately retained pins.
 It authenticates neither the publisher nor the investigator and makes no claim
 about maliciousness, an incident, an attack path or legal admissibility.
+
+## Read verified candidates without the workspace
+
+To receive the already supported normalized candidate DTO through the installed
+CLI, explicitly select machine disclosure after the same independent checks:
+
+```bash
+1337 trace ioc verify-bundle /owned/handoff/selected-ioc.json \
+  --receipt sha256:INDEPENDENT_ORIGINAL_RECEIPT_MANIFEST_DIGEST \
+  --expected-sha256 COMPLETE_BUNDLE_SHA256 --export-candidates --json
+```
+
+On success the existing verification result additionally contains
+`candidate_export`, the unchanged schema-one `IocSnapshot.Serialize()` document
+already available from workspace-bound `inspect --export-candidates --json`.
+It retains source order and duplicate occurrences, original/normalized tokens,
+byte coordinates, declared timestamps/timezones, source/license declarations,
+parser identity/version, limits and original raw/receipt identities. The selected
+snapshot manifest ID remains in the surrounding result. Acquisition clocks remain
+in the original bundle manifests; verification introduces no new observation time.
+
+The original TSV and workspace can both be absent. No import, extraction,
+acquisition, workspace/model save or output file is needed. The option explicitly
+discloses supplied tokens and declared source/license locators to stdout. Default
+verification continues to emit its original summary. Text mode, `--match` and
+`export-bundle --export-candidates` are refused before evidence access. A failed
+pin, original-role or reparse check emits no `candidate_export` or partial list.
+Keep both trusted pins separately from the file being checked.
+
+This extends presentation of the accepted IOC profile. Broader log, artifact,
+identity/process and Core investigation/timeline work remains open under #85.
 
 ## Format, bounds and refusal
 
