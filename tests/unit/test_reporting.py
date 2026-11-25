@@ -747,6 +747,38 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         assert [cell.text for cell in cells[:-2]] == list(values)
 
 
+def test_HtmlAssetTypesJumpToPopulatedInventoryGroups():
+    """Give each populated inventory group a counted, keyboard-focusable fragment target."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    endpoints = tuple(SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ENDPOINT, address), {}, host.provenance,
+    ) for address in ("https://first.invalid/", "https://second.invalid/"))
+    state, _ = report.state.Apply(objects=endpoints)
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    inventoryHtml = rendered.split('<section id="model">', 1)[1].split("</section>", 1)[0]
+    inventory = ElementTree.fromstring(f"<section>{inventoryHtml}</section>")
+    groups = (
+        ("model-host-table-heading", "Hosts (1)"),
+        ("model-endpoint-table-heading", "Web addresses (2)"),
+        ("model-other-objects-heading", "Other retained objects (1)"),
+    )
+    navigation, = inventory.findall('nav[@aria-label="Asset types"]')
+
+    assert [(link.get("href"), link.text) for link in navigation.findall("a")] == [
+        (f"#{headingId}", label) for headingId, label in groups
+    ]
+
+    for headingId, label in groups:
+        heading, = inventory.findall(f'h3[@id="{headingId}"]')
+        assert (heading.get("tabindex"), heading.text) == ("-1", label)
+
+    assert inventory.findtext('h3[@id="model-port-table-heading"]') == "Ports (0)"
+    assert inventory.findtext('h3[@id="model-service-table-heading"]') == "Services (0)"
+    assert b'aria-label="Asset types"' not in RenderHtml(ReportSnapshot(ModelState("empty")))
+
+
 def test_HtmlAssetFindingsUseExactSavedSubjects():
     """Findings link to the exact saved subject even across shared labels and relations."""
 

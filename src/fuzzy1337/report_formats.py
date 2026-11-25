@@ -305,11 +305,29 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         (ObjectKind.ENDPOINT, "Web addresses", (("Method", ("method",)),
                                                ("HTTP status", ("status",)))),
     )
+    inventory = []
 
     for kind, heading, fields in groups:
         entities = rows.assetsByKind.get(kind, ())
         headingId = f"model-{kind.value}-table-heading"
-        lines.append(f'<h3 id="{headingId}">{heading} ({len(entities)})</h3>')
+        inventory.append((headingId, f"{heading} ({len(entities)})", fields, entities))
+
+    primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
+    others = [(reference, entity) for reference, entity in rows.objects.items()
+              if entity.identity.kind not in primary]
+    otherGroup = ("model-other-objects-heading", f"Other retained objects ({len(others)})")
+    links = [(headingId, label) for headingId, label, _, entities in inventory if entities]
+
+    if others:
+        links.append(otherGroup)
+
+    if links:
+        lines.append('<nav aria-label="Asset types">')
+        lines.extend(f'<a href="#{headingId}">{label}</a>' for headingId, label in links)
+        lines.append("</nav>")
+
+    for headingId, label, fields, entities in inventory:
+        lines.append(f'<h3 id="{headingId}" tabindex="-1">{label}</h3>')
 
         if not entities:
             lines.append("<p>No objects of this kind were retained.</p>")
@@ -332,12 +350,9 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
         lines.append("</tbody></table></div>")
 
-    primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
-    others = [(reference, entity) for reference, entity in rows.objects.items()
-              if entity.identity.kind not in primary]
-
     if others:
-        lines.append("<h3>Other retained objects</h3>")
+        headingId, label = otherGroup
+        lines.append(f'<h3 id="{headingId}" tabindex="-1">{label}</h3>')
 
         for reference, entity in others:
             findings = findingsBySubject.get(reference)

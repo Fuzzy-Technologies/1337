@@ -77,8 +77,10 @@ The HTML renderer groups inventory rows by stored object kind and indexes findin
 history by canonical subject reference in a single pass. Both views use the saved
 record order and source attribution.
 
-Each table uses its visible heading as its accessible name. The scroll region
-shares that name and supports keyboard focus.
+Use the Asset types links to jump to populated inventory groups. Each link and
+heading show the count in the retained snapshot. Each table uses its visible
+heading as its accessible name. The scroll region shares that name and supports
+keyboard focus.
 
 Follow a link in the inventory's Findings column to open the corresponding
 finding card. Other retained objects show links when a finding names them as its
