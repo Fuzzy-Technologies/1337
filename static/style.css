@@ -250,8 +250,9 @@ pre { margin: 0; }
   min-width: 0;
 }
 
-.hero-secondary {
-  padding-top: 0.05rem;
+.hero-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
 }
 
 .eyebrow {
@@ -271,6 +272,14 @@ pre { margin: 0; }
 }
 
 .hero-hook strong { color: var(--green); }
+
+.hero-secondary .hero-hook {
+  padding: 0;
+  border: 0;
+  font-size: clamp(1.65rem, 3.15vw, 2.25rem);
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
 
 .status {
   display: inline-block;
@@ -299,6 +308,7 @@ pre { margin: 0; }
 
 .hero-actions {
   flex-wrap: wrap;
+  margin-bottom: 0;
 }
 
 .links a {
@@ -318,6 +328,17 @@ pre { margin: 0; }
 .links a:hover {
   border-color: #ff7ae4aa;
   box-shadow: 0 0 14px #ff5bd82b, inset 0 1px 0 #ffffff0a;
+}
+
+.links .primary-action {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: var(--bg);
+}
+
+.links .primary-action:hover {
+  box-shadow: 0 0 14px #00eaff55;
+  text-shadow: none;
 }
 
 .grid,

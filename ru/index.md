@@ -2,7 +2,7 @@
 layout: default
 lang: ru
 title: 1337 Security Workbench
-description: 1337 Security Workbench от Fuzzy Technologies — открытая локальная рабочая среда для пентеста, расследований и инженерных задач ИБ с живой моделью объектов ИБ и подключаемыми инструментами.
+description: Открытая рабочая среда для задач информационной безопасности от Fuzzy Technologies. Запускайте согласованные проверки, сохраняйте доказательства и разбирайте результаты офлайн.
 ---
 
 <header class="site-header">
@@ -13,214 +13,121 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <a class="lang-button active" href="{{ '/ru/' | relative_url }}" aria-current="page">RU</a>
 <a class="lang-button" href="{{ '/zh-cn/' | relative_url }}">简中</a>
 </div>
-<a class="brand-button" href="https://fuzzy-technologies.github.io/ru/" aria-label="Fuzzy Technologies">Fuzzy Technologies ↗</a>
+<a class="brand-button" href="https://fuzzy-technologies.com/ru/">Fuzzy Technologies ↗</a>
 </nav>
 </header>
 
-<section class="hero hero-grid">
-<figure class="hero-primary">
-<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="Мария за рабочим столом проекта 1337" width="1774" height="887" decoding="async" fetchpriority="high" />
-<figcaption class="hero-caption">
-<p class="eyebrow">Открытая рабочая среда ИБ · Живая модель объектов · Подключаемые инструменты</p>
-<p class="hero-hook">Исследуйте систему.<br><strong>Стройте её модель по мере работы</strong></p>
-<span class="status">Ранний Community-продукт · Apache-2.0 · v0.3.0</span>
-</figcaption>
-</figure>
-
+<section class="hero hero-grid" aria-labelledby="intro">
 <div class="hero-secondary">
-<p class="quiet"><strong>Обновление перевода для v0.3.0 — черновик, редакционная и техническая проверка не подтверждена.</strong> Каноническое описание текущих возможностей и границ — <a href="{{ '/' | relative_url }}">английская страница</a>. Для работы используйте <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">английский Quickstart v0.3.0</a>; остальные переведённые архитектурные разделы не являются обещанием реализованных возможностей.</p>
-<p>Быстрая локальная среда для пентеста, расследований и инженерных задач ИБ. Встроенный сканер строит первичную модель системы, а подключаемые инструменты дополняют её наблюдениями, доказательствами, выявленными проблемами, связями, данными о достижимости и путях атаки.</p>
-<blockquote class="hero-quote"><strong>ИИ-модели рассуждают. 1337 хранит состояние, контролирует выполнение и сохраняет доказательства</strong></blockquote>
+<p class="eyebrow">Открытая рабочая среда для ИБ</p>
+<h2 class="hero-hook" id="intro">Проверяйте системы.<br><strong>Сохраняйте доказательства.</strong></h2>
+<p>1337 собирает согласованные проверки, их результаты и исходные доказательства в одном локальном рабочем пространстве. К результатам можно вернуться, проверить, на чём основан каждый вывод, и передать отчёт коллегам, даже если проверенная система уже недоступна.</p>
 <div class="links hero-actions">
-<a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">Релиз v0.3.0</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/milestones">План разработки</a>
+<a class="primary-action" href="#get-started">Попробовать демо</a>
+<a href="#roadmap">Планы развития</a>
 </div>
 </div>
+<figure class="hero-primary">
+<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="Мария за рабочим столом 1337, иллюстрация проекта" width="1774" height="887" decoding="async" fetchpriority="high" />
+</figure>
 </section>
 
 <section class="content-section">
-<h2>Одна живая модель вместо разрозненных результатов</h2>
-<div class="grid problem-grid">
-<section class="card">
-<span class="card-label">Встроенный сканер</span>
-<h3>Первичная модель — без обязательных внешних инструментов</h3>
-<p>1337 сам обнаруживает цели, хосты, сервисы, конечные точки, технологии и связи. По мере подключения дополнительных инструментов и источников данных модель уточняется и расширяется.</p>
-</section>
-
-<section class="card">
-<span class="card-label">Единая модель</span>
-<h3>Все инструменты дополняют одну модель</h3>
-<p>Nmap, Nuclei, браузеры, инструменты Kali, импортированные артефакты и внешние системы добавляют проверяемые наблюдения в одну модель, а не создают набор несвязанных отчётов.</p>
-</section>
-
-<section class="card">
-<span class="card-label">Живой интерфейс</span>
-<h3>Долгие задачи не останавливают работу</h3>
-<p>Слева запускаются команды, а справа в реальном времени обновляется выбранный срез модели: объекты, доказательства, выявленные проблемы, пути атаки или хронология.</p>
-</section>
-</div>
-</section>
-
-<section class="content-section">
-<h2>От первичного сканирования — к модели объектов ИБ (Security Object Model)</h2>
-<div class="workbench-grid">
-<div class="flow-panel" aria-label="Поток данных 1337">
-<pre><code>Встроенный сканер
-        ↓
-    Объекты ИБ
-        ↑
-Инструменты / источники
-        ↓
-Наблюдения + доказательства
-        ↓
-Проблемы + связи
-        ↓
-Достижимость / пути атаки</code></pre>
-</div>
-
-<div class="workbench-copy">
-<p class="section-hook"><strong>Встроенный сканер строит первичную модель. Ваши инструменты обогащают её</strong></p>
-<p>Инструменты — полноценная часть 1337: встроенные проверки, привычные консольные утилиты, браузеры, генераторы нагрузки, внешние сканеры и интеграции передают результаты в единое рабочее пространство вместо набора разрозненных хранилищ.</p>
-<p class="workbench-note">Базовый 1337 работает локально и не требует установки агентов. Тяжёлые сканеры, наборы инструментов Kali, браузерные движки, поисковые индексы и интеграции подключаются только при необходимости.</p>
-</div>
-</div>
-</section>
-
-<section class="content-section">
-<h2>Одна модель — четыре рабочих представления (lenses)</h2>
+<h2 id="workflow">От проверки к отчёту</h2>
 <div class="grid">
-<section class="card">
-<span class="card-label">Пентест</span>
-<h3>Поверхность атаки и пути проникновения</h3>
-<p>Разведка, выявленные проблемы, учётные данные, точки закрепления, перемещение по инфраструктуре, достижимость, пути атаки и контролируемая проверка эксплуатации — с прямым доступом к привычным инструментам.</p>
-</section>
-
-<section class="card">
-<span class="card-label">DFIR</span>
-<h3>Доказательства и реконструкция атаки</h3>
-<p>Происхождение данных, артефакты, индикаторы компрометации (IOC), хронология, связи и подтверждённый данными маршрут злоумышленника. Каждый существенный вывод остаётся привязан к исходным доказательствам.</p>
-</section>
-
-<section class="card">
-<span class="card-label">DevSecOps</span>
-<h3>От исходного кода до среды выполнения</h3>
-<p>Репозиторий, зависимости, SBOM, образы, развёртывания, API, связи с развёрнутой средой и результаты проверок — в одной модели с воспроизводимыми проверками безопасности.</p>
-</section>
-
-<section class="card">
-<span class="card-label">Purple Team</span>
-<h3>Атака, детектирование, защита, повторная проверка</h3>
-<p>Одна модель связывает разрешённые действия атакующей стороны с телеметрией, срабатываниями средств защиты, защитными мерами и результатами повторной проверки.</p>
-</section>
+<article class="card">
+<h3>Задайте область проверки</h3>
+<p>Выберите системы и проверки, на которые у вас есть разрешение. Политика определяет допустимые действия и где нужно подтверждение.</p>
+</article>
+<article class="card">
+<h3>Соберите картину системы</h3>
+<p>Модель объектов ИБ связывает активы, сервисы, конечные точки и обнаруженные проблемы с исходными наблюдениями и доказательствами.</p>
+</article>
+<article class="card">
+<h3>Разберите результаты офлайн</h3>
+<p>Откройте сохранённое рабочее пространство, проследите вывод до первоисточника и выгрузите отчёт без повторного обращения к системе.</p>
+</article>
 </div>
 </section>
 
 <section class="content-section">
-<h2>Архитектурное ядро</h2>
+<h2 id="community">Доступно в Community v0.3.0</h2>
+<p>Начать можно с демо, которое целиком работает на вашем компьютере. В релизе есть интерактивная консоль, базовые HTTP-проверки и собственные веб-проверки, а также сценарии с Nmap, Nuclei и Trivy. Рабочее пространство можно сохранить, а отчёты выгрузить в HTML, JSON, SARIF или JUnit. В CI можно запускать согласованные проверки и принимать решение по заданным критериям.</p>
+<p><a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">Что вошло в релиз →</a></p>
+</section>
+
+<section class="content-section">
+<h2 id="development">Уже в ветке develop</h2>
+<p>В ветке 0.4 появился пошаговый сценарий оценки и более наглядные офлайн-отчёты в HTML. Выбранные записи CVE, CWE и EPSS дополняют сведения о найденной проблеме. FuzzyRoutines даёт пятиуровневую интерпретацию оценки CVSS, а исходный балл виден в отчёте.</p>
+<p>Добавились собственные веб-проверки и офлайн-импорт перечней компонентов в формате CycloneDX (SBOM), отчётов SARIF и журналов syslog. Первые инструменты анализа графа позволяют исследовать отдельные пути и сравнивать их состояние по сохранённым данным.</p>
+<p><a href="https://github.com/Fuzzy-Technologies/1337/blob/develop/CHANGELOG.md">История изменений develop →</a></p>
+</section>
+
+<section class="content-section">
+<h2 id="use-cases">Для каких задач нужен 1337</h2>
+<div class="grid">
+<article class="card">
+<h3>AppSec и пентест</h3>
+<p>Проверьте согласованный сервис и передайте разработчикам доказательства по обнаруженной проблеме.</p>
+</article>
+<article class="card">
+<h3>DevSecOps</h3>
+<p>Сохраняйте отчёты из CI и возвращайтесь к результатам, на которых основано решение о выпуске.</p>
+</article>
+<article class="card">
+<h3>Расследование инцидентов</h3>
+<p>Разбирайте сохранённые артефакты и передавайте их вместе с первоисточниками другому аналитику.</p>
+</article>
+</div>
+</section>
+
+<section class="content-section">
+<h2 id="ai-agents">Для инженеров, CI и ИИ-агентов</h2>
+<p>С одним рабочим пространством можно работать из консоли, CI и через ИИ-агента с доступом к терминалу. Агент может предложить план и объяснить результат. 1337 применяет правила допуска и сохраняет запись о выполненных действиях. Для локальной работы аккаунт у поставщика ИИ не нужен.</p>
+</section>
+
+<section class="content-section">
+<h2 id="roadmap">Что строим дальше</h2>
 <div class="architecture-grid">
-<section class="architecture-card"><h3>Модель объектов ИБ (Security Object Model)</h3><p>Единая модель целей, активов, сервисов, конечных точек, учётных записей, доказательств, выявленных проблем, связей, достижимости и путей атаки.</p></section>
-<section class="architecture-card"><h3>Встроенное обнаружение (Native Discovery)</h3><p>Строит исходную модель исследуемой системы без обязательной установки внешних сканеров и интеграций.</p></section>
-<section class="architecture-card"><h3>Модульные инструменты (Modular Tooling)</h3><p>Встроенные механизмы и заменяемые внешние инструменты предоставляют нужные возможности без привязки к одному сканеру или дистрибутиву.</p></section>
-<section class="architecture-card"><h3>Доказательства и происхождение данных (Evidence &amp; Provenance)</h3><p>Наблюдения и выводы остаются привязаны к источнику, границам проверки, времени, инструменту, контексту выполнения и подтверждающим материалам.</p></section>
-<section class="architecture-card"><h3>Границы проверки и правила выполнения (Scope &amp; Policy)</h3><p>Явно задают разрешённую область проверки и допустимое воздействие, ограничивая выполнение операций, но не подменяя собой рабочую среду.</p></section>
-<section class="architecture-card"><h3>Рабочие представления и интерфейсы (Lenses &amp; Interfaces)</h3><p>Терминальный и веб-интерфейсы, API, SDK, MCP, CI и ИИ используют одно состояние через разные рабочие представления.</p></section>
+<article class="architecture-card">
+<h3>Web Scanner NG и граф достижимости</h3>
+<p>Расширяем собственные проверки веб-приложений и API. В графе можно будет увидеть, какие активы достижимы, какие пути атаки возможны и на каких данных основаны выводы.</p>
+</article>
+<article class="architecture-card">
+<h3>Интерактивный анализ</h3>
+<p>Многопанельный терминальный интерфейс и веб-интерфейс для разбора находок, сравнения результатов проверок и объяснения приоритетов риска.</p>
+</article>
+<article class="architecture-card">
+<h3>Расследования и Purple Team</h3>
+<p>Хронология инцидентов и рабочие представления для аналитиков и команд защиты, в которых видна связь наблюдений, срабатываний и доказательств.</p>
+</article>
+<article class="architecture-card">
+<h3>Интеграции и ИИ</h3>
+<p>API, SDK, интеграции с CI и доступ к 1337 через MCP с контролем по политикам и свободой выбора ИИ-модели и поставщика.</p>
+</article>
 </div>
-<p class="invariant"><strong>Одна модель объектов ИБ · Несколько рабочих представлений · Любой подходящий инструмент</strong></p>
+<p><a href="https://github.com/Fuzzy-Technologies/1337/milestones">Открытый план разработки →</a></p>
 </section>
 
 <section class="content-section">
-<h2>Демо M4: воспроизводимые пути атаки</h2>
-<div class="roadmap-panel">
-<div class="roadmap-heading">
-<span class="status roadmap-status">M4 · план разработки · воспроизводимый стенд</span>
-<a href="https://github.com/Fuzzy-Technologies/1337/issues/115">Спецификация #115 →</a>
-</div>
-
-<p>В M4 появится воспроизводимый стенд на Docker Compose с тремя сценариями атаки, работающими поверх одной модели 1337. Пользователь сможет локально поднять стенд, исследовать его разрешёнными инструментами, изучить доказательства, подтвердить путь атаки, применить меру защиты и пересчитать граф.</p>
-
-<div class="case-grid">
-<section class="case-card">
-<span class="card-label">Критичный бизнес-сценарий</span>
-<p><strong>Интернет → Портал клиента → Учётная запись → Billing API → Критичная бизнес-операция</strong></p>
-</section>
-
-<section class="case-card">
-<span class="card-label">Привилегии и доступ</span>
-<p><strong>Интернет → Портал поддержки → Учётная запись → SSO/IAM → Консоль администратора</strong></p>
-</section>
-
-<section class="case-card">
-<span class="card-label">Цепочка поставки ПО</span>
-<p><strong>Репозиторий → CI Job → Runner → Artifact Registry → Deployment → Production</strong></p>
-</section>
-</div>
-
-<blockquote><strong>Какие пути к критичным активам действительно достижимы, какими доказательствами это подтверждается и какая мера защиты разрывает цепочку?</strong></blockquote>
-<p class="quiet">Полный сценарий M4 остаётся в плане после v0.3.0. В репозитории уже есть изолированный мини-стенд для проверки пути атаки.</p>
-<p class="showcase-hook"><strong>Поднять стенд · воспроизвести проблему · подтвердить путь атаки · проверить исправление</strong></p>
-</div>
-</section>
-
-<section class="content-section">
-<h2>Что уже работает</h2>
-<div class="proof-grid">
-<section class="proof-card proof-now">
-<span class="card-label">Текущая версия v0.3.0 · EN canonical</span>
-<p lang="en">English canonical summary: install 1337==0.3.0, preview the owned local demo, obtain explicit approval, then retain its evidence and reopen/export the saved model offline. The complete <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/OWNED_GIT_HEAD_RECIPE.md">owned Git HEAD recipe</a> creates one LOW Finding and checks its separately approved fixed control using only the installed core. Optional Nmap/Nuclei/Trivy workflows have their own prerequisites and authority; no configuration renderer, license-compliance verdict or live runtime reachability is implied.</p>
-<h3>Сохранённая инженерная база из v0.2.1 (исторический список)</h3>
-<ul>
-<li>открытое ядро под лицензией Apache-2.0</li>
-<li>устанавливаемые команды 1337 и 1337-dev</li>
-<li>интерактивный shell, нечёткое автодополнение, палитра и история команд</li>
-<li>локальная диагностика doctor и проверка компонентов без изменений</li>
-<li>API переносимого workspace, конфигурации и офлайн-проверки scope</li>
-<li>экспериментальные API модели, доказательств, executor и необязательного Nmap</li>
-<li>изолированный тестовый стенд из репозитория</li>
-<li>базовый функциональный тестовый контур на pytest</li>
-<li>публичные версионируемые контракты и архитектурная документация</li>
-<li>детерминированные проверки качества на нескольких платформах</li>
-</ul>
-</section>
-
-<section class="proof-card">
-<span class="card-label">Следующие этапы</span>
-<h3>В разработке</h3>
-<ul>
-<li>живой двухпанельный терминальный интерфейс</li>
-<li>более широкие проверки приложений с аутентификацией и новые провайдеры</li>
-<li>расширенная корреляция SBOM, лицензионная политика и связь с runtime</li>
-<li>рабочие представления для Pentest, DFIR, DevSecOps и Purple Team</li>
-<li>доказательный анализ живой достижимости и полный стенд путей атаки M4</li>
-<li>общий MCP-сервис и интеграции с внешними продуктами</li>
-</ul>
-</section>
-</div>
-<p class="section-hook">Реализованными считаем только возможности, подтверждённые кодом, тестами и публичными контрактами. Остальное явно помечается как планы</p>
-</section>
-
-<section class="content-section">
-<h2>Документация и материалы</h2>
+<h2 id="get-started">Попробуйте 1337 на своём компьютере</h2>
+<p>Быстрый старт покажет, как запустить локальное демо, сохранить доказательства и открыть готовый отчёт офлайн. Инструкции на английском.</p>
 <div class="links">
-<a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">Попробовать v0.3.0 · EN</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">Quickstart для ИИ-агента · EN</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">Quickstart для CI · EN</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">Историческая инструкция v0.2.1</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Архитектурное видение</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">ИИ и интеграция агентов</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010: архитектура рабочего места</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/SECURITY.md">Политика безопасности</a>
+<a class="primary-action" href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">Быстрый старт</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">Для ИИ-агентов</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">Для CI</a>
 </div>
 </section>
 
 <section class="content-section">
-<h2>Ответственное использование</h2>
-<p>1337 предназначен для защитной инженерии ИБ, разрешённых пентестов, расследований, обучения, исследований, CTF и лабораторных сред, а также для систем, которыми вы владеете или на проверку которых у вас есть явное разрешение.</p>
-<p>Не используйте проект для сканирования, эксплуатации уязвимостей или нарушения работы чужих систем без разрешения.</p>
+<h2 id="project">Открытое ядро Community</h2>
+<p>Fuzzy Technologies разрабатывает 1337 открыто. Ядро Community распространяется по лицензии Apache 2.0.</p>
+<div class="links">
+<a href="https://github.com/Fuzzy-Technologies/1337">Код на GitHub</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/VISION.md">Видение проекта</a>
+</div>
 </section>
 
 <footer class="site-footer">
 <strong>1337 Security Workbench by Fuzzy Technologies</strong>
-<span class="footer-motto">Технологии · Знания · Наука</span>
 </footer>
