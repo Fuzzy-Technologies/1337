@@ -15,6 +15,15 @@ ROOT = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
 TEMP = Path(os.environ["RUNNER_TEMP"]).resolve()
 P = [sys.executable, "-I", "-m"]
 TESTS = [
+    "tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule",
+    "tests/e2e/test_runtime_cli.py::test_InstalledKubernetesIpv6RegistryImagesPreserveLiteralInventoryAndPortableReplay",
+    "tests/unit/test_kubernetes_inventory.py::test_KubernetesMalformedBracketedImageRefusesTheWholeCandidate",
+    "tests/unit/test_kubernetes_inventory.py::test_KubernetesContainerCategoriesExplicitFlagsAndOpaqueImagesRemainDescriptive",
+    "tests/unit/test_kubernetes_inventory.py::test_KubernetesIgnoredMultilineTextStillObeysOriginalUtf8AndByteBounds",
+    "tests/contract/test_kubernetes_inventory_contract.py",
+    "tests/integration/test_kubernetes_inventory_model.py::test_KubernetesOriginalEvidenceCasReopenRelocationAndExactReplay",
+    "tests/integration/test_kubernetes_inventory_model.py::test_KubernetesOfflineImporterHasNoProcessOrClusterTransportAccess",
+    "tests/integration/test_kubernetes_inventory_model.py::test_KubernetesSameUidInDifferentDeclaredClustersDoesNotCorrelate",
     "tests/unit/test_business_commands.py", "tests/e2e/test_business_inspection_cli.py",
     "tests/contract/test_business_events_contract.py",
     "tests/unit/test_extension_commands.py", "tests/unit/test_extension_version_profile.py",
@@ -37,7 +46,7 @@ def Run():
     import fuzzy1337
     assert Path(fuzzy1337.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
     sources = ["business_commands", "cli", "command_registry", "shell", "extension_commands",
-               "intelligence_cwe_commands"]
+               "intelligence_cwe_commands", "kubernetes_inventory"]
     sources = ["src/fuzzy1337/" + name + ".py" for name in sources]
     tests = sorted({item.split("::")[0] for item in TESTS})
     subprocess.run([*P, "ruff", "check", *sources, *tests, "tests/business_inspection_helpers.py"],
@@ -62,6 +71,8 @@ def Run():
     assert {"test_CleanWheelLooksUpNewIdsFromCopiedOriginalCustodyWithoutExternalInput",
             "test_ConsoleReopensExactOwnerDeclarationAfterRelocationWithoutWriting",
             "test_InstalledModuleProvidesExplicitSemverProfileWithoutChangingDefault"} <= names
+    assert "test_InstalledKubernetesIpv6RegistryImagesPreserveLiteralInventoryAndPortableReplay" in names
+    assert "test_KubernetesMalformedBracketedImageRefusesTheWholeCandidate" in names
     console = str(Path(sys.executable).with_name("1337"))
     # These are the two documented resources in the wheel and sdist.
     members = ("extension-manifest.schema.json", "examples/extension-manifest.example.json")

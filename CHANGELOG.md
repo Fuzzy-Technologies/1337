@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 62 — v0.4.62 — 2026-11-25
+
+#### Digest
+
+- Preserve valid IPv6 registry image declarations in owned offline Kubernetes inventory.
+
+#### Fixed
+
+- Admit bracketed IPv6 registry literals with or without numeric ports in the
+  existing Kubernetes List profile, retaining exact configured image strings and
+  their original workload/evidence attribution without registry access or an
+  inferred runtime image digest domain.
+- Refuse malformed registry literals before applying any candidate inventory;
+  preserve ordinary image declarations, original custody and portable replay.
+
 ### Patch 61 — v0.4.61 — 2026-11-25
 
 #### Digest
