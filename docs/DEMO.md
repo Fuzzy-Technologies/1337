@@ -407,6 +407,11 @@ registered = record.evidence_id in workspace.evidence_record_references
 print(finding["reference"], observation["reference"], record.evidence_id)
 print(selected)
 print("Registered in workspace snapshot:", "yes" if registered else "no")
+print(
+    "Saved model observation:", observation["kind"],
+    "from", provenance["source_id"], "at", provenance["observed_at"],
+)
+print("Scan completeness:", report["scan_completeness"])
 PY
 ```
 
@@ -422,7 +427,8 @@ To verify a listed observation's acquisition, use
 with the full observation reference from the row's first field.
 
 A successful acquisition inspection prints the Finding, saved observation and
-acquisition IDs on its first line. The fixture acquisition uses the
+acquisition IDs on its first line. The second line shows the source declaration
+from the verified marker bytes. The acquisition uses the
 `fixture-marker` role and `application/json` media type. The marker has `id`
 equal to `evidence.initial-topology`, `type` equal to `topology-seed` and
 `provenance` equal to `seeded`. The inspection checks that ID against the Finding's
@@ -434,10 +440,10 @@ The third line reports whether the verified acquisition ID is registered in the
 opened workspace snapshot. The finding-replay fixture stores the acquisition
 and leaves the workspace registry empty.
 
-The evidence check verifies the integrity of the saved bytes. The recorded
-source identifies seeded fixture data, and the report keeps `scan_completeness`
-at `not-assessed`. Discovered service behavior and attack-path outcomes still
-require their own evidence.
+The fourth line gives the saved model observation's kind, source and recorded
+time. The last line shows the report's `scan_completeness` value of
+`not-assessed`. Discovered service behavior and attack-path outcomes require
+their own evidence.
 
 ## Failure and interruption truth
 
