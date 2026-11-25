@@ -1,0 +1,117 @@
+{
+  "name": "One-shot retained report hosted artifact proof",
+  "on": {
+    "push": {
+      "branches": [
+        "feature/retained-report-hosted-proof"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "env": {
+    "APPROVED_SOURCE_SHA": "b75f6f92f21fe8359b9603862c0ba67646061e1d"
+  },
+  "jobs": {
+    "retained-report-proof": {
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 10,
+      "steps": [
+        {
+          "name": "Require the dedicated read-only proof invocation",
+          "shell": "bash",
+          "run": "set -euo pipefail\ntest \"$GITHUB_REPOSITORY\" = Fuzzy-Technologies/1337\ntest \"$GITHUB_EVENT_NAME\" = push\ntest \"$GITHUB_REF\" = refs/heads/feature/retained-report-hosted-proof\n[[ \"$APPROVED_SOURCE_SHA\" =~ ^[0-9a-f]{40}$ && \"$APPROVED_SOURCE_SHA\" =~ [1-9a-f] ]]\n"
+        },
+        {
+          "name": "Check out the reviewed disposable workflow and helper",
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ github.sha }}",
+            "persist-credentials": false,
+            "fetch-depth": 1
+          }
+        },
+        {
+          "name": "Preserve the reviewed helper from this exact disposable proof commit",
+          "shell": "bash",
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\npath=.github/proof/retained-report.py\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/retained-report-proof.py\"\n"
+        },
+        {
+          "name": "Replace checkout with only the immutable product source",
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ env.APPROVED_SOURCE_SHA }}",
+            "clean": true,
+            "persist-credentials": false,
+            "fetch-depth": 1
+          }
+        },
+        {
+          "name": "Set up Python 3.13",
+          "uses": "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
+          "with": {
+            "python-version": "3.13"
+          }
+        },
+        {
+          "name": "Build and separately install the actual wheel with locked dependencies",
+          "shell": "bash",
+          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest -f docs/examples/ci/github-retained-report/action.yml\ntest -f tests/unit/test_retained_report_ci.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n"
+        },
+        {
+          "name": "Run the focused CLI, report and style checks with two workers",
+          "shell": "bash",
+          "working-directory": "${{ runner.temp }}",
+          "run": "python3 -I \"$RUNNER_TEMP/retained-report-proof.py\" focused-tests\n"
+        },
+        {
+          "name": "Create the saved synthetic report fixture with the installed wheel",
+          "shell": "bash",
+          "working-directory": "${{ runner.temp }}",
+          "run": "python3 -I \"$RUNNER_TEMP/retained-report-proof.py\" create-fixture\n"
+        },
+        {
+          "name": "Use the actual product composite exactly once",
+          "id": "retained",
+          "uses": "./docs/examples/ci/github-retained-report",
+          "with": {
+            "saved_workspace": "saved-hosted-proof",
+            "report_key": "hosted-proof"
+          }
+        },
+        {
+          "name": "Retain independent original artifact/source/fixture/test receipts",
+          "shell": "bash",
+          "env": {
+            "ARTIFACT_ID": "${{ steps.retained.outputs.artifact-id }}",
+            "ARTIFACT_URL": "${{ steps.retained.outputs.artifact-url }}",
+            "ARTIFACT_DIGEST": "${{ steps.retained.outputs.artifact-digest }}"
+          },
+          "run": "python3 -I \"$RUNNER_TEMP/retained-report-proof.py\" record-receipt\n"
+        },
+        {
+          "name": "Download exactly this current-run artifact as raw ZIP",
+          "id": "download",
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "artifact-ids": "${{ steps.retained.outputs.artifact-id }}",
+            "path": "${{ runner.temp }}/retained-proof-download",
+            "skip-decompress": true,
+            "digest-mismatch": "error"
+          }
+        },
+        {
+          "name": "Independently verify downloaded ZIP/JSON/JUnit/original receipts",
+          "shell": "bash",
+          "env": {
+            "ARTIFACT_ID": "${{ steps.retained.outputs.artifact-id }}",
+            "ARTIFACT_DIGEST": "${{ steps.retained.outputs.artifact-digest }}",
+            "DOWNLOAD_ROOT": "${{ steps.download.outputs.download-path }}"
+          },
+          "run": "python3 -I \"$RUNNER_TEMP/retained-report-proof.py\" verify-download\n"
+        }
+      ]
+    }
+  }
+}
