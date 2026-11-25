@@ -17,6 +17,7 @@ import pytest
 
 from fuzzy1337.findings import Findings, FindingStatus, TransitionFinding
 from fuzzy1337.model import (
+    CanonicalModelJson,
     LocalModelStore,
     ModelProvenance,
     ObjectIdentity,
@@ -32,6 +33,7 @@ from fuzzy1337.reachability import (
 from fuzzy1337.runtime_commands import RuntimeEvidenceStore
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.docker_helpers import FIXTURES, TIME
+from tests.kubernetes_helpers import KubernetesResource
 from tests.runtime_helpers import Arguments
 
 
@@ -289,6 +291,100 @@ def test_InstalledRuntimeRefusalsPreserveActualIndependentOwnerTruth(
     finally:
         if lock is not None:
             lock.rmdir()
+
+
+def test_InstalledKubernetesRuntimeRetainsMultilineAnnotationThroughPortableReplay(tmp_path):
+    """A saved Pod release note remains exact original data through import, move and replay."""
+
+    context = ConsoleContext(tmp_path, profile="kubernetes-list")
+    root, _, cluster, evidence, source = context
+    payload = json.loads(source.read_bytes())
+    pod = KubernetesResource(payload, "Pod", "web-one", "blue")
+    payload["items"] = [KubernetesResource(payload, "Namespace", "blue"), pod]
+    pod["metadata"]["annotations"] = {
+        "owned.example/release-note": "OWNED_RELEASE_NOTE\r\nsecond line\tmore text é",
+    }
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    source.write_bytes(raw)
+    status, imported = Import(tmp_path, context, profile="kubernetes-list")
+    assert status == 0 and all(imported[name] == "confirmed" for name in (
+        "acquisition_commit", "model_commit", "workspace_commit",
+    )), "A valid saved annotation must reach all independent original-import acknowledgements"
+    record = evidence.Get(imported["evidence_id"])
+    saved = LocalModelStore(root).Open()
+    resources = {(item.attributes["resource_kind"], item.attributes["name"])
+                 for item in saved.objects
+                 if item.attributes.get("asset_type") == "kubernetes-resource"}
+    assert resources == {("Namespace", "blue"), ("Pod", "web-one")}, (
+        "Ignoring annotation content cannot add, drop or synthesize selected resources"
+    )
+    assert evidence.Read(record.reference) == raw and record.reference.sha256 == (
+        hashlib.sha256(raw).hexdigest()
+    ), "The installed import must preserve the complete unchanged original JSON"
+    assert b"OWNED_RELEASE_NOTE" not in CanonicalModelJson(saved.ToDict()) and (
+        "OWNED_RELEASE_NOTE" not in json.dumps(imported)
+    ), "Raw annotation contents must not enter the model or import summary"
+    assert record.provenance.execution is None and record.provenance.invocation_sha256 is None, (
+        "Supplied text cannot fabricate provider execution"
+    )
+    moved = tmp_path / "Moved Kubernetes Workspace"
+    root.rename(moved)
+    source.unlink()
+    relocated = (moved, saved, cluster,
+                 RuntimeEvidenceStore(moved / "evidence", profile="kubernetes-list"), source)
+    before = {path.relative_to(moved): path.read_bytes()
+              for path in moved.rglob("*") if path.is_file()}
+    status, replay = Import(tmp_path, relocated, evidence_id=record.evidence_id,
+                            profile="kubernetes-list")
+    after = {path.relative_to(moved): path.read_bytes()
+             for path in moved.rglob("*") if path.is_file()}
+    assert status == 0 and replay["created"] == replay["updated"] == 0 and before == after, (
+        "Retained replay must need no original file and preserve every relocated owner byte"
+    )
+    blob = relocated[3].StoragePath(("blobs", "sha256", record.reference.sha256))
+    blob.write_bytes(b"corrupt retained original")
+    status, refused = Import(tmp_path, relocated, evidence_id=record.evidence_id,
+                             profile="kubernetes-list")
+    assert status == 4 and refused["status"] == "failed" and (
+        LocalModelStore(moved).Open() == saved
+    ), "Corrupted retained annotation evidence must refuse without modifying the saved model"
+
+
+@pytest.mark.parametrize("mode", ["selected-name", "original-text-overflow"])
+def test_InstalledKubernetesTextRefusalsPreserveAcquisitionAndGraphTruth(tmp_path, mode):
+    """Multiline source admission preserves selected-field and raw-byte refusal boundaries."""
+
+    context = ConsoleContext(tmp_path, profile="kubernetes-list")
+    root, basis, _, evidence, source = context
+    payload = json.loads(source.read_bytes())
+    pod = KubernetesResource(payload, "Pod", "web-one", "blue")
+    payload["items"] = [KubernetesResource(payload, "Namespace", "blue"), pod]
+    pod["metadata"]["annotations"] = {"owned.example/release-note": "Owned note\nsecond line"}
+
+    if mode == "selected-name":
+        pod["metadata"]["name"] = "OWNED_REJECTED_NOTE\ninvalid"
+
+    else:
+        pod["metadata"]["annotations"]["owned.example/release-note"] = "line\n" + "x" * 4092
+
+    raw = json.dumps(payload).encode("utf-8")
+    source.write_bytes(raw)
+    status, refused = Import(tmp_path, context, profile="kubernetes-list")
+    assert status == 4 and refused["failure"] == "normalization" and (
+        refused["acquisition_commit"] == "confirmed"
+        and refused["model_commit"] == refused["workspace_commit"] == "not-attempted"
+    ), "A refused interpretation must acknowledge actual custody without claiming graph saves"
+    assert LocalModelStore(root).Open() == basis and (
+        LocalWorkspaceStore(root).Open().revision == 0
+    ), (
+        "Selected-field and original-byte refusals must leave both saved owners unchanged"
+    )
+    assert evidence.Read(evidence.Get(refused["evidence_id"]).reference) == raw, (
+        "A refused interpretation cannot delete or rewrite a legitimately acquired original"
+    )
+    assert "OWNED_REJECTED_NOTE" not in json.dumps(refused), (
+        "Refused selected text must remain outside terminal diagnostics"
+    )
 
 
 def test_InstalledKubernetesRuntimePreservesOracleTriagePortableReplayAndUnknownClaims(tmp_path):

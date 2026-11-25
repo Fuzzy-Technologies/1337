@@ -8,6 +8,33 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 33 — v0.4.33 — 2026-11-25
+
+#### Digest
+
+- Import supported saved Kubernetes Lists with bounded multiline annotations.
+
+#### Fixed
+
+- Apply single-line restrictions to selected inventory facts rather than ignored
+  original JSON text. Preserve exact annotation evidence, UTF-8 and string byte
+  ceilings, selected-field refusals and no-op replay after workspace relocation.
+
+
+### Patch 32 — v0.4.32 — 2026-11-25
+
+#### Digest
+
+- Import saved GraphQL introspection records that explicitly identify root types.
+
+#### Fixed
+
+- Accept optional `kind: "OBJECT"` on named query, mutation and subscription
+  roots while preserving indexed type validation, null optional roots and exact
+  original-byte provenance. Explicit null or conflicting kind declarations
+  remain normalization refusals before any model or workspace save.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest

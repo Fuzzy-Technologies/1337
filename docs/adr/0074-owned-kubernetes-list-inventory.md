@@ -60,6 +60,14 @@ resource, collection and relationship ceilings reject excess rather than produci
 partial success. Forged contracts, foreign workspaces, incomplete paginated Lists,
 contradictory identities and unsupported selected structures fail closed.
 
+The complete original JSON scan validates UTF-8 strings and their byte budgets
+without imposing selected-field single-line semantics on ignored values. This
+admits bounded multiline annotations as inert original data, consistent with
+[Kubernetes annotation strings](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/).
+Every selected source-field reader retains its control-character restrictions.
+No annotation text is projected, executed or included in diagnostics; exact
+original custody, limits, supported kinds and portable replay remain unchanged.
+
 Both tasks remain partial: live discovery, full privilege validation, arbitrary
 resource/API support and physical network/security acceptance need separate work.
 

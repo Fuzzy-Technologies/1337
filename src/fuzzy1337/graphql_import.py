@@ -514,7 +514,12 @@ def ImportGraphQl(value: bytes, *, workspace_id: str, endpoint_url: str) -> Grap
 
             continue
 
-        rootName = GraphQlName(GraphQlFields(root, {"name"}).get("name"))
+        root = GraphQlFields(root, {"name", "kind"})
+
+        if "kind" in root and root["kind"] != "OBJECT":
+            raise ValueError("GraphQL root kind must identify an object type")
+
+        rootName = GraphQlName(root.get("name"))
 
         if rootName in roots or rootName not in context.records or (
             context.records[rootName][0]["kind"] != "OBJECT"

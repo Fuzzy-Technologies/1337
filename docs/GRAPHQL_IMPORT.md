@@ -32,6 +32,12 @@ address the actual source array positions. Reformatting changes source and
 operation/preview identities while equivalent symbolic request identities may
 remain equal.
 
+Root references may contain `name` alone or `name` with `kind: "OBJECT"`, as
+reported by standard introspection exporters. The named type must still resolve
+to an indexed object definition. An explicit null or conflicting root kind is
+refused. A null mutation or subscription root remains unconfigured; a query root
+is required. These checks apply to both accepted source envelopes.
+
 Each root field becomes a typed query, mutation or subscription operation using
 the existing POST Endpoint, GraphQL RequestTemplate and `/variables/<name>`
 InjectionPoint contracts. Metadata preserves list/non-null wrappers, input-object
