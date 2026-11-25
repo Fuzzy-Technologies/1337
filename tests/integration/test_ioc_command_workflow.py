@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import runpy
 import shutil
 import socket
 import subprocess
+import sys
 from dataclasses import replace
 from io import StringIO
+from pathlib import Path
 
 import pytest
 
@@ -70,6 +73,53 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
     assert f"Source SHA-256 {hashlib.sha256(RAW).hexdigest()} ({len(RAW)} bytes)." in output.getvalue()
     assert Files(moved) == before and all(before[name] == content
         for name, content in coreBefore.items()), "IOC product workflow wrote Core/owning state"
+
+
+def test_GuideInspectsOneRetainedOccurrenceByOriginalLine(tmp_path, monkeypatch, capsys):
+    """Use the documented SDK workflow with only the original import pins and retained evidence."""
+
+    raw = (b"dns\texample.invalid\r\n"
+           b"dns\tEXAMPLE.Invalid.\t2026-11-25T10:30:00+05:30\t+05:30\r\n")
+    root, source = Owned(tmp_path, raw)
+    status, imported = Run(ImportArguments(root, source, raw))
+    assert status == 0, "The guide fixture could not acquire its original evidence"
+    moved = tmp_path / "relocated workspace"
+    root.rename(moved)
+    source.unlink()
+
+    guide = Path(__file__).resolve().parents[2] / "docs" / "IOC_ARTIFACT_CLI.md"
+    _, heading, section = guide.read_text(encoding="utf-8").partition(
+        "## Inspect one normalized occurrence\n")
+    _, start, fenced = section.partition("```python\n")
+    example, end, _ = fenced.partition("\n```")
+    assert heading and start and end, "The guide lost the executable SDK selection example"
+    script = tmp_path / "inspect_ioc_candidate.py"
+    script.write_text(example, encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [str(script), str(moved), imported["snapshot_id"],
+                                    imported["receipt_id"], "2"])
+    monkeypatch.setattr(socket, "socket", Denied)
+    monkeypatch.setattr(socket, "getaddrinfo", Denied)
+    monkeypatch.setattr(subprocess, "Popen", Denied)
+    runpy.run_path(str(script), run_name="__main__")
+
+    result = json.loads(capsys.readouterr().out)
+    assert result == {
+        "candidate": {
+            "kind": "dns", "normalized_token": "example.invalid", "raw_token": "EXAMPLE.Invalid.",
+            "line_number": 2, "byte_offset": 25, "byte_length": 16,
+            "source_locator": r"C:\owned\opaque.tsv", "observed_at": "2026-11-25T10:30:00+05:30",
+            "observation_timezone": "+05:30", "observed_at_utc": "2026-11-25T05:00:00.000000+00:00",
+        },
+        "raw_evidence_id": imported["raw_id"], "source_id": "owned.synthetic",
+        "source_version": "fixture-1", "parser_id": "ioc-artifacts", "parser_version": "1",
+    }, "The guide did not select the requested occurrence with its original attribution"
+    store = LocalEvidenceStore(moved / "evidence")
+    record = store.Get(result["raw_evidence_id"])
+    offset = result["candidate"]["byte_offset"]
+    length = result["candidate"]["byte_length"]
+    assert store.Read(record.reference)[offset:offset + length] == b"EXAMPLE.Invalid.", (
+        "The displayed coordinates did not recover the selected original token"
+    )
 
 
 @pytest.mark.parametrize("raw,pin,state", [(b"bad-source", None, "parse-rejected"),

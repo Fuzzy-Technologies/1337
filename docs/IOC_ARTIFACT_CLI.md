@@ -78,6 +78,50 @@ It accepts no source/license/consent overrides. The same explicit commands work
 in the foreground shell; the protected `trace` namespace is not retained for
 history/replay, including malformed input.
 
+## Inspect one normalized occurrence
+
+Use the Python SDK with the `snapshot_id` and independent `receipt_id` saved from
+the original import. Select a one-based physical line in the original TSV. A
+line identifies an occurrence even when several lines normalize to the same value.
+
+Save this example as `inspect_ioc_candidate.py` in your local working directory.
+
+```python
+import json
+import sys
+from pathlib import Path
+
+from fuzzy1337.ioc_artifacts import LoadIocArtifact
+
+workspace, snapshotId, receiptId, line = sys.argv[1:]
+lineNumber = int(line)
+snapshot = LoadIocArtifact(Path(workspace), snapshotId, receiptId)
+candidate = next((item for item in snapshot.candidates if item.line_number == lineNumber), None)
+
+if candidate is None:
+    raise SystemExit(f"No supplied candidate at source line {lineNumber}.")
+
+metadata = json.loads(snapshot.Serialize())
+print(json.dumps({
+    "candidate": candidate.ToDict(),
+    "raw_evidence_id": snapshot.raw_evidence_id,
+    "source_id": snapshot.source.source_id,
+    "source_version": snapshot.source.source_version,
+    "parser_id": metadata["parser_id"],
+    "parser_version": metadata["parser_version"],
+}, indent=2))
+```
+
+```bash
+python inspect_ioc_candidate.py /owned/case-workspace \
+  'sha256:<snapshot-manifest-digest>' 'sha256:<original-receipt-manifest-digest>' 2
+```
+
+The example prints one verified occurrence, including its normalized and original
+tokens, logical source locator, and source-declared timestamp and timezone when
+present. The zero-based `byte_offset` and `byte_length` locate its original token
+in the retained TSV identified by `raw_evidence_id`.
+
 ## Outcomes
 
 | Exit | Meaning                                                           |
