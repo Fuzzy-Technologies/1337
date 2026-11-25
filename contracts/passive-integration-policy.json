@@ -1,0 +1,645 @@
+{
+  "base_commit": "827548866f244ef1726dcd225d061912a5891f70",
+  "changes": [
+    {
+      "new_blob": "cec016ea0bdeef864968e320be8ec4c9e1aec330",
+      "new_mode": "100644",
+      "old_blob": "cdafb322e8a44b0ee1bc6f0824406110ec32582c",
+      "old_mode": "100644",
+      "path": ".github/workflows/documentation.yml"
+    },
+    {
+      "new_blob": "f2f5a0c57fc036d203ced73a27eec93fd3db24e5",
+      "new_mode": "100644",
+      "old_blob": "6fa221a11fb729045a5afbc25b1d3cec4fbd051d",
+      "old_mode": "100644",
+      "path": ".github/workflows/intel-source-acceptance.yml"
+    },
+    {
+      "new_blob": "b1715eea904c936ba86549b6cb500c6ad989fcf2",
+      "new_mode": "100644",
+      "old_blob": "79c529bd2376c53185ffffb4c16e2984460d7ff5",
+      "old_mode": "100644",
+      "path": ".github/workflows/local-image-product.yml"
+    },
+    {
+      "new_blob": "0630b9dfd8afbf1e05ccddd1e3616c78cba91581",
+      "new_mode": "100644",
+      "old_blob": "23c18dbe6368f926f6b14a6e9fd61235f780d231",
+      "old_mode": "100644",
+      "path": ".github/workflows/native-ci-diagnostic.yml"
+    },
+    {
+      "new_blob": "bb9fd371cf1a777c878837889010e38fbd2110a1",
+      "new_mode": "100644",
+      "old_blob": "913e7c585869f6d6fa9e52f508eaddfe8e7a9329",
+      "old_mode": "100644",
+      "path": ".github/workflows/native-configuration-material.yml"
+    },
+    {
+      "new_blob": "5377f1aba077c9dd0500c58d7b4630516a8f5795",
+      "new_mode": "100644",
+      "old_blob": "4b5b3d6a197b0ccfa19466854b8a6d6d8e7e8bef",
+      "old_mode": "100644",
+      "path": ".github/workflows/native-configuration-product.yml"
+    },
+    {
+      "new_blob": "7229b209a905f2ead0e759b7bd7ecaac7ae82db8",
+      "new_mode": "100644",
+      "old_blob": "35c9a3e09a01ea8c0b7bca49d86df0c07399521e",
+      "old_mode": "100644",
+      "path": ".github/workflows/nmap-acceptance.yml"
+    },
+    {
+      "new_blob": "b7f1787f350a17bb642b9616680c15b8f7b24a2c",
+      "new_mode": "100644",
+      "old_blob": "8f169f40ec5fff4358ceb86fe7341ef568954015",
+      "old_mode": "100644",
+      "path": ".github/workflows/nuclei-acceptance.yml"
+    },
+    {
+      "new_blob": "a82f6d387bea89b0aecd926e6025f424357f538c",
+      "new_mode": "100644",
+      "old_blob": "4b288a83d574b942b52db196d06ffd161f41947b",
+      "old_mode": "100644",
+      "path": ".github/workflows/owned-content-header-acceptance.yml"
+    },
+    {
+      "new_blob": "e4ab8233731e434769d7a9398365b913d7b4e65b",
+      "new_mode": "100644",
+      "old_blob": "4b08ecd0a89ba259cf9377ceec5311a23cfdd83c",
+      "old_mode": "100644",
+      "path": ".github/workflows/owned-gitlab-acceptance.yml"
+    },
+    {
+      "new_blob": null,
+      "new_mode": "100644",
+      "normalized_sha256": "ad9499a2f14f14b908dce112c43a8722413ee79a8bd44b151b497827536458ca",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": ".github/workflows/passive-acceptance-routing.yml"
+    },
+    {
+      "new_blob": "c5b451462b5024082be447128e9555699119eb0c",
+      "new_mode": "100644",
+      "old_blob": "662409086c40603cef37ef87f2834bda64da1c57",
+      "old_mode": "100644",
+      "path": ".github/workflows/python-quality.yml"
+    },
+    {
+      "new_blob": "4eb5929f267b64d44e450a07df3178be2b7d634e",
+      "new_mode": "100644",
+      "old_blob": "ccb870ddabfd2f95023c15da443230b20e7a403a",
+      "old_mode": "100644",
+      "path": ".github/workflows/trivy-acceptance.yml"
+    },
+    {
+      "new_blob": "44f3873ef7e1f206e9d8efa9ab9b93678fc01e83",
+      "new_mode": "100644",
+      "old_blob": "d72b3b4cdabc6f926b9ad8340548034cd1a930db",
+      "old_mode": "100644",
+      "path": ".github/workflows/zap-inert-acceptance.yml"
+    },
+    {
+      "new_blob": "bc338312a3b4e4be3be36f3f67818af710fce189",
+      "new_mode": "100644",
+      "old_blob": "fa1c83d32533dd6be0ec406a775f8a2267c3b3cc",
+      "old_mode": "100644",
+      "path": "CHANGELOG.md"
+    },
+    {
+      "new_blob": "aaf20d1aab339b975fbec7deabb8f4bade505e32",
+      "new_mode": "100644",
+      "old_blob": "2debbd687285f7b327953c25586488876082c795",
+      "old_mode": "100644",
+      "path": "contracts/python-naming-baseline.json"
+    },
+    {
+      "new_blob": "4d890928bf62f67ba5c58e787ee550e27c0270df",
+      "new_mode": "100644",
+      "old_blob": "d5b20f4fe0afd3ed6da4e6e5a4565ded9b6cda7c",
+      "old_mode": "100644",
+      "path": "docs/COMPATIBILITY.md"
+    },
+    {
+      "new_blob": "841e82e982b24cc8afe1b579ff8fa869cb7b1f4e",
+      "new_mode": "100644",
+      "old_blob": "f2dce0fff297fca3c1d042b71a59dce49810f2b8",
+      "old_mode": "100644",
+      "path": "docs/DEMO.md"
+    },
+    {
+      "new_blob": "81cff6b291af25d0b13cf6c6efe3fc27572e2447",
+      "new_mode": "100644",
+      "old_blob": "7e5b6284cef44dcc865ed34e470c4e58ce427e11",
+      "old_mode": "100644",
+      "path": "docs/DEVELOPMENT.md"
+    },
+    {
+      "new_blob": "fb1a2834a56bab87cfc71672231c736d6a82ebea",
+      "new_mode": "100644",
+      "old_blob": "39882d31abbb1be3c773b73b15991e94eb31ed3e",
+      "old_mode": "100644",
+      "path": "docs/EVIDENCE.md"
+    },
+    {
+      "new_blob": "d2b2afbbfa42838fc8a26c47054534ae8ad02cd8",
+      "new_mode": "100644",
+      "old_blob": "b48c64699948d1a2c836f0483ccaf7ceff3fe936",
+      "old_mode": "100644",
+      "path": "docs/FUNCTIONAL_TESTING.md"
+    },
+    {
+      "new_blob": "bbc9e87762b9d825c942e2c0f2c502fdcb03db79",
+      "new_mode": "100644",
+      "old_blob": "6e358aa318f5f322fd4355dbc41c16b0fe3575ad",
+      "old_mode": "100644",
+      "path": "docs/IMAGE_SBOM_VIEW.md"
+    },
+    {
+      "new_blob": "a6aa894ef016ef5b7af4a8f20e24460448082753",
+      "new_mode": "100644",
+      "old_blob": "8da7d70c33066848db3584853692c656023fb30e",
+      "old_mode": "100644",
+      "path": "docs/INTELLIGENCE.md"
+    },
+    {
+      "new_blob": "2ce26a9d9c2801fd3cd3524de64c2914ac53e2aa",
+      "new_mode": "100644",
+      "old_blob": "a72b35572a6c8123083f9558efc8e95ce69e6968",
+      "old_mode": "100644",
+      "path": "docs/INTELLIGENCE_CLI.md"
+    },
+    {
+      "new_blob": "c2f6411f53f15bac07e9881cacbf8a08cc269d59",
+      "new_mode": "100644",
+      "old_blob": "b47ca5e0deb516fc30269b2d12ca77ba955890cd",
+      "old_mode": "100644",
+      "path": "docs/INTELLIGENCE_EPSS_SELECTION.md"
+    },
+    {
+      "new_blob": "1444b01b092bddf4f44afd136a7b8154ffe9dec3",
+      "new_mode": "100644",
+      "old_blob": "22dccb17b970a673f3d2f2e35b7150a78b6595c9",
+      "old_mode": "100644",
+      "path": "docs/IOC_ARTIFACT_CLI.md"
+    },
+    {
+      "new_blob": "a6f60696b4b3158c6bda8acb2f8b98803530787d",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/PASSIVE_BATCH.md"
+    },
+    {
+      "new_blob": "bcaa914bac11f2d7f877f30b752879aa5b7d676c",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/PASSIVE_ROUTING.md"
+    },
+    {
+      "new_blob": "715173cff7558dd3087663b65d7854b18085e7db",
+      "new_mode": "100644",
+      "old_blob": "1147da414f7f52c9fe0cb6d4fa2a06ea21d9bb59",
+      "old_mode": "100644",
+      "path": "docs/REPORTING.md"
+    },
+    {
+      "new_blob": "68b21dfa18fefbc65af56a7c80a27e39427c6341",
+      "new_mode": "100644",
+      "old_blob": "95a767c14e04601c0bb8722711c33322ca9f6e9a",
+      "old_mode": "100644",
+      "path": "docs/REPORT_EXPORT.md"
+    },
+    {
+      "new_blob": "3b77e1ee59a1b0f879df26d5644882208fca13fe",
+      "new_mode": "100644",
+      "old_blob": "feac1d2c0a5adcecd395cc6eb5f06b99c4822bf8",
+      "old_mode": "100644",
+      "path": "docs/TOOL_ADAPTERS.md"
+    },
+    {
+      "new_blob": "a5d53ed2b035d0c3c8f500a0cd66a001027eaa10",
+      "new_mode": "100644",
+      "old_blob": "ab66b480144d660d4d62191d11e2991751620cd2",
+      "old_mode": "100644",
+      "path": "docs/adr/0112-read-only-image-sbom-view.md"
+    },
+    {
+      "new_blob": "c0c79a8b69953f4b48d8bf4fe216d13a1a7554e1",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/adr/0148-verified-ioc-candidate-export.md"
+    },
+    {
+      "new_blob": "d77f5fb5da5447189de8a4f4108570920d58b5e1",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/adr/0149-read-only-finding-intelligence-preview.md"
+    },
+    {
+      "new_blob": "c0f1da1708149f442c459c99c7cf97e8d0c0d369",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "docs/adr/0150-development-test-profiles.md"
+    },
+    {
+      "new_blob": "fbb9068e2192a4eadd9fc57095a9fd957bdc5f7b",
+      "new_mode": "100644",
+      "old_blob": "70a51f5ab578189419d2f5f44f6a7bebfcfb5ecf",
+      "old_mode": "100644",
+      "path": "docs/i18n/units.toml"
+    },
+    {
+      "new_blob": "8c7c51f056d73de39792097fdfd0232aa65308a4",
+      "new_mode": "100644",
+      "old_blob": "92c467524b8253d2eaba2546d0e51569fcb69ae1",
+      "old_mode": "100644",
+      "path": "docs/requirements-api.lock"
+    },
+    {
+      "new_blob": "f1e12b26aa58ed723f06fdd6238accd60676cc6a",
+      "new_mode": "100644",
+      "old_blob": "047e20ef9567c45e5fd4e34b0236106061d39095",
+      "old_mode": "100644",
+      "path": "docs/requirements-api.txt"
+    },
+    {
+      "new_blob": "5019a243181178c27a9805bfe0807c31fd4d743c",
+      "new_mode": "100644",
+      "old_blob": "d8a7bd17c96fc365d629d50b34e11e20c38ecd54",
+      "old_mode": "100644",
+      "path": "docs/site/content/en/api/fuzzy1337.cli.md"
+    },
+    {
+      "new_blob": "4168cf9800a5a201bfc1edaebd8e1fbd94751b52",
+      "new_mode": "100644",
+      "old_blob": "0992a792dccb151f6b93da83f7cdd3b6352f611d",
+      "old_mode": "100644",
+      "path": "docs/site/content/en/api/fuzzy1337.image_sbom_view.md"
+    },
+    {
+      "new_blob": "a6f2e480056c123623ee593b7da0872ae1b9ea62",
+      "new_mode": "100644",
+      "old_blob": "e9740d49cd7a1b7e20422699a4be38bf2fd76e5e",
+      "old_mode": "100644",
+      "path": "docs/site/content/en/api/fuzzy1337.intelligence_commands.md"
+    },
+    {
+      "new_blob": "60367041d9a565e488130e02b858b07b2876a979",
+      "new_mode": "100644",
+      "old_blob": "e34fefa60872774f45eddd10327fb1225922a3aa",
+      "old_mode": "100644",
+      "path": "pyproject.toml"
+    },
+    {
+      "new_blob": "44b0d7a2084f8c8d6fe1bb172b33906ced835025",
+      "new_mode": "100644",
+      "old_blob": "10643933d4a5c869af57c4c1614b6fa765a244ef",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/adapters/contracts.py"
+    },
+    {
+      "new_blob": "0d82fc13c4593e49dabab95e61b79ca3332dba76",
+      "new_mode": "100644",
+      "old_blob": "c97aa39d79c175df32f28fe35634b1af92490e8a",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/command_registry.py"
+    },
+    {
+      "new_blob": "866b15f9b33ecc36c8af1e0534380b9ce945a44c",
+      "new_mode": "100644",
+      "old_blob": "73868f846459b7e2cb6030a36f5ee68e9394158e",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/functional_metrics.py"
+    },
+    {
+      "new_blob": "99fc9aa0603228e18f4efd36fae9a7b4c2516db5",
+      "new_mode": "100644",
+      "old_blob": "330cc9abc551c139b5aaac27700ee1e89f5eb881",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/image_sbom_view.py"
+    },
+    {
+      "new_blob": "4fa4e724b02e55d605fce6851c683b2915f3017b",
+      "new_mode": "100644",
+      "old_blob": "9ae2ce10bcef91a8c0907450508bf5640cf254c2",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/intelligence_commands.py"
+    },
+    {
+      "new_blob": "e84086d50e7486d23af9eb62e62ba14a9b8b2c52",
+      "new_mode": "100644",
+      "old_blob": "8ab6454b7b61aa2c4d689237aec6a99503192dcf",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/ioc_commands.py"
+    },
+    {
+      "new_blob": "6bc3fea68cc43db604ebbf8dda090593b3ce8317",
+      "new_mode": "100644",
+      "old_blob": "f6252f65278e271ad1a2a281518b31d68809e62a",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/report_commands.py"
+    },
+    {
+      "new_blob": "8f06eb9c34b38f247f5a6442d6d2c337ea5c195a",
+      "new_mode": "100644",
+      "old_blob": "a0686f0842e9017f26e2019bd4d8edda606f17ca",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/report_formats.py"
+    },
+    {
+      "new_blob": "5a2d129018667eb26d024f5263e241419dc4bb29",
+      "new_mode": "100644",
+      "old_blob": "4dd0bb3e22909e94fc7ef57a64f07bc342d4ba38",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/reporting.py"
+    },
+    {
+      "new_blob": "649eac180300151c3121ba7fba7264e70a1b3429",
+      "new_mode": "100644",
+      "old_blob": "80b2e728aec1d63fb1d51bb5ad73508399cbc0b9",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/shell.py"
+    },
+    {
+      "new_blob": "6538c2af14d76cc8bacec99051b9b81e0d5c9c58",
+      "new_mode": "100644",
+      "old_blob": "3f6ace69e2f1e6957bda926cc4bdb0bd9a20c752",
+      "old_mode": "100644",
+      "path": "src/fuzzy1337/test_runner.py"
+    },
+    {
+      "new_blob": "f074c9002c295ef26e9a65f197688fbce45997c5",
+      "new_mode": "100644",
+      "old_blob": "c2ee0dc93d5fcdbd41963f669f06f7746ae8a57e",
+      "old_mode": "100644",
+      "path": "tests/contract/fixtures/reporting/snapshot.html"
+    },
+    {
+      "new_blob": "4ac51a7cd237b58db1971f1b78e224122211af6f",
+      "new_mode": "100644",
+      "old_blob": "6266cb87aa1c1cd14d3c9b6be11b063079aa541c",
+      "old_mode": "100644",
+      "path": "tests/contract/test_external_native_benchmark.py"
+    },
+    {
+      "new_blob": "200d7d2f98d60a960d5ea9e656c795fc9b400e9e",
+      "new_mode": "100644",
+      "old_blob": "030d0a35ec7ad02429aa055e858b3f8433b97a77",
+      "old_mode": "100644",
+      "path": "tests/contract/test_external_scanner_comparison_view.py"
+    },
+    {
+      "new_blob": "76b69655637fb095501a2e34d8c9af0ad36d7d63",
+      "new_mode": "100644",
+      "old_blob": "c287e7396ef16887275572c477070c3672a498c3",
+      "old_mode": "100644",
+      "path": "tests/contract/test_functional_metrics.py"
+    },
+    {
+      "new_blob": "eba86635b41693a4babff873958dd7cc1bc0ca02",
+      "new_mode": "100644",
+      "old_blob": "67ada741d20f33ef1daffa8274cf90d571d5def0",
+      "old_mode": "100644",
+      "path": "tests/contract/test_functional_report_comparison.py"
+    },
+    {
+      "new_blob": "82aed8fc5d7c36755c8e4e531d94617963a08e9a",
+      "new_mode": "100644",
+      "old_blob": "a50ab43863a8d1cf641b6d43f1e1989212fa5714",
+      "old_mode": "100644",
+      "path": "tests/contract/test_ioc_cli_contract.py"
+    },
+    {
+      "new_blob": "c7d90c33b40b26926f38656ca12bad68b12e093a",
+      "new_mode": "100644",
+      "old_blob": "24d69c9f8d3e6aaecbdcba23959ebfefda6d7b2c",
+      "old_mode": "100644",
+      "path": "tests/contract/test_page_capture_contract.py"
+    },
+    {
+      "new_blob": "8d99377c23f80459b9b7ef12eb74589555b1cce3",
+      "new_mode": "100644",
+      "old_blob": "d4d4d413e7b6368fda7ba9d7c6e0a2efe2713041",
+      "old_mode": "100644",
+      "path": "tests/contract/test_tool_adapters.py"
+    },
+    {
+      "new_blob": "84be816bcd03ce7effe44e0d6ef280ce0bd9482f",
+      "new_mode": "100644",
+      "old_blob": "59497cdb073b121a22c489e0913814048c7f3b8b",
+      "old_mode": "100644",
+      "path": "tests/e2e/test_html_junit_cli_exports.py"
+    },
+    {
+      "new_blob": "3d96c3931ffbe60349eba53de384d69d38ce0862",
+      "new_mode": "100644",
+      "old_blob": "709d5a2bc4ebed01d99027709121188fc0071060",
+      "old_mode": "100644",
+      "path": "tests/e2e/test_image_sbom_view_cli.py"
+    },
+    {
+      "new_blob": "5e98ecdf1422c0a72651e9893af2aa8e07ca303e",
+      "new_mode": "100644",
+      "old_blob": "343fa213496f93980092df5fdf05740814f67db1",
+      "old_mode": "100644",
+      "path": "tests/e2e/test_intelligence_cli.py"
+    },
+    {
+      "new_blob": "58bb4483871e7b136173820355cc0263b2a00d36",
+      "new_mode": "100644",
+      "old_blob": "0e408105e92e0f529d82a05ddacc669832ab4bf7",
+      "old_mode": "100644",
+      "path": "tests/e2e/test_ioc_cli.py"
+    },
+    {
+      "new_blob": "a2fd996581d6b04574ac1a09a0d19b3e4c349688",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/integration/test_attack_path_seed_replay.py"
+    },
+    {
+      "new_blob": "c323b073b471ee3a6f3aaacda5a97f2ae5574751",
+      "new_mode": "100644",
+      "old_blob": "dfe822c476eaa45a09570620c155f52ae6e91185",
+      "old_mode": "100644",
+      "path": "tests/integration/test_finding_persistence.py"
+    },
+    {
+      "new_blob": "8ef441a6278250357bc7d5c0987d6228ddf65a73",
+      "new_mode": "100644",
+      "old_blob": "2a18b625b8a7338063f71346c18da899279551e8",
+      "old_mode": "100644",
+      "path": "tests/integration/test_ioc_command_workflow.py"
+    },
+    {
+      "new_blob": "3e42f50e6d8efed13c4d720e0a41af5dd799cb45",
+      "new_mode": "100644",
+      "old_blob": "9963d67b2a790e338b3d13f25b44e039452b2524",
+      "old_mode": "100644",
+      "path": "tests/integration/test_progress_execution.py"
+    },
+    {
+      "new_blob": "1efa64bc0de4ed56acd4776458b6a3ffc8723ceb",
+      "new_mode": "100644",
+      "old_blob": "03eb0556de6f82b97b7b46a8766d07e2c7082ba6",
+      "old_mode": "100644",
+      "path": "tests/integration/test_report_export.py"
+    },
+    {
+      "new_blob": "db1cfb5dc94e9c6ba2bbdafbd83b3a9e78cd7de7",
+      "new_mode": "100644",
+      "old_blob": "8ab8921d5e5e2083fd697c2bb3fceaa3b729e8c0",
+      "old_mode": "100644",
+      "path": "tests/integration/test_security_model_integration.py"
+    },
+    {
+      "new_blob": "30ad76bebee53ee326ea855641165a3520336c3c",
+      "new_mode": "100644",
+      "old_blob": "f45cab5ef0b0fe9994ded5ab254a906357691dec",
+      "old_mode": "100644",
+      "path": "tests/unit/test_ci_workflows.py"
+    },
+    {
+      "new_blob": "f7335fce93f557f559b03c7dab804ea1312fb932",
+      "new_mode": "100644",
+      "old_blob": "dcd00fef22786a9db80fd2e76ba110848fd9c43a",
+      "old_mode": "100644",
+      "path": "tests/unit/test_evidence.py"
+    },
+    {
+      "new_blob": "c5d1d23c5c877b13b8b239e411e556c0cf12c947",
+      "new_mode": "100644",
+      "old_blob": "84556a24854462992089c0777efd295fef1bdd8e",
+      "old_mode": "100644",
+      "path": "tests/unit/test_image_sbom_view.py"
+    },
+    {
+      "new_blob": "6fcbba7b6c06e55b0ef0b231457b3a4bffbc8e2f",
+      "new_mode": "100644",
+      "old_blob": "ba82eb27b1e306d0acedf4164f8f50eee3ca7b82",
+      "old_mode": "100644",
+      "path": "tests/unit/test_intelligence_commands.py"
+    },
+    {
+      "new_blob": "0659faf166710c656122d034f7c00dd0be637f63",
+      "new_mode": "100644",
+      "old_blob": "0b19fa7cea2e9a3922e34b15876bd3913fcb2fa0",
+      "old_mode": "100644",
+      "path": "tests/unit/test_ioc_commands.py"
+    },
+    {
+      "new_blob": "9d909f35f912fe8793e7d28f5664eb208fee5444",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/unit/test_passive_integration.py"
+    },
+    {
+      "new_blob": "c0a1b0e49eae432c1416a187fd7a1c892620ed7b",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/unit/test_passive_scope.py"
+    },
+    {
+      "new_blob": "8bab9cebeca3144556ad5849608382d47d79bce5",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/unit/test_passive_test_gate.py"
+    },
+    {
+      "new_blob": "61f2b4c93c3db2b0a6e969b6c5b90d951f32f285",
+      "new_mode": "100644",
+      "old_blob": "961ee4164f56e8a9c5f6ced9a4dd898dba7251f0",
+      "old_mode": "100644",
+      "path": "tests/unit/test_reachability.py"
+    },
+    {
+      "new_blob": "d80236d66c1057f5a5d921ce3ca2c430ace4a42b",
+      "new_mode": "100644",
+      "old_blob": "09fb238464f55a274c4e855d52a1c6475ae2c04d",
+      "old_mode": "100644",
+      "path": "tests/unit/test_report_commands.py"
+    },
+    {
+      "new_blob": "53f56ce2a14a164795946906f43f42eb048fea4a",
+      "new_mode": "100644",
+      "old_blob": "45858b7f5e362945aa3f8f394e8a0b5e3e231205",
+      "old_mode": "100644",
+      "path": "tests/unit/test_reporting.py"
+    },
+    {
+      "new_blob": "db819e6b5de88c191d374821365176e424655eb1",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tests/unit/test_saved_report_acceptance.py"
+    },
+    {
+      "new_blob": "1ef7e194576f4d46bbc0cae5429a298f77b5d739",
+      "new_mode": "100644",
+      "old_blob": "871ef93baa8833f6bf69e324c8d31ee7ef0decd5",
+      "old_mode": "100644",
+      "path": "tests/unit/test_test_runner.py"
+    },
+    {
+      "new_blob": "e2ce2123bd0b0e89e6a0ad401ba5549cbb56c017",
+      "new_mode": "100644",
+      "old_blob": "71788ff66bd65dc7a5b7d3091f89621f83ba5cca",
+      "old_mode": "100644",
+      "path": "tools/compare_functional_reports.py"
+    },
+    {
+      "new_blob": "32ef569fd27cda169b550ce857dfeb41ebefb4b7",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tools/passive_lab_lifecycle.py"
+    },
+    {
+      "new_blob": "9e2d7336f5e2b5c87872baa3b7d4a10ca62fd122",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tools/passive_scope.py"
+    },
+    {
+      "new_blob": "31520b52a9b7583c4ef1372de313135f8bca0f18",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tools/passive_test_gate.py"
+    },
+    {
+      "new_blob": "8a7821787e3f8f33c0be1ce5107292d18034ebf7",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tools/saved_report_acceptance.py"
+    },
+    {
+      "new_blob": "dbb0940292d3651daa770b1f2b1f7a4f140be676",
+      "new_mode": "100644",
+      "old_blob": "0000000000000000000000000000000000000000",
+      "old_mode": "000000",
+      "path": "tools/saved_report_scope.py"
+    },
+    {
+      "new_blob": "2400d4ce00312fe9ccdd3ae18ca91818701675be",
+      "new_mode": "100644",
+      "old_blob": "73810084f0f20345a984aaf963cab9eb34ff7c67",
+      "old_mode": "100644",
+      "path": "uv.lock"
+    }
+  ],
+  "head_ref": "feature/passive-batch-workbench",
+  "schema_version": 1
+}
