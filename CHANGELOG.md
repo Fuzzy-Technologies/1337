@@ -8,6 +8,38 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 33 — v0.4.33 — 2026-11-25
+
+#### Digest
+
+- Review verified source matches and freshness for a saved finding before applying enrichment.
+
+#### Added
+
+- Add read-only `1337 intel preview` over the same source/receipt, explicit finding,
+  identifiers, revision, interpretation time and freshness budget as apply. Return
+  the exact new candidate observations, source/evidence links, unmatched IDs and
+  staleness without saving model or evidence state.
+
+
+### Patch 32 — v0.4.32 — 2026-11-25
+
+#### Digest
+
+- Surface score timing and remediation deadlines in offline inspection.
+
+#### Fixed
+
+- Show the verified UTC score timestamp alongside probability and percentile
+  in selected `1337 intel inspect` text output.
+- Show the retained KEV remediation due date beside the required action in
+  selected `1337 intel inspect` text output.
+- Show declared source/license attribution and keep source-wide CVE profiles
+  ahead of unmatched identifiers in selected text inspection.
+- Show the verified original source SHA-256 when selected text inspection
+  matches a retained record.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest
