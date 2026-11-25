@@ -281,9 +281,21 @@ from fuzzy1337.model import LocalModelStore
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.workspace import LocalWorkspaceStore
 
+
+def MatchesFindingIdentity(observation, finding):
+    """Compare the saved detection with the canonical Finding identity."""
+
+    return all(
+        observation["attributes"].get(key) == finding["normalized"][key]
+        for key in ("fingerprint", "check_id", "subject_reference", "location_key")
+    )
+
+
 parser = ArgumentParser(description="Read saved showcase marker evidence.")
 parser.add_argument("workspace", type=Path)
-parser.add_argument("--observation", metavar="REFERENCE")
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--observation", metavar="REFERENCE")
+mode.add_argument("--list-observations", action="store_true")
 args = parser.parse_args()
 root = args.workspace
 snapshot = ReportSnapshot(LocalModelStore(root).Open())
@@ -297,6 +309,27 @@ observations = [
     if item["kind"] == "finding-detection"
     and item["provenance"]["source_id"] == "showcase-fixture"
 ]
+
+if args.list_observations:
+    markerFindings = {item["reference"]: item for item in findings}
+    rows = []
+
+    for observation in observations:
+        finding = markerFindings.get(observation["subject_reference"])
+
+        if finding is not None and MatchesFindingIdentity(observation, finding):
+            rows.append((
+                observation["reference"], observation["provenance"]["observed_at"],
+                finding["reference"],
+            ))
+
+    if not rows:
+        raise SystemExit("No matching saved showcase fixture observations.")
+
+    for row in rows:
+        print(*row)
+
+    raise SystemExit(0)
 
 if args.observation is not None:
     matches = [item for item in observations if item["reference"] == args.observation]
@@ -323,10 +356,7 @@ if len(observations) != 1:
     )
 observation = observations[0]
 
-if args.observation is not None and any(
-    observation["attributes"].get(key) != finding["normalized"][key]
-    for key in ("fingerprint", "check_id", "subject_reference", "location_key")
-):
+if not MatchesFindingIdentity(observation, finding):
     raise SystemExit("Saved fixture observation and marker Finding identities do not match")
 
 provenance = observation["provenance"]
@@ -358,20 +388,20 @@ print("Registered in workspace snapshot:", "yes" if registered else "no")
 PY
 ```
 
-When a workspace retains more than one marker Finding or fixture observation,
-add `--observation 'observation:…'` after the quoted workspace path and before
-`<<'PY'`. Supply the full reference from the second value in a previous result or
-from `observations[].reference` in `state/model/model.json`. In the saved model,
-look for a `finding-detection` observation with `provenance.source_id` equal to
-`showcase-fixture`. The reader checks the selected observation's recorded Finding
-identity before verifying the acquisition.
+To list matching saved observations, add `--list-observations` after the quoted
+workspace path and before `<<'PY'`. Each row gives the observation reference,
+its saved observation time and the linked Finding reference. To verify a listed
+observation's acquisition, replace `--list-observations` with
+`--observation 'observation:…'`, using the full reference from that row's first
+field.
 
-The first line gives the Finding, saved observation and acquisition IDs. The
-original marker has `id` equal to `evidence.initial-topology`, `type` equal to
-`topology-seed` and `provenance` equal to `seeded`. This fixture explicitly uses
-the acquisition ID as its `run_reference`. Other sources can retain a job ID
-there. A shared raw digest can belong to multiple acquisitions, so leave
-attribution unresolved when the original acquisition cannot be identified.
+A successful acquisition inspection prints the Finding, saved observation and
+acquisition IDs on its first line. The original marker has `id` equal to
+`evidence.initial-topology`, `type` equal to `topology-seed` and `provenance`
+equal to `seeded`. This fixture explicitly uses the acquisition ID as its
+`run_reference`. Other sources can retain a job ID there. A shared raw digest
+can belong to multiple acquisitions, so leave attribution unresolved when the
+original acquisition cannot be identified.
 The third line reports whether the verified acquisition ID is registered in the
 opened workspace snapshot. The finding-replay fixture stores the acquisition
 and leaves the workspace registry empty.
