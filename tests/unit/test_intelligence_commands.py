@@ -520,6 +520,27 @@ def test_SelectedDetailsPreserveExactRecordsAndExplicitUnmatchedIdentifiers(tmp_
     )
 
 
+def test_HumanCveDetailsBindSourceProfilesBeforeTheUnmatchedSelection(tmp_path):
+    """Keep declared source custody and CVE profiles ahead of an unmatched selection."""
+
+    model, _, imported = ImportedDetails(tmp_path)
+    status, human = Run([
+        *Selection("inspect", model.root, imported),
+        "--identifier", "CVE-1900-9999", "--identifier", "CVE-1900-8888",
+    ], json_output=False)
+    assert status == 0, "Mixed selected CVE inspection failed."
+    assert "Origin (declared): synthetic" in human and (
+        "License (declared): Apache-2.0 synthetic fixture; "
+        "https://example.invalid/LICENSE"
+    ) in human, "Human inspection omitted retained source origin or license attribution."
+
+    profile = "CVE source profiles for selected verified source:"
+    unmatched = "Not present in this selected snapshot: CVE-1900-8888"
+    assert profile in human and human.index(profile) < human.index(unmatched), (
+        "Source profiles appeared to belong to the later unmatched identifier."
+    )
+
+
 @pytest.mark.parametrize("version", ["5.0", "5.1", "5.1.1"])
 def test_OlderCveFormatsRetainAssertionsWithoutInventingNewProfileSupport(tmp_path, version):
     """Unsupported extended source formats remain explicit while original snapshot support works."""

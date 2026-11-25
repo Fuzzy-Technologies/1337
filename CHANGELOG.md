@@ -20,6 +20,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   in selected `1337 intel inspect` text output.
 - Show the retained KEV remediation due date beside the required action in
   selected `1337 intel inspect` text output.
+- Show declared source/license attribution and keep source-wide CVE profiles
+  ahead of unmatched identifiers in selected text inspection.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04

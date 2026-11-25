@@ -357,7 +357,10 @@ def WriteIntelDetails(details: dict[str, object], output: TextIO) -> None:
     source = cast(dict[str, object], details["source"])
     output.write("Source assertions; target applicability has not been evaluated.\n")
     output.write(f"Publisher (declared): {IntelDisplay(source['publisher'])}\n")
+    output.write(f"Origin (declared): {IntelDisplay(source['origin'])}\n")
     output.write(f"Source: {IntelDisplay(source['source_url'])}\n")
+    output.write(f"License (declared): {IntelDisplay(source['license_name'])}; "
+                 f"{IntelDisplay(source['license_url'])}\n")
     output.write("Publisher authentication: not assessed.\n")
 
     for record in cast(list[dict[str, object]], details["records"]):
@@ -393,15 +396,16 @@ def WriteIntelDetails(details: dict[str, object], output: TextIO) -> None:
                              f"assessor {IntelDisplay(assessment['assessor'])}; "
                              f"{IntelDisplay(assessment['vector'])}\n")
 
+    profiles = details.get("cve_source_profiles")
+
+    if isinstance(profiles, dict):
+        output.write("CVE source profiles for selected verified source: "
+                     + IntelDisplay(profiles) + "\n")
+
     unmatched = cast(list[str], details["unmatched_identifiers"])
 
     if unmatched:
         output.write("Not present in this selected snapshot: " + ", ".join(unmatched) + "\n")
-
-    profiles = details.get("cve_source_profiles")
-
-    if isinstance(profiles, dict):
-        output.write("CVE source profiles: " + IntelDisplay(profiles) + "\n")
 
 
 def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
