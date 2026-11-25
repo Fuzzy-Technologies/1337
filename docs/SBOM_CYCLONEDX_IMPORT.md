@@ -76,9 +76,17 @@ The Internal schema-one result identifies `sbom.import.cyclonedx` and separate
 acquisition/model/workspace acknowledgements. A changed import uses one model
 revision and the independent workspace CAS owner. Previous evidence, model facts
 and operator triage remain retained. A later failure can leave earlier durable
-state; lost responses stay unknown and do not prove rollback. Explicitly retry
-with the current saved bases and original product manifest. No cross-store atomic
-transaction is claimed.
+state; lost responses stay unknown and do not prove rollback.
+
+Retained recovery is available only when the original product-custody fact is
+actually present in the saved model, including a save whose acknowledgement was
+lost. Reopen the saved owners, then retry that original product manifest with
+their current revisions. If normalization was refused or the model never saved
+the custody fact, an acquisition manifest alone cannot supply product replay.
+Correct or repeat the explicit owned-file operation with its source byte pin,
+read descriptions and current saved revisions. Do not promote retained bytes to
+a successful historical product interpretation. No cross-store atomic transaction
+is claimed.
 
 Exit `0` requires confirmed completion, `2` is invalid configuration, `4` is
 integrity/format/storage refusal or uncertainty, and `130` is interruption.
