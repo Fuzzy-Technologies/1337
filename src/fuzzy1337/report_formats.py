@@ -405,6 +405,17 @@ def _FindingSeverityIndex(
     return "\n".join(lines)
 
 
+def _PortNumberSortKey(row: tuple[str, SecurityObject]) -> tuple[int, int]:
+    """Order retained integer port numbers before all other saved value types."""
+
+    number = row[1].attributes.get("number")
+
+    if type(number) is int:
+        return (0, number)
+
+    return (1, 0)
+
+
 def ObjectTables(rows: _RetainedReportRows) -> str:
     """Present retained objects as readable inventory without claiming discovery or reachability.
 
@@ -438,14 +449,18 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
     for kind, heading, fields in groups:
         entities = rows.assetsByKind.get(kind, ())
+
+        if kind is ObjectKind.PORT:
+            entities = tuple(sorted(entities, key=_PortNumberSortKey))
+
         headingId = f"model-{kind.value}-table-heading"
-        inventory.append((headingId, f"{heading} ({len(entities)})", fields, entities))
+        inventory.append((kind, headingId, f"{heading} ({len(entities)})", fields, entities))
 
     primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
     others = [(reference, entity) for reference, entity in rows.objects.items()
               if entity.identity.kind not in primary]
     otherGroup = ("model-other-objects-heading", f"Other retained objects ({len(others)})")
-    links = [(headingId, label) for headingId, label, _, entities in inventory if entities]
+    links = [(headingId, label) for _, headingId, label, _, entities in inventory if entities]
 
     if others:
         links.append(otherGroup)
@@ -487,7 +502,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
             for filterId, _, count, message in filters
         )
 
-    for headingId, label, fields, entities in inventory:
+    for kind, headingId, label, fields, entities in inventory:
         marker = _AssetGroupFindingsMarker(entities, findingsBySubject) if includeFilter else ""
         lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
@@ -498,7 +513,12 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
         lines.append(_TableStart(headingId, assetFindingsMarker=marker)
                      + '<th scope="col">Saved identity</th>')
-        lines.extend(f'<th scope="col">{Html(label)}</th>' for label, _ in fields)
+
+        for column, names in fields:
+            sort = (' aria-sort="ascending"'
+                    if kind is ObjectKind.PORT and names == ("number",) else "")
+            lines.append(f'<th scope="col"{sort}>{Html(column)}</th>')
+
         lines.append('<th scope="col">Findings</th>'
                      '<th scope="col">Details</th></tr></thead><tbody>')
 

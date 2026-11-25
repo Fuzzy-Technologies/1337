@@ -921,6 +921,52 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         assert [cell.text for cell in cells[:-2]] == list(values)
 
 
+def test_HtmlPortsOrderRetainedIntegersWithCanonicalTies():
+    """Order saved integer ports while preserving retained display values and links."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    ports = tuple(SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.PORT, f"127.0.0.1/{key}"),
+        attributes, host.provenance,
+    ) for key, attributes in (
+        ("tcp/8080", {"protocol": "tcp", "number": 8080}),
+        ("tcp/80", {"protocol": "tcp", "number": 80}),
+        ("udp/443", {"protocol": "udp", "number": 443}),
+        ("tcp/443", {"protocol": "tcp", "number": 443}),
+        ("tcp/53", {"protocol": "tcp", "number": "53"}),
+        ("tcp/21", {"protocol": "tcp"}),
+        ("tcp/7", {"protocol": "tcp", "number": True}),
+    ))
+    state, _ = report.state.Apply(objects=ports)
+    finding = Finding(ports[2].Reference(), "synthetic.port-order", "saved", "Port finding",
+                      host.provenance)
+    state, _ = ApplyFindings(state, (finding,))
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    modelHtml = rendered.split('<section id="model">', 1)[1].split("</section>", 1)[0]
+    model = ElementTree.fromstring(f"<section>{modelHtml}</section>")
+    table, = model.findall('.//table[@aria-labelledby="model-port-table-heading"]')
+    numberHeader, = table.findall('thead/tr/th[@aria-sort="ascending"]')
+    assert numberHeader.text == "Number"
+    canonical = state.Objects(ObjectKind.PORT)
+    ties = [entity for entity in canonical if entity.attributes.get("number") == 443]
+    other = [entity for entity in canonical if type(entity.attributes.get("number")) is not int]
+    expected = [ports[1], *ties, ports[0], *other]
+    portRows = table.findall("tbody/tr")
+    assert [(row.get("id"), row.findtext("th")) for row in portRows] == [
+        (f"object-{entity.Reference()[7:]}", entity.identity.key) for entity in expected
+    ]
+    assert [row.findall("td")[1].text for row in portRows] == [
+        "80", "443", "443", "8080",
+        *(str(entity.attributes.get("number", "Not recorded")) for entity in other),
+    ]
+    ownerRow, = table.findall(f'.//tr[@id="object-{ports[2].Reference()[7:]}"]')
+    findingLink, = ownerRow.findall("td/ul/li/a")
+    fragment = f"finding-{finding.ToObject(state.workspace_id).Reference()[7:]}"
+    assert findingLink.get("href") == f"#{fragment}"
+    assert f'id="{fragment}"' in rendered
+
+
 def test_HtmlAssetTypesJumpToPopulatedInventoryGroups():
     """Give each populated inventory group a counted, keyboard-focusable fragment target."""
 
