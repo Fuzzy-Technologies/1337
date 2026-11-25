@@ -93,18 +93,18 @@ def private_system(monkeypatch):
         )
 
     if os.name == "nt":
-        path_info = custody.ArtifactPathInfo
-        handle_info = custody.ArtifactHandleInfo
+        pathInfo = custody.ArtifactPathInfo
+        handleInfo = custody.ArtifactHandleInfo
 
         def PathInfo(path, *, directory=False):
             """Retain actual identity/size checks under the unit-only mode view."""
 
-            return FakePosixInfo(path_info(path, directory=directory))
+            return FakePosixInfo(pathInfo(path, directory=directory))
 
         def HandleInfo(descriptor):
             """Retain the actual opened handle identity under the unit-only mode view."""
 
-            return FakePosixInfo(handle_info(descriptor))
+            return FakePosixInfo(handleInfo(descriptor))
 
         monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
         monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
@@ -128,21 +128,21 @@ def custody_diagnostics(monkeypatch):
     import fuzzy1337.owned_response_custody as custody
 
     failures = []
-    observed_errors = []
-    original_append = OwnedResponseStage.Append
-    original_capture = JobContext.CaptureEvidence
-    original_verify = custody.VerifyEvidence
-    original_path_info = custody.ArtifactPathInfo
-    path_observations = []
+    observedErrors = []
+    originalAppend = OwnedResponseStage.Append
+    originalCapture = JobContext.CaptureEvidence
+    originalVerify = custody.VerifyEvidence
+    originalPathInfo = custody.ArtifactPathInfo
+    pathObservations = []
 
     def PathInfo(path, *, directory=False):
         """Remember at most eight original file observations without extra filesystem reads."""
 
-        info = original_path_info(path, directory=directory)
+        info = originalPathInfo(path, directory=directory)
 
         if not directory:
-            path_observations.append((path, info))
-            del path_observations[:-8]
+            pathObservations.append((path, info))
+            del pathObservations[:-8]
 
         return info
 
@@ -157,7 +157,7 @@ def custody_diagnostics(monkeypatch):
             return ()
 
         latest = next(
-            (info for path, info in reversed(path_observations) if path == local["path"]), None
+            (info for path, info in reversed(pathObservations) if path == local["path"]), None
         )
         pairs = (("path-before/fd-open", before, opened), ("fd-open/fd-after", opened, after))
 
@@ -176,10 +176,10 @@ def custody_diagnostics(monkeypatch):
         """Keep one bounded control-only traceback without source bytes, paths or messages."""
 
         while error is not None and len(failures) < 3:
-            if any(error is observed for observed in observed_errors):
+            if any(error is observed for observed in observedErrors):
                 break
 
-            observed_errors.append(error)
+            observedErrors.append(error)
             locations = []
             checks = ()
             trace = error.__traceback__
@@ -239,7 +239,7 @@ def custody_diagnostics(monkeypatch):
         """Preserve the original staging call and expose only its fixed failed phase."""
 
         try:
-            return original_append(self, frame)
+            return originalAppend(self, frame)
 
         except Exception as error:
             RecordFailure("stage-" + frame["kind"], error)
@@ -249,7 +249,7 @@ def custody_diagnostics(monkeypatch):
         """Preserve original attachment semantics, including an error after real attachment."""
 
         try:
-            return original_capture(self, *args, **kwargs)
+            return originalCapture(self, *args, **kwargs)
 
         except Exception as error:
             RecordFailure("capture-evidence", error)
@@ -259,7 +259,7 @@ def custody_diagnostics(monkeypatch):
         """Preserve exact original evidence verification without publishing its diagnostics."""
 
         try:
-            return original_verify(*args, **kwargs)
+            return originalVerify(*args, **kwargs)
 
         except Exception as error:
             RecordFailure("verify-evidence", error)
@@ -662,8 +662,8 @@ def test_PortableDiagnosticsObserveFirstOriginalFailureBeforeOrDuringCustody(
     PrintCustodyDiagnostics(custody_diagnostics)
     output = capsys.readouterr()
     value = json.loads(output.out.removeprefix("OWNED_CUSTODY "))
-    expected_kind = "OwnedResponseRecordError" if phase == "prestage-admission" else "ValueError"
-    assert value["phase"] == phase and value["type"] == expected_kind and value["location"], (
+    expectedKind = "OwnedResponseRecordError" if phase == "prestage-admission" else "ValueError"
+    assert value["phase"] == phase and value["type"] == expectedKind and value["location"], (
         "Each actual failed boundary must retain its fixed phase, original kind and source location"
     )
     assert private.decode() not in output.out and len(output.out) < 512 and not output.err, (
@@ -724,14 +724,14 @@ def test_FakePosixViewRepairsProvenCrossApiCtimeMismatchOnly(tmp_path, monkeypat
     raw = b"closed unit bytes"
     selected.write_bytes(raw)
     selected.chmod(0o600)
-    path_info = custody.ArtifactPathInfo
-    handle_info = custody.ArtifactHandleInfo
+    pathInfo = custody.ArtifactPathInfo
+    handleInfo = custody.ArtifactHandleInfo
     coherent = [False]
 
     def PathInfo(path, *, directory=False):
         """Model one stable path ctime view while preserving real common identity fields."""
 
-        info = FakePosixInfo(path_info(path, directory=directory))
+        info = FakePosixInfo(pathInfo(path, directory=directory))
         info.st_ctime_ns += 1
 
         return FakePosixInfo(info) if coherent[0] else info
@@ -739,7 +739,7 @@ def test_FakePosixViewRepairsProvenCrossApiCtimeMismatchOnly(tmp_path, monkeypat
     def HandleInfo(descriptor):
         """Model the distinct stable handle ctime that the actual Windows trace identified."""
 
-        info = FakePosixInfo(handle_info(descriptor))
+        info = FakePosixInfo(handleInfo(descriptor))
         info.st_ctime_ns += 2
 
         return FakePosixInfo(info) if coherent[0] else info
@@ -765,14 +765,14 @@ def test_CoherentUnitViewStillRefusesExactCtimeOnlyMutation(tmp_path, monkeypatc
     selected = tmp_path / "original"
     selected.write_bytes(b"closed unit bytes")
     selected.chmod(0o600)
-    path_info = custody.ArtifactPathInfo
-    handle_info = custody.ArtifactHandleInfo
+    pathInfo = custody.ArtifactPathInfo
+    handleInfo = custody.ArtifactHandleInfo
     calls = {"path": 0, "fd": 0}
 
     def PathInfo(path, *, directory=False):
         """Preserve the original coherent path view except the selected second observation."""
 
-        info = FakePosixInfo(path_info(path, directory=directory))
+        info = FakePosixInfo(pathInfo(path, directory=directory))
         calls["path"] += 1
 
         if changed == "path-after" and calls["path"] == 2:
@@ -783,7 +783,7 @@ def test_CoherentUnitViewStillRefusesExactCtimeOnlyMutation(tmp_path, monkeypatc
     def HandleInfo(descriptor):
         """Preserve real fields and inject only the selected second handle ctime."""
 
-        info = FakePosixInfo(handle_info(descriptor))
+        info = FakePosixInfo(handleInfo(descriptor))
         calls["fd"] += 1
 
         if changed == "fd-after" and calls["fd"] == 2:
@@ -1031,12 +1031,12 @@ def test_FakeClockLateBudgetsNeverBecomeSuccess(tmp_path, monkeypatch, runner, k
     monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
 
     if kind == "custody":
-        original_put = provider.store.Put
+        originalPut = provider.store.Put
 
         def Put(*args):
             """Simulate elapsed fsync without a real blocking test."""
 
-            result = original_put(*args)
+            result = originalPut(*args)
             elapsed[0] += 2
             return result
 
