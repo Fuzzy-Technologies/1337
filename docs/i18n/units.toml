@@ -28373,3 +28373,46 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+[[units]]
+id = "page:api.fuzzy1337.retained-report-ci"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.retained_report_ci.md"
+sourceHash = "sha256:7fb60e6e28e5deafbe5b2a5944ac241db250d3919f534ff398ea75db00a7e5dc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.retained_report_ci.ExportReceipt"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/retained_report_ci.py"
+sourceHash = "sha256:e95da49ac84ac6c8b4a7637ca3208a2074c9594ac891e23f981729358d06c2d7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.retained_report_ci.Main"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/retained_report_ci.py"
+sourceHash = "sha256:1fd612d3dafa1433cdcbb934e837a7242c2085f115340a939910f730b733a072"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.retained_report_ci.VerifyReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/retained_report_ci.py"
+sourceHash = "sha256:9a970ecb3d791091d8456320d85bfeda0510b40128d032d3b75328945dc05185"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

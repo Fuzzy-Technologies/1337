@@ -245,6 +245,12 @@ manifest; exact replay is idempotent, and bounded query limitations remain expli
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.retained_report_ci` is an Internal packaged owner for the opt-in
+GitLab/GitHub saved-report examples. It consumes existing `report export`
+contracts and adds no supported Python SDK, console entry point, report schema,
+finding threshold or remote connector. Its platform bootstraps require the
+corresponding approved installed wheel; repository write authority is not needed.
+
 `fuzzy1337.reporting` and `fuzzy1337.report_formats` are Experimental libraries.
 
 `fuzzy1337.ci_gate` and the `1337 ci scan` command add an Experimental
