@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from dataclasses import replace
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
 
 import pytest
 
@@ -17,6 +18,289 @@ from fuzzy1337 import intelligence_cve_remote as remote
 from fuzzy1337.evidence import EvidenceError
 from tests.e2e.test_intelligence_cli import Files
 from tests.integration.test_intelligence_acquisition_persistence import Context
+from tests.integration.test_intelligence_cve_batch import (
+    OwnedReceiver,
+    Requests,
+    Workspace,
+)
+
+
+def SavedMembers(temporaryPath, monkeypatch, requests):
+    """Retain independent original custody from owned bytes without contacting a source."""
+
+    owner = Workspace(temporaryPath)
+    OwnedReceiver(monkeypatch, requests)
+    outcomes = tuple(remote.AcquireHttpsCveSelection(
+        owner.root, request, scope_reference=f"scope:owned-{index}",
+    ) for index, request in enumerate(requests))
+    assert all(outcome.state is remote.CveHttpsState.SUCCEEDED for outcome in outcomes), (
+        "Saved selection fixture must retain complete independent original custody"
+    )
+    monkeypatch.setattr(remote, "ReceiveIsolatedHttps", Refuse)
+    monkeypatch.setattr(remote, "AcquireHttpsCveSelection", Refuse)
+
+    return owner.root, outcomes
+
+
+def SavedArguments(root, outcomes):
+    """Select explicit original manifest pairs in caller order without a synthetic set ID."""
+
+    return ["inspect-set", str(root), *(value for outcome in outcomes for value in (
+        "--member", outcome.snapshot_record.evidence_id, outcome.receipt.evidence_id,
+    ))]
+
+
+@pytest.mark.parametrize("count", [2, 4])
+def test_SavedSetInspectionPreservesIndependentCustodyAndCallerOrder(
+    tmp_path, monkeypatch, count,
+):
+    """An operator reopens an explicit ordered set after relocation without receive or writes."""
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(count))
+    relocated = tmp_path / "relocated"
+    shutil.move(root, relocated)
+    before = Files(relocated)
+    status, result = Run(SavedArguments(relocated, outcomes[::-1]))
+    assert status == 0 and result["profile"] == "cve-https-saved-set-cli", (
+        "The saved-set operator route must verify every original member"
+    )
+    assert [member["source"]["identifier"] for member in result["members"]] == [
+        outcome.source.identifier for outcome in outcomes[::-1]
+    ], "Saved set inspection must preserve caller order rather than sorting CVEs"
+    assert [member["provenance"] for member in result["members"]] == [
+        outcome.raw.provenance.ToDict() for outcome in outcomes[::-1]
+    ], "Each member must retain its independent original owner, scope and acquisition clocks"
+    assert all(member["selection_reference"] == outcome.envelope.Reference()
+               and member["receipt_id"] == outcome.receipt.evidence_id
+               and member["snapshot"]["reference"] == outcome.envelope.snapshot.Reference()
+               for member, outcome in zip(result["members"], outcomes[::-1], strict=True)), (
+        "A set projection must preserve both original custody roots and distinct reference families"
+    )
+    assert result["publisher_authentication"] == "not-assessed" and result[
+        "target_applicability"
+    ] == result["risk_assessment"] == "not-evaluated" and result[
+        "model_commit"
+    ] == "not-attempted", "Saved custody must confer no new assessment or model authority"
+    assert "set_id" not in result and "batch_id" not in result, (
+        "A caller's explicit list must not become a fabricated persisted batch identity"
+    )
+    assert Files(relocated) == before, "Offline saved-set inspection must change no owning file"
+
+
+@pytest.mark.parametrize("case", ["zero", "one", "five", "duplicate-selection", "duplicate-receipt",
+                                  "prefix", "digest", "duplicate-workspace", "abbreviation"])
+def test_SavedSetPreflightBeforeStorage(tmp_path, monkeypatch, case):
+    """All finite pair admission completes before even opening the owning workspace."""
+
+    pairs = [("sha256:" + str(index) * 64, "sha256:" + str(index + 4) * 64)
+             for index in (1, 2)]
+
+    if case in {"zero", "one", "five"}:
+        pairs = {"zero": [], "one": pairs[:1], "five": pairs + pairs + pairs[:1]}[case]
+
+    elif case == "duplicate-selection":
+        pairs[1] = (pairs[0][0], pairs[1][1])
+
+    elif case == "duplicate-receipt":
+        pairs[1] = (pairs[1][0], pairs[0][1])
+
+    elif case in {"prefix", "digest"}:
+        pairs[1] = ("untrusted-value" if case == "prefix" else "sha256:" + "A" * 64,
+                    pairs[1][1])
+
+    arguments = ["inspect-set", str(tmp_path / "absent"),
+                 *(value for pair in pairs for value in ("--member", *pair))]
+
+    if case == "duplicate-workspace":
+        arguments += ["--workspace", "untrusted-value"]
+
+    elif case == "abbreviation":
+        arguments[2] = "--mem"
+
+    monkeypatch.setattr(remote, "LoadHttpsCveSelection", Refuse)
+    monkeypatch.setattr(commands.LocalWorkspaceStore, "Open", Refuse)
+    status, result = Run(arguments)
+    assert status == 2 and result["failure"] == "configuration" and result["members"] == [], (
+        "Invalid explicit pair selection must fail before original custody reads"
+    )
+    assert "untrusted-value" not in json.dumps(result), "Rejected pins must not enter diagnostics"
+
+
+@pytest.mark.parametrize("case", ["swapped-receipt", "raw-root", "corrupt-original",
+                                  "mixed-commit", "duplicate-cve"])
+def test_SavedSetRequiresEveryOriginalMemberWithoutPartialAssertions(
+    tmp_path, monkeypatch, case,
+):
+    """Foreign families, broken joins and incompatible source members cannot supply a set result."""
+
+    requests = Requests(2)
+
+    if case == "mixed-commit":
+        requests = (requests[0], replace(requests[1], source=replace(
+            requests[1].source, commit="b" * 40,
+        )))
+
+    elif case == "duplicate-cve":
+        requests = (requests[0], replace(requests[0], timeout_seconds=1))
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, requests)
+    arguments = SavedArguments(root, outcomes)
+
+    if case == "swapped-receipt":
+        arguments[-1] = outcomes[0].receipt.evidence_id
+        arguments[4] = outcomes[1].receipt.evidence_id
+
+    elif case == "raw-root":
+        arguments[-2] = outcomes[1].raw.evidence_id
+
+    elif case == "corrupt-original":
+        (root / "evidence" / outcomes[1].raw.reference.locator).write_bytes(b"corrupt")
+
+    before = Files(root)
+    status, result = Run(arguments)
+    assert status == 4 and result["failure"] == "integrity" and result["members"] == [], (
+        "An invalid original member must refuse the whole projection without partial assertions"
+    )
+    assert Files(root) == before, "Saved custody refusal must leave all original bytes unchanged"
+
+
+def test_SavedSetRefusesLegacyLocalFamilyWithoutReinterpretingRoots(tmp_path, monkeypatch):
+    """An independently valid local receipt/snapshot pair cannot enter the remote CVE family."""
+
+    from fuzzy1337.intelligence_acquisition import AcquireIntelligenceSnapshot, SnapshotRequest
+    from tests.integration.test_intelligence_acquisition_persistence import RAW, Source
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(2))
+    local = AcquireIntelligenceSnapshot(
+        root, SnapshotRequest(Source(), RAW), scope_reference="scope:local",
+    )
+    assert local.snapshot_record is not None and local.receipt is not None, (
+        "Legacy local fixture must retain its own independently valid roots"
+    )
+    arguments = SavedArguments(root, outcomes)
+    arguments[-2:] = [local.snapshot_record.evidence_id, local.receipt.evidence_id]
+    before = Files(root)
+    status, result = Run(arguments)
+    assert status == 4 and result["failure"] == "integrity" and result["members"] == [], (
+        "Saved CVE set inspection must refuse valid custody from another source family"
+    )
+    assert Files(root) == before, "Source-family refusal must not rewrite original custody"
+
+
+def test_SavedSetHelpReadsNothing(monkeypatch):
+    """Focused saved-set help documents the input ceiling without reading a workspace."""
+
+    monkeypatch.setattr(commands.LocalWorkspaceStore, "Open", Refuse)
+    status, text = Run(["inspect-set", "--help"], human=True)
+    assert status == 0 and "two to four" in text, "Saved-set help must expose its finite selection"
+
+
+@pytest.mark.parametrize("human", [False, True], ids=["json", "human"])
+def test_SavedSetPresentationLimitRefusesWithoutPartialAssertions(tmp_path, monkeypatch, human):
+    """A terminal projection is complete, portable and bounded before its single output write."""
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(2))
+    monkeypatch.setattr(commands, "MAX_SAVED_SET_TERMINAL_BYTES", 1024)
+    before = Files(root)
+    status, result = Run(SavedArguments(root, outcomes), human=human)
+    assert status == 4 and "presentation-limit" in str(result), (
+        "An excessive saved-set terminal document must produce a fixed bounded refusal"
+    )
+    assert "CVE-1900" not in str(result), (
+        "Presentation failure must not print partial CVE assertions"
+    )
+    assert Files(root) == before, "Terminal refusal must not mutate saved original custody"
+
+
+@pytest.mark.parametrize("failure,expected", [(KeyboardInterrupt, 130), (OSError, 4)])
+def test_SavedSetReadInterruptionKeepsNoSuccessfulSubset(tmp_path, monkeypatch, failure, expected):
+    """A later original-read failure cannot publish an earlier verified subset as success."""
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(2))
+    original = remote.LoadHttpsCveSelection
+    calls = []
+
+    def Load(root, selection, receipt):
+        """Interrupt only the second owning loader after the first verifies normally."""
+
+        calls.append(selection)
+
+        if len(calls) == 2:
+            raise failure("untrusted-value")
+
+        return original(root, selection, receipt)
+
+    monkeypatch.setattr(remote, "LoadHttpsCveSelection", Load)
+    status, result = Run(SavedArguments(root, outcomes))
+    assert status == expected and result["status"] == "failed" and result["members"] == [], (
+        "Interrupted saved-set verification must not publish an earlier successful subset"
+    )
+    assert "untrusted-value" not in json.dumps(result), (
+        "Saved-set read failures must not echo input"
+    )
+
+
+def test_SavedSetPortablePresentationAndShortWriteAreExplicit(tmp_path, monkeypatch):
+    """Source Unicode remains reversible in JSON and one incomplete stream write is an error."""
+
+    value = {"command": "intel.cve.https.inspect-set", "status": "succeeded",
+             "description": "Owned \u00e9\u6d4b\u8bd5\nsource"}
+    encoded = commands.CveSavedSetTerminal(value, jsonOutput=True)
+    assert encoded.isascii() and json.loads(encoded) == value, (
+        "Portable saved-set JSON must retain exact source text through ASCII escaping"
+    )
+    human = commands.CveSavedSetTerminal(value, jsonOutput=False)
+    assert human.isascii() and "\\xe9" in human and "\\nsource" in human, (
+        "Human saved-set presentation must escape Unicode and source controls"
+    )
+
+    with monkeypatch.context() as boundary:
+        boundary.setattr(commands, "MAX_SAVED_SET_TERMINAL_BYTES", len(encoded))
+        assert commands.CveSavedSetTerminal(value, jsonOutput=True) == encoded, (
+            "A complete terminal document exactly at the byte ceiling must remain admissible"
+        )
+        boundary.setattr(commands, "MAX_SAVED_SET_TERMINAL_BYTES", len(encoded) - 1)
+
+        with pytest.raises(ValueError, match="byte ceiling"):
+            commands.CveSavedSetTerminal(value, jsonOutput=True)
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(2))
+
+    stream = StringIO()
+    originalWrite = stream.write
+    monkeypatch.setattr(stream, "write", lambda text: originalWrite(text[:3]))
+
+    with pytest.raises(OSError, match="Incomplete"):
+        commands.RunCveHttpsCommands(SavedArguments(root, outcomes), stream, json_output=True)
+
+    assert len(stream.getvalue()) == 3, (
+        "A short terminal write must not retry or append another result"
+    )
+
+
+def test_SavedSetLateCancellationClearsAlreadyVerifiedAssertions(tmp_path, monkeypatch):
+    """Cancellation during presentation cannot expose the already verified member projection."""
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(2))
+    original = commands.CveSavedSetTerminal
+    calls = []
+
+    def Render(outcome, *, jsonOutput):
+        """Cancel the first render, then permit only the fixed interruption fallback."""
+
+        calls.append(outcome["status"])
+
+        if len(calls) == 1:
+            raise KeyboardInterrupt
+
+        return original(outcome, jsonOutput=jsonOutput)
+
+    monkeypatch.setattr(commands, "CveSavedSetTerminal", Render)
+    status, result = Run(SavedArguments(root, outcomes))
+    assert status == 130 and result["failure"] == "interrupted" and result["members"] == [], (
+        "Late cancellation must clear the successful member projection before terminal publication"
+    )
+    assert calls == ["succeeded", "failed"], "Cancellation must render only one fixed fallback"
 
 
 def Body():
@@ -49,6 +333,43 @@ def Run(arguments, *, human=False):
     status = commands.RunCveHttpsCommands(arguments, output, json_output=not human)
 
     return status, output.getvalue() if human else json.loads(output.getvalue())
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "ascii", "latin-1", "cp1252"])
+def test_SavedInspectJsonPreservesFactsThroughStrictOutputStreams(
+    acquired_context, monkeypatch, encoding,
+):
+    """Narrow JSON streams preserve original notices without changing UTF-8 output or custody."""
+
+    model, acquired = acquired_context
+    arguments = ["inspect", str(model.root), "--selection", acquired.snapshot_record.evidence_id,
+                 "--receipt", acquired.receipt.evidence_id]
+    monkeypatch.setattr(remote, "AcquireHttpsCveSelection", Refuse)
+    monkeypatch.setattr(remote, "ReceiveIsolatedHttps", Refuse)
+    before = Files(model.root)
+    expectedStatus, expected = Run(arguments)
+    target = BytesIO()
+    output = TextIOWrapper(target, encoding=encoding, errors="strict", newline="\n")
+    status = commands.RunCveHttpsCommands(arguments, output, json_output=True)
+    output.flush()
+    payload = target.getvalue()
+    assert status == expectedStatus == 0 and json.loads(payload.decode(encoding)) == expected, (
+        "Output encoding must preserve the verified inspection and original Unicode notices"
+    )
+
+    if encoding == "utf-8":
+        from fuzzy1337.model import CanonicalModelJson
+
+        assert payload == CanonicalModelJson(expected) + b"\n", (
+            "UTF-8 inspection must retain its original canonical JSON bytes and final newline"
+        )
+
+    elif encoding in ("ascii", "latin-1"):
+        assert payload.isascii() and b"\\u00a9" in payload, (
+            "Narrow output must use valid JSON Unicode escapes rather than losing notice text"
+        )
+
+    assert Files(model.root) == before, "Terminal encoding must not change saved source custody"
 
 
 def Refuse(*args, **kwargs):

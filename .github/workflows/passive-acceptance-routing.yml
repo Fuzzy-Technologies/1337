@@ -10,9 +10,6 @@ on:
 permissions:
   contents: read
 
-env:
-  PASSIVE_POLICY_COMMIT: "b7bff4e9fa7866c666221ce683562397c503257c"
-
 jobs:
   classify:
     runs-on: ubuntu-24.04
@@ -40,16 +37,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           path: candidate
-      - name: Check out the separate immutable reviewed policy
-        if: steps.default.outputs.profile == 'hold'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ env.PASSIVE_POLICY_COMMIT }}
-          persist-credentials: false
-          path: trusted-policy
       - name: Verify complete exact batch against the independent reviewed manifest
         if: steps.default.outputs.profile == 'hold'
         id: classify
+        shell: bash
         working-directory: candidate
         env:
           EVENT: ${{ github.event_name }}
@@ -57,19 +48,51 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
           HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
+          POLICY_REGISTRY_URL: ${{ github.server_url }}/${{ github.repository }}.git
         run: |
           set -euo pipefail
-          [[ "$PASSIVE_POLICY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git -C ../trusted-policy rev-parse HEAD)" = "$PASSIVE_POLICY_COMMIT"
-          git merge-base --is-ancestor "$PASSIVE_POLICY_COMMIT" refs/remotes/origin/feature/ci-batch-policies
+          [[ "$BASE_COMMIT" =~ ^[0-9a-f]{40}$ && "$HEAD_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          git check-ref-format --branch "$HEAD_REF" > /dev/null
           test "$(git rev-parse HEAD)" = "$HEAD_COMMIT"
-          ancestor="$(git merge-base "$BASE_COMMIT" "$HEAD_COMMIT")"
+          ancestor="$(git --no-replace-objects merge-base --all "$BASE_COMMIT" "$HEAD_COMMIT")"
           test "$ancestor" = "$BASE_COMMIT"
           git --no-replace-objects diff --no-ext-diff --raw -z --no-renames --abbrev=40 "$ancestor" "$HEAD_COMMIT" > "$RUNNER_TEMP/passive-batch-changes"
-          python3 -I ../trusted-policy/tools/passive_scope.py \
+          git --no-replace-objects fetch --no-tags --depth=1 "$POLICY_REGISTRY_URL" \
+            +refs/heads/feature/ci-batch-policies:refs/passive-policy-snapshot
+          policy_commit="$(git --no-replace-objects rev-parse --verify 'refs/passive-policy-snapshot^{commit}')"
+          [[ "$policy_commit" =~ ^[0-9a-f]{40}$ ]]
+          manifest_path="$(python3 -I -c '
+          import hashlib, os
+          from pathlib import Path
+          with (Path(os.environ["RUNNER_TEMP"]) / "passive-batch-changes").open("rb") as stream:
+              raw = stream.read(1024 * 1024 + 1)
+          if not 0 < len(raw) <= 1024 * 1024:
+              raise ValueError("complete diff byte limit")
+          framed = b"1337-passive-registry-v1\0" + os.environ["BASE_COMMIT"].encode("ascii") + b"\0" + os.environ["HEAD_REF"].encode("utf-8") + b"\0" + raw
+          print("contracts/passive-batches/" + hashlib.sha256(framed).hexdigest() + ".json")
+          ')"
+          entry="$(git --no-replace-objects ls-tree "$policy_commit" -- "$manifest_path")"
+          [[ "$entry" == "100644 blob "*"$manifest_path" ]]
+          size="$(git --no-replace-objects cat-file -s "$policy_commit:$manifest_path")"
+          [[ "$size" =~ ^[0-9]+$ ]] && test "$size" -gt 0 && test "$size" -le 1048576
+          git --no-replace-objects cat-file blob "$policy_commit:$manifest_path" > "$RUNNER_TEMP/passive-manifest.json"
+          python3 -I -c '
+          import json, sys
+          from pathlib import Path
+          manifest = json.loads(Path(sys.argv[1]).read_bytes())
+          records = manifest["changes"]
+          if type(records) is not list or not 1 <= len(records) <= 512 or any(
+              type(record) is not dict or set(record) != {"path", "old_mode", "new_mode", "old_blob", "new_blob"}
+              for record in records
+          ):
+              raise ValueError("complete raw manifest required")
+          ' "$RUNNER_TEMP/passive-manifest.json"
+          git --no-replace-objects show "$BASE_COMMIT:tools/passive_scope.py" > "$RUNNER_TEMP/passive-base-scope.py"
+          echo "Passive policy registry: $policy_commit; entry: $manifest_path" >> "$GITHUB_STEP_SUMMARY"
+          python3 -I "$RUNNER_TEMP/passive-base-scope.py" \
             --event "$EVENT" --base "$BASE" --head-ref "$HEAD_REF" \
-            --base-commit "$BASE_COMMIT" --policy-commit "$PASSIVE_POLICY_COMMIT" \
-            --manifest ../trusted-policy/contracts/passive-integration-policy.json \
+            --base-commit "$BASE_COMMIT" --policy-commit "$policy_commit" \
+            --manifest "$RUNNER_TEMP/passive-manifest.json" \
             < "$RUNNER_TEMP/passive-batch-changes" >> "$GITHUB_OUTPUT"
       - name: Report the actual acceptance scope and refuse an unverified passive request
         if: always()

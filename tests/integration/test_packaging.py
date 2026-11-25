@@ -3,20 +3,26 @@
 
 """Tests for packaging behavior."""
 
+import base64
 import hashlib
 import json
 import subprocess
 import sys
+import tarfile
 import tomllib
 import venv
 import zipfile
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from tools.release_delivery import ProvisionLocalWheelRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
+EXTENSION_RESOURCES = (
+    "extension-manifest.schema.json", "examples/extension-manifest.example.json",
+)
 
 
 def Invoke(arguments, cwd):
@@ -45,14 +51,35 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
         [sys.executable, "-m", "build", "--no-isolation", "--outdir", str(output)],
         ROOT,
     )
-    assert len(list(output.glob("*.tar.gz"))) == 1, (
+    sdists = list(output.glob("*.tar.gz"))
+    assert len(sdists) == 1, (
         "sdist wheel and clean installation invariant failed."
     )
+    with tarfile.open(sdists[0], "r:gz") as archive:
+        for name in EXTENSION_RESOURCES:
+            members = [member for member in archive.getmembers()
+                       if member.name.endswith("/contracts/" + name)]
+            assert len(members) == 1 and members[0].isfile(), (
+                "The source distribution must retain exactly one canonical contract source."
+            )
+            stream = archive.extractfile(members[0])
+            assert stream is not None, "The canonical contract source must be a regular file."
+
+            with stream:
+                assert stream.read() == (ROOT / "contracts" / name).read_bytes(), (
+                    "The source distribution rewrote a canonical extension contract."
+                )
+
     wheels = list(output.glob("*.whl"))
     assert len(wheels) == 1, "sdist wheel and clean installation invariant failed."
 
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
+        for name in EXTENSION_RESOURCES:
+            assert archive.read("fuzzy1337/contracts/" + name) == (
+                ROOT / "contracts" / name
+            ).read_bytes(), "The wheel lost or rewrote a canonical Stable extension contract."
+
         from fuzzy1337 import artifact_fixture_worker, artifact_policy
 
         workerBytes = archive.read("fuzzy1337/artifact_fixture_worker.py")
@@ -205,3 +232,41 @@ print(json.dumps({name: hashlib.sha256(root.joinpath(name).read_bytes()).hexdige
     assert json.loads(installedWebChecks) == expectedWebChecks, (
         "Clean installed wheel omitted or changed the exact reviewed web-check resources"
     )
+    installedContracts = json.loads(Invoke(
+        [str(executable), "-I", "-c", '''
+"""Read canonical extension resources offline from the isolated wheel installation."""
+
+import base64
+import json
+import sys
+from importlib.resources import files
+
+
+def RejectNetwork(event, arguments):
+    """Refuse network contact while reading the packaged public data contract."""
+
+    if event in {"socket.connect", "socket.connect_ex", "socket.getaddrinfo"}:
+        raise AssertionError("Installed contract resource reads must remain offline.")
+
+
+sys.addaudithook(RejectNetwork)
+root = files("fuzzy1337").joinpath("contracts")
+names = ("extension-manifest.schema.json", "examples/extension-manifest.example.json")
+print(json.dumps({name: base64.b64encode(root.joinpath(*name.split("/")).read_bytes()).decode()
+                  for name in names}, sort_keys=True))
+'''],
+        tmp_path,
+    ))
+    assert set(installedContracts) == set(EXTENSION_RESOURCES), (
+        "Installed resource access lost one of the canonical Stable extension contract files."
+    )
+    contracts = {name: base64.b64decode(value, validate=True)
+                 for name, value in installedContracts.items()}
+    assert contracts == {name: (ROOT / "contracts" / name).read_bytes()
+                         for name in EXTENSION_RESOURCES}, (
+        "The clean installed wheel must expose exact source schema and example bytes offline."
+    )
+    schema = json.loads(contracts["extension-manifest.schema.json"])
+    example = json.loads(contracts["examples/extension-manifest.example.json"])
+    Draft202012Validator.check_schema(schema)
+    Draft202012Validator(schema).validate(example)

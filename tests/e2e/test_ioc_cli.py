@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import shutil
 import subprocess
@@ -14,7 +16,15 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337.evidence import LocalEvidenceStore
-from tests.ioc_cli_helpers import RAW, Files, ImportArguments, InspectArguments, Owned
+from tests.ioc_cli_helpers import (
+    RAW,
+    BundleVerifyArguments,
+    ExportArguments,
+    Files,
+    ImportArguments,
+    InspectArguments,
+    Owned,
+)
 
 
 def Console(arguments: list[str]) -> tuple[int, dict]:
@@ -188,3 +198,72 @@ def test_InstalledConsoleRejectsAnyCorruptOriginalChainRole(tmp_path, key, expor
     assert "candidate_export" not in rejected and all(token not in str(rejected) for token in (
         "EXAMPLE.Invalid.", "192.0.2.7", "opaque.tsv"
     )), "Integrity failure emitted unverified candidate data or declared source metadata"
+
+
+@pytest.mark.parametrize("maximum", [False, True], ids=("timestamped", "exact-source-ceiling"))
+def test_InstalledBundleTransfersOneOriginalAfterWorkspaceDeletion(tmp_path, maximum):
+    """Export one original chain and independently verify its exact bytes without its workspace."""
+
+    token = ".".join(["a" * 63] * 3 + ["a" * 59])
+    raw = (("dns\t" + token + "\n") * 256).encode() if maximum else RAW
+    assert not maximum or len(raw) == 65536, "The boundary fixture must fill the original byte cap"
+    root, source = Owned(tmp_path, raw)
+    status, imported = Console(ImportArguments(root, source, raw))
+    assert status == 0, "Original chain could not be acquired for explicit handoff"
+    store = LocalEvidenceStore(root / "evidence")
+    identities = [imported[key] for key in ("raw_id", "receipt_id", "snapshot_id")]
+    originals = [(store.Get(identity).Serialize(), store.Read(store.Get(identity).reference))
+                 for identity in identities]
+    other = tmp_path / "unselected.tsv"
+    other.write_bytes(b"dns\tunselected.invalid\n")
+    status, unrelated = Console(ImportArguments(root, other, other.read_bytes()))
+    assert status == 0, "The unselected acquisition must exist independently"
+    otherrecord = store.Get(unrelated["raw_id"])
+    (root / "evidence" / otherrecord.reference.locator).write_bytes(b"unselected corrupt original")
+    before = Files(root)
+    bundle = tmp_path / "selected-ioc.json"
+    status, exported = Console(ExportArguments(root, imported, bundle))
+    assert status == 0 and exported["output_published"] is True, (
+        "Selected valid originals must export independently of unrelated workspace evidence"
+    )
+    payload = bundle.read_bytes()
+    assert exported["bundle_sha256"] == hashlib.sha256(payload).hexdigest(), (
+        "The donor outcome must pin the exact published transfer bytes"
+    )
+    document = json.loads(payload)
+    assert len(document["records"]) == 3, "The bundle must contain only its selected original chain"
+
+    for part, original in zip(document["records"], originals, strict=True):
+        assert (base64.b64decode(part["manifest_base64"]),
+                base64.b64decode(part["payload_base64"])) == original, (
+            "Transfer changed an original manifest, source, receipt or derived snapshot byte"
+        )
+
+    duplicate = tmp_path / "same-original.json"
+    status, repeated = Console(ExportArguments(root, imported, duplicate))
+    assert status == 0 and duplicate.read_bytes() == payload, (
+        "Equivalent selected originals must yield deterministic transfer content"
+    )
+    assert Files(root) == before, "Export wrote the owning workspace or its source evidence"
+    shutil.rmtree(root)
+    source.unlink()
+    other.unlink()
+    status, verified = Console(BundleVerifyArguments(bundle, exported))
+    assert status == 0 and verified["receipt_id"] == imported["receipt_id"] and verified[
+        "snapshot_id"
+    ] == imported["snapshot_id"] and verified["raw_id"] == imported["raw_id"], (
+        "Recipient verification required the vanished original workspace or changed original pins"
+    )
+    assert verified["candidate_count"] == (256 if maximum else 5), (
+        "Independent original-byte replay lost occurrences or their original parser profile"
+    )
+    assert verified["output_published"] is False and bundle.read_bytes() == payload, (
+        "Recipient verification wrote or changed its selected bundle"
+    )
+    stale = BundleVerifyArguments(bundle, exported)
+    stale[-1] = "0" * 64
+    assert Console(stale)[0] == 4, "A stale independent transfer digest must refuse verification"
+    bundle.write_bytes(payload[:-1] + b" ")
+    assert Console(BundleVerifyArguments(bundle, exported))[0] == 4, (
+        "A tampered bundle must refuse the independently retained transfer pin"
+    )

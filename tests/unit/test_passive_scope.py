@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -233,26 +236,40 @@ def test_StandaloneAcceptancesVetoRequestsWithoutAddingRouterJobs(name, job):
 
 
 def test_SharedRouterNeverExecutesCandidateCodeAndHoldsFailures():
-    """The bootstrap loader runs only separately pinned policy before any candidate execution."""
+    """The loader captures upstream policy data and executes only the actual base classifier."""
 
     workflow = yaml.safe_load((ROOT / policy.PIN_PATH).read_text())
     job = workflow["jobs"]["classify"]
     steps = job["steps"]
     assert workflow["permissions"] == {"contents": "read"}, "Router acquired write authority."
-    trusted = next(step for step in steps
-                   if step.get("name", "").startswith("Check out the separate"))
-    assert trusted["with"]["ref"] == "${{ env.PASSIVE_POLICY_COMMIT }}" and not trusted[
-        "with"
-    ]["persist-credentials"], "Policy checkout is not separately immutable and credential-free."
-    command = next(step["run"] for step in steps if step.get("id") == "classify")
-    anchor = 'git merge-base --is-ancestor "$PASSIVE_POLICY_COMMIT" '
-    anchor += 'refs/remotes/origin/feature/ci-batch-policies'
-    assert 0 <= command.find(anchor) < command.find("python3 -I"), (
-        "The loader must establish policy-branch provenance before executing the pinned helper."
+    checkouts = [step for step in steps if step.get("uses", "").startswith("actions/checkout@")]
+    assert len(checkouts) == 1 and not checkouts[0]["with"]["persist-credentials"], (
+        "The router must acquire candidate Git objects once without retaining credentials."
     )
-    assert "python3 -I ../trusted-policy/tools/passive_scope.py" in command and (
-        "--no-ext-diff --raw -z --no-renames --abbrev=40" in command
-    ), "Router executes head policy or consumes incomplete/ambiguous Git metadata."
+    assert "PASSIVE_POLICY_COMMIT" not in str(workflow), (
+        "An independent product PR must not edit a shared mutable policy pin."
+    )
+    command = next(step["run"] for step in steps if step.get("id") == "classify")
+    assert "+refs/heads/feature/ci-batch-policies:refs/passive-policy-snapshot" in command and (
+        "refs/passive-policy-snapshot^{commit}" in command
+    ), "The policy snapshot must come from the fixed upstream registry ref."
+    assert '$BASE_COMMIT:tools/passive_scope.py' in command and (
+        'python3 -I "$RUNNER_TEMP/passive-base-scope.py"' in command
+    ), "Only actual base-owned isolated classifier bytes may execute."
+    assert '$policy_commit:$manifest_path' in command and (
+        '"$policy_commit" -- "$manifest_path"' in command
+    ), "Every policy read must use the captured immutable registry object and plain blob mode."
+    assert '"100644 blob "' in command and '"$size" -le 1048576' in command, (
+        "Registry manifests require regular files within the original manifest byte ceiling."
+    )
+    assert "--no-ext-diff --raw -z --no-renames --abbrev=40" in command, (
+        "Router must consume the complete raw diff with full old/new object identities."
+    )
+    assert next(step for step in steps if step.get("id") == "classify")["env"][
+        "POLICY_REGISTRY_URL"
+    ] == "${{ github.server_url }}/${{ github.repository }}.git", (
+        "Registry authority must come from the upstream event context, never candidate input."
+    )
     assert steps[-1]["if"] == "always()" and "exit 1" in steps[-1]["run"], (
         "Unknown or failed requested scope does not visibly fail its routing gate."
     )
@@ -344,3 +361,262 @@ def test_ExistingDiagnosticMarkersCannotBypassRequestedPassiveRouting(name):
         ).startswith(
             OPTIONAL_VETO
         ), "An old draft checkpoint marker can bypass a requested passive or held scope."
+
+
+def Git(root, *arguments, input=None):
+    """Run only local fixture Git operations with explicit ownership and no product execution."""
+
+    return subprocess.run(["git", "--no-replace-objects", "-C", str(root), *arguments],
+                          input=input, check=True, capture_output=True).stdout
+
+
+def RegistryPath(base, head, raw):
+    """Independently construct the documented content-addressed per-batch manifest selection."""
+
+    framed = b"1337-passive-registry-v1\0" + base.encode("ascii") + b"\0" + head.encode(
+        "utf-8") + b"\0" + raw
+
+    return "contracts/passive-batches/" + hashlib.sha256(framed).hexdigest() + ".json"
+
+
+@pytest.fixture(name="registryFixture")
+def RegistryFixture(request):
+    """Create two independent candidate commits and one upstream registry with both raw entries."""
+
+    tmpPath = request.getfixturevalue("tmp_path")
+    upstream = tmpPath / "upstream"
+    upstream.mkdir()
+    Git(upstream, "init", "-q")
+    Git(upstream, "config", "user.name", "Owned registry fixture")
+    Git(upstream, "config", "user.email", "registry@example.invalid")
+    (upstream / "tools").mkdir()
+    (upstream / "tools/passive_scope.py").write_bytes(Path(policy.__file__).read_bytes())
+    Git(upstream, "add", "tools/passive_scope.py")
+    Git(upstream, "commit", "-qm", "Existing base classifier")
+    base = Git(upstream, "rev-parse", "HEAD").decode().strip()
+    requests = {}
+
+    for name in ("first", "second"):
+        head = "feature/passive-batch-" + name
+        Git(upstream, "checkout", "-qb", head, base)
+        (upstream / (name + ".txt")).write_text("Independent reviewed offline content\n")
+        (upstream / "tools/passive_scope.py").write_text(
+            'from pathlib import Path\nPath("untrusted-helper-executed").write_text("bad")\n'
+            'print("profile=passive")\n')
+        Git(upstream, "add", ".")
+        Git(upstream, "commit", "-qm", "Independent candidate " + name)
+        commit = Git(upstream, "rev-parse", "HEAD").decode().strip()
+        raw = Git(upstream, "diff", "--no-ext-diff", "--raw", "-z", "--no-renames",
+                  "--abbrev=40", base, commit)
+        requests[name] = {"head": head, "commit": commit, "raw": raw,
+            "path": RegistryPath(base, head, raw), "manifest": {"schema_version": 1,
+                "base_commit": base, "head_ref": head, "changes": policy.Changes(raw)}}
+
+    Git(upstream, "checkout", "-qb", "feature/ci-batch-policies", base)
+
+    for request in requests.values():
+        path = upstream / request["path"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(request["manifest"]))
+
+    (upstream / "tools/passive_scope.py").write_text(
+        'from pathlib import Path\nPath("registry-helper-executed").write_text("bad")\n'
+        'print("profile=passive")\n')
+    Git(upstream, "add", "contracts", "tools/passive_scope.py")
+    Git(upstream, "commit", "-qm", "Two independent reviewed manifests")
+    snapshot = Git(upstream, "rev-parse", "HEAD").decode().strip()
+
+    for name, request in requests.items():
+        clone = tmpPath / name
+        subprocess.run(["git", "clone", "-q", "--no-local", str(upstream), str(clone)],
+                       check=True, capture_output=True)
+        Git(clone, "checkout", "-q", request["commit"])
+        request["clone"] = clone
+
+    return {"upstream": upstream, "base": base, "snapshot": snapshot, "requests": requests}
+
+
+def RunRegistry(fixture, name, *, rendezvous=None, advance=False, **context):
+    """Execute all three routing scripts with local transport and bounded subprocesses."""
+
+    request = fixture["requests"][name]
+    root = request["clone"]
+    temporary = root / ".routing"
+    temporary.mkdir()
+    output = temporary / "output"
+    summary = temporary / "summary"
+    environment = {**os.environ, "EVENT": "pull_request", "BASE": "develop",
+        "HEAD_REF": request["head"], "BASE_COMMIT": fixture["base"],
+        "HEAD_COMMIT": request["commit"], "POLICY_REGISTRY_URL": str(fixture["upstream"]),
+        "RUNNER_TEMP": str(temporary), "GITHUB_OUTPUT": str(output),
+        "GITHUB_STEP_SUMMARY": str(summary), "PASSIVE_POLICY_COMMIT": request["commit"], **context}
+
+    if rendezvous is not None or advance:
+        binary = temporary / "bin"
+        binary.mkdir()
+        shim = binary / "git"
+        shim.write_text('''#!/bin/bash
+if [[ "${2-}" == fetch && -n "${FETCH_RENDEZVOUS-}" ]]; then
+  echo "$$" > "$FETCH_RENDEZVOUS/$REQUEST_NAME.fetch"
+  deadline=$((SECONDS + 5))
+  while ! test -f "$FETCH_RENDEZVOUS/first.fetch" || ! test -f "$FETCH_RENDEZVOUS/second.fetch"; do
+    test "$SECONDS" -lt "$deadline" || exit 97
+    sleep 0.01
+  done
+fi
+if [[ "${2-}" == ls-tree && -n "${ADVANCE_REGISTRY_TO-}" ]]; then
+  ref=refs/heads/feature/ci-batch-policies
+  "$REAL_GIT" -C "$POLICY_REGISTRY_URL" update-ref "$ref" "$ADVANCE_REGISTRY_TO"
+fi
+exec "$REAL_GIT" "$@"
+''')
+        shim.chmod(0o755)
+        environment.update({"REAL_GIT": shutil.which("git"), "FETCH_RENDEZVOUS":
+                            str(rendezvous) if rendezvous is not None else "",
+                            "ADVANCE_REGISTRY_TO": fixture["base"] if advance else "",
+                            "REQUEST_NAME": name,
+                            "PATH": str(binary) + os.pathsep + os.environ["PATH"]})
+
+    workflow = yaml.safe_load((ROOT / policy.PIN_PATH).read_text())
+    steps = workflow["jobs"]["classify"]["steps"]
+    default = next(step["run"] for step in steps if step.get("id") == "default")
+    command = next(step["run"] for step in steps if step.get("id") == "classify")
+    subprocess.run(["bash", "-c", default], cwd=root, env=environment, check=True,
+                   capture_output=True, timeout=10)
+    initial = dict(line.split("=", 1) for line in output.read_text().splitlines())["profile"]
+
+    if initial == "hold":
+        subprocess.run(["bash", "-c", command], cwd=root, env=environment,
+                       capture_output=True, check=False, timeout=20)
+
+    profile = dict(line.split("=", 1) for line in output.read_text().splitlines())["profile"]
+    final = subprocess.run(["bash", "-c", steps[-1]["run"]], cwd=root,
+                           env={**environment, "PROFILE": profile},
+                           capture_output=True, check=False, timeout=10)
+    assert not any((root / marker).exists() for marker in (
+        "untrusted-helper-executed", "registry-helper-executed"
+    )), (
+        "Neither candidate nor registry self-authorizing classifiers may execute."
+    )
+
+    return profile, final.returncode, summary.read_text()
+
+
+def test_TwoIndependentRequestsUseOneImmutableUpstreamRegistryConcurrently(
+    registryFixture, tmp_path,
+):
+    """Both exact independently reviewed branches pass without any shared product-file edits."""
+
+    rendezvous = tmp_path / "rendezvous"
+    rendezvous.mkdir()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda name: RunRegistry(registryFixture, name,
+                                                       rendezvous=rendezvous), ("first", "second")))
+
+    assert all(profile == "passive" and status == 0 and registryFixture["snapshot"] in summary
+               for profile, status, summary in results), (
+        "Independent exact batches must both pass from the same captured immutable registry."
+    )
+    assert registryFixture["requests"]["first"]["path"] != registryFixture["requests"][
+        "second"
+    ]["path"], "Independent branch/diff selections must use separate registry entries."
+    assert len({path.read_text().strip() for path in rendezvous.glob("*.fetch")}) == 2, (
+        "Two distinct loader processes must rendezvous while fetching the same registry."
+    )
+
+
+def test_CapturedRegistryCommitSurvivesUpstreamRefMovement(registryFixture):
+    """A branch update after capture cannot replace the immutable manifest used by this run."""
+
+    profile, status, summary = RunRegistry(registryFixture, "first", advance=True)
+    current = Git(registryFixture["upstream"], "rev-parse",
+                  "refs/heads/feature/ci-batch-policies").decode().strip()
+    assert current == registryFixture["base"] and current != registryFixture["snapshot"], (
+        "The fixture must move the upstream branch after capturing its immutable snapshot."
+    )
+    assert profile == "passive" and status == 0 and registryFixture["snapshot"] in summary, (
+        "Upstream branch movement must not replace an already captured policy snapshot."
+    )
+
+
+@pytest.mark.parametrize("fault", ["cross-swap", "wrong-base", "wrong-head", "wrong-blob",
+    "wrong-old-blob", "mode", "mixed", "missing", "normalized", "symlink", "oversize",
+    "own-policy", "missing-ref"])
+def test_RegistryCannotAuthorizeCrossedUnreviewedOrCandidateSuppliedPolicy(registryFixture, fault):
+    """Only one exact raw regular-file manifest in the real upstream snapshot grants acceptance."""
+
+    upstream = registryFixture["upstream"]
+    request = registryFixture["requests"]["first"]
+    selected = upstream / request["path"]
+    manifest = json.loads(selected.read_text())
+
+    if fault == "cross-swap":
+        manifest = registryFixture["requests"]["second"]["manifest"]
+
+    elif fault == "wrong-base":
+        manifest["base_commit"] = "0" * 40
+
+    elif fault == "wrong-head":
+        manifest["head_ref"] = registryFixture["requests"]["second"]["head"]
+
+    elif fault in ("wrong-blob", "wrong-old-blob", "mode"):
+        key = {"wrong-blob": "new_blob", "wrong-old-blob": "old_blob", "mode": "new_mode"}[fault]
+        manifest["changes"][0][key] = "100755" if fault == "mode" else "e" * 40
+
+    elif fault == "mixed":
+        manifest["changes"].pop()
+
+    elif fault == "normalized":
+        manifest["changes"][0].update({"new_blob": None, "normalized_sha256": "0" * 64})
+
+    if fault in ("missing", "own-policy"):
+        selected.unlink()
+
+        if fault == "own-policy":
+            local = request["clone"] / request["path"]
+            local.parent.mkdir(parents=True)
+            local.write_text(json.dumps(manifest))
+            Git(request["clone"], "update-ref", "refs/passive-policy-snapshot", request["commit"])
+
+    elif fault == "symlink":
+        selected.unlink()
+        selected.symlink_to("../../tools/passive_scope.py")
+
+    else:
+        selected.write_text("x" * (policy.MAX_BYTES + 1) if fault == "oversize" else
+                           json.dumps(manifest))
+
+    Git(upstream, "add", "contracts")
+    Git(upstream, "commit", "--allow-empty", "-qm", "Untrusted or inconsistent fixture policy")
+
+    if fault == "missing-ref":
+        Git(request["clone"], "update-ref", "refs/passive-policy-snapshot",
+            registryFixture["snapshot"])
+        Git(upstream, "update-ref", "-d", "refs/heads/feature/ci-batch-policies")
+
+    profile, status, _ = RunRegistry(registryFixture, "first")
+    assert profile == "hold" and status == 1, (
+        "Missing, crossed, normalized, unsafe or candidate-owned policy must fail closed."
+    )
+
+
+@pytest.mark.parametrize("field", ["BASE_COMMIT", "HEAD_COMMIT"])
+def test_RegistryRejectsAnIncorrectActualBaseOrHead(registryFixture, field):
+    """Manifest selection cannot override the actual Git checkout or base ancestry boundary."""
+
+    profile, status, _ = RunRegistry(registryFixture, "first", **{field: "e" * 40})
+    assert profile == "hold" and status == 1, (
+        "Incorrect actual base or head commits must fail before passive acceptance."
+    )
+
+
+@pytest.mark.parametrize("context", [{"EVENT": "push"}, {"BASE": "master"},
+                                    {"HEAD_REF": "feature/ordinary"}])
+def test_RegistryMigrationKeepsOrdinaryAndMasterRoutesUnchanged(registryFixture, context):
+    """Ordinary event contexts keep full acceptance without requiring registry policy."""
+
+    profile, status, summary = RunRegistry(registryFixture, "first", **context)
+    assert profile == "full" and status == 0 and "Passive policy registry:" not in summary, (
+        "Registry migration must preserve ordinary/master scope without passive verification."
+    )

@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Internal selected original-byte transfer; no general custody or Python SDK contract.
+module = "fuzzy1337.ioc_bundle"
+source = "src/fuzzy1337/ioc_bundle.py"
+mode = "authored"
+page = "api/fuzzy1337.ioc_bundle.md"
+
+[[surfaces]]
 # Experimental terminal facade for the separate selected CWE HTTPS family.
 module = "fuzzy1337.intelligence_cwe_https_commands"
 source = "src/fuzzy1337/intelligence_cwe_https_commands.py"

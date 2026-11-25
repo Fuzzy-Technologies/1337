@@ -17,6 +17,7 @@ dependencies = ["fuzzyroutines==2.1.0"]
 1337-dev = "fuzzy1337.dev_commands:Main"
 
 [project.optional-dependencies]
+validate = ["jsonschema==4.26.0"]
 openapi-yaml = ["PyYAML==6.0.3"]
 dev = [
     "build==1.6.1",
@@ -38,6 +39,10 @@ browser = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/fuzzy1337"]
 dev-mode-dirs = ["src"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"contracts/extension-manifest.schema.json" = "fuzzy1337/contracts/extension-manifest.schema.json"
+"contracts/examples/extension-manifest.example.json" = "fuzzy1337/contracts/examples/extension-manifest.example.json"
 
 [tool.uv]
 build-constraint-dependencies = [

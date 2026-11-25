@@ -147,6 +147,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: update",
         "cli: scan",
         "cli: raw",
+        "cli: extension",
         "cli: intel",
         "cli: ci",
         "cli: paths",
@@ -220,12 +221,13 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: api, ci, commands, context, demo, help, history, image, "
-            "intel, lens, model, palette, paths, quit, raw, report, runtime, sbom, scan, scope, "
-            "select, trace, update, updates, view, workspace"
+            "Interactive commands: api, ci, commands, context, demo, extension, help, history, "
+            "image, intel, lens, model, palette, paths, quit, raw, report, runtime, sbom, "
+            "scan, scope, select, trace, update, updates, view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, image, "
-         "scan, raw, report, intel, demo, ci, paths, sbom, api, response, runtime, trace"),
+         "scan, raw, report, extension, intel, demo, ci, paths, sbom, api, response, "
+         "runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -266,8 +268,9 @@ def test_InvalidJsonArgumentsDoNotChangeLensOrViewState():
         'Lens contract failed: invalid json arguments do not change lens or view state.'
     )
     assert output.getvalue().splitlines() == [
-        "usage: lens [<name>] [--json]", "usage: view <name> [--json]",
-        "usage: view <name> [--json]", "usage: view <name> [--json]",
+        "usage: lens [<name>] [--json]", "usage: view <name> [--query <file>] [--json]",
+        "usage: view <name> [--query <file>] [--json]",
+        "usage: view <name> [--query <file>] [--json]",
     ], (
         'Lens contract failed: invalid json arguments do not change lens or view state.'
     )
