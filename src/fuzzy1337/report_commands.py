@@ -178,24 +178,36 @@ def OpenReportInput(root: Path) -> ReportInput:
     report = ReportSnapshot(state)
     evidence = BoundedReportEvidenceStore(root / "evidence")
     scopes = set(workspace.scope_references)
-    acquisitionReferences: set[EvidenceReference] = set()
+    pendingReferences: dict[EvidenceReference, None] = {}
+    deferredFailure = None
 
     if len(workspace.evidence_record_references) > MAX_EXPORT_ACQUISITIONS:
         raise ReportFailure("limit")
 
-    for recordId in workspace.evidence_record_references:
-        record = evidence.Get(recordId)
+    try:
+        # Charge direct references first so acquisitions share the original quota order.
+        for reference in workspace.evidence_references:
+            evidence.Check(reference)
+            pendingReferences[reference] = None
 
-        if record.provenance.workspace_id != workspace.workspace_id:
-            raise EvidenceIntegrityError("report acquisition belongs to a different workspace")
+        for recordId in workspace.evidence_record_references:
+            record = evidence.Get(recordId)
+            pendingReferences.pop(record.reference, None)
 
-        scopes.add(record.provenance.scope_reference)
-        acquisitionReferences.add(record.reference)
+            if record.provenance.workspace_id != workspace.workspace_id:
+                raise EvidenceIntegrityError("report acquisition belongs to a different workspace")
 
-    # Each matching reference was already quota-checked and byte-verified by its acquisition Get.
-    for reference in workspace.evidence_references:
-        if reference not in acquisitionReferences:
-            evidence.Read(reference)
+            scopes.add(record.provenance.scope_reference)
+
+    except ReportFailure as error:
+        # An earlier direct byte failure can still take precedence over a quota error.
+        deferredFailure = error
+
+    for reference in pendingReferences:
+        evidence.Read(reference)
+
+    if deferredFailure is not None:
+        raise deferredFailure
 
     entities: tuple[SecurityObject | Relation, ...] = (*state.objects, *state.relations)
 

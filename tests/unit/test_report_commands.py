@@ -713,6 +713,43 @@ def test_AcquisitionOnlyAndModelOnlyReferencesShareTheSameReadQuotas(tmp_path, m
     assert not destination.exists(), "Both source paths must fail before publication."
 
 
+def test_DirectEvidenceQuotaPrecedesMalformedAcquisition(tmp_path, monkeypatch):
+    """Report the direct-read budget before opening a malformed acquisition manifest."""
+
+    root, (_, unused) = Context(tmp_path, findings=False)
+    manifest = root / "evidence" / "records" / f"{unused.evidence_id[7:]}.json"
+    manifest.write_bytes(b"{}")
+    monkeypatch.setattr(commands, "MAX_EXPORT_BLOBS", 1)
+    before = Files(root)
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "over-budget.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 4 and outcome["failure"] == "limit"
+    assert not outcome["output_published"] and not destination.exists()
+    assert Files(root) == before
+
+
+def test_DirectEvidenceIntegrityPrecedesAcquisitionQuota(tmp_path, monkeypatch):
+    """Report corrupt direct-only evidence before checking a larger retained blob."""
+
+    root, (linked, _) = Context(tmp_path, findings=False)
+    store = LocalEvidenceStore(root / "evidence")
+    direct = store.Put(b"direct", "stdout", "text/plain", linked.provenance)
+    workspaceStore = LocalWorkspaceStore(root)
+    workspaceStore.Save(replace(workspaceStore.Open(), evidence_references=(direct.reference,)))
+    (root / "evidence" / direct.reference.locator).write_bytes(b"broken")
+    monkeypatch.setattr(commands, "MAX_EXPORT_BLOB_BYTES", direct.reference.size_bytes)
+    before = Files(root)
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "corrupt.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 4 and outcome["failure"] == "integrity"
+    assert not outcome["output_published"] and not destination.exists()
+    assert Files(root) == before
+
+
 
 @pytest.mark.parametrize("arguments", [
     [], ["export", "synthetic-private-path"],
