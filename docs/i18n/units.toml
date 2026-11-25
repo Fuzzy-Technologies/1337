@@ -270,7 +270,7 @@ state = "missing"
 id = "page:api.fuzzy1337.shell"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.shell.md"
-sourceHash = "sha256:53b25c7aaf455bf42e4c1fb751b1cd40550cfdefab4393e52ae7f91ba4af0ad5"
+sourceHash = "sha256:018c02786e9588b01773ee1dc5bc8c191e40a2dc1a6b335b4818a69c57035951"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -28900,6 +28900,291 @@ id = "symbol:fuzzy1337.syslog_records.TimestampValue"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/syslog_records.py"
 sourceHash = "sha256:f5c84119bb65a94e72a4abca48f537314b74713fbd72d9346a54403d730a7b34"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.BoundedSarifStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:047cbef1893449596d3f06667dd4e82fc3c74728f7c905a8eb1c9461d01d7634"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.JsonBytes"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:41001c3bc64544a2545932a7edd241a46dcffed3822c45ec2fc849c8669a66e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.UniqueObject"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:f6311d83cd58e690408aa64973e630fa3a901d1a807bdcce8f9dee9e95eb378a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.InvalidConstant"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:ebd97853fac1e020ed37d7d80634407ad4287c2074f86dbd9c2701554ac114c4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.JsonDocument"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:34fc3035d3a6b35e93a3615e39bf6d0056012b8a97c2d3f704ef028f1f7a3f01"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.Object"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:0cf9256ddc50a60e64cecef2057648fc5cb08e86a7a6669c410dda0138e744be"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.Array"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:a700a3cced03679fcbf9fe754ca5cf5f6f4eb2b8abaa121dd3ef232c90d28d54"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.SourceText"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:c556f8d3aefecd8cc9daf632db186e1c5dbbb7351dbeb9219ea6e4f5996aa6ce"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.OptionalText"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:edb90525a0403a6d50f39afde7543e464fc042fa47369e51a0780c97535fdb6f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.Integer"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:c89d9e79cde19cb50cf096a48ddb75f0202800bba7be37409b8412f5dd08d010"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.ArtifactLocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:acf37a687684f5fad50cd5ef6ac3875a3fd81723835941c2fb597cfb47a8dfe6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.Location"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:ce9f16636c144f45657c81bbe3ef354a6e10bd6bf1832b05fbed521126ed4afb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.Result"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:9e54b5dc591d4f5477fbc2bc86f75f55f368396ee3ce81b8ea0a7bbb6805d1c5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.ParseSarif"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:22c9bbcc08de44b578b182f1667c5544b663d5957286c086b5fc5d8ca18ddc8c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.BoundedSarifStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:cb9a1a880fc3adebe1c3ca56bb176d4e76f9f477944356ab63cee4984c23e59e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.BoundedSarifStore.Manifest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:ee76d45963aff72ba00e4994097d3c8aa393bedd77e46bc2ffd2722690965baa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.ReceiptContent"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:4f0582de8dbcfcfddb71e46093b17e9178788288f912f84784881b027c2c44fa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_sarif.LoadSavedSarif"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_sarif.py"
+sourceHash = "sha256:5cf0e706494473b8e6a7aee42fac777161c372cc4a296e2ab2c223d9e2feaf5e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_commands.BridgeParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_commands.py"
+sourceHash = "sha256:bb7a6967bd340e5f55bc1e8cce1af9f1759ed9f5a1021c2884760bf80e49e693"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_commands.BridgeArguments"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_commands.py"
+sourceHash = "sha256:97836abeb5b9e4c637900a8fba6656c8284de0b0d3f49257a287bdbe739eaf6e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_commands.BridgeRoot"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_commands.py"
+sourceHash = "sha256:c7485aa95ce1d2bf7ac321bda5b692931044f50570f72f1ba18ce22a501a4498"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_commands.BridgeTerminal"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_commands.py"
+sourceHash = "sha256:2471c58318d04e41c8246ff6ec3ec5a77c47f6c8cb6a8fee98097cf2153921e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.bridge_commands.RunBridgeCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/bridge_commands.py"
+sourceHash = "sha256:00db35732a94c7c954fc83972334e293b67806d0a2fcad3e8862d46b0949b873"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.do_bridge"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:390de0909cfa4b246ac2529d8c1a355fb18ba860a0e7b9db49e72d57ab6e3bbd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.bridge-sarif"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.bridge_sarif.md"
+sourceHash = "sha256:12545dc921f1e6a89aebf3478c19ad8bd2e42f59622b275e942ce1693b0ac05a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.bridge-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.bridge_commands.md"
+sourceHash = "sha256:d712512bfcec444f408c21deb82ae5898e52aa1c49a59364bbd30cfb0663d6bb"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
