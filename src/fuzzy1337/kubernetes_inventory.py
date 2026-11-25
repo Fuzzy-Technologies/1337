@@ -595,6 +595,41 @@ def PodSpec(record: dict[str, object]) -> dict[str, object] | None:
     return None if template.get("spec") is None else Fields(template["spec"])
 
 
+def ImageDeclaration(value: object) -> str:
+    """Preserve a bounded image declaration, including a literal bracketed IPv6 registry.
+
+    Args:
+        value: Exact selected image text, without registry lookup or image identity inference.
+
+    Returns:
+        Unchanged declaration; a bracketed registry must contain a valid IPv6 literal.
+    """
+
+    image = Text(value, 512)
+    name = image
+
+    if image.startswith("["):
+        registry = re.fullmatch(r"\[([0-9A-Fa-f:]+)\](?::[0-9]+)?/(.+)", image)
+
+        if registry is None:
+            raise ValueError("Kubernetes inventory image declaration is unsupported")
+
+        try:
+            ipaddress.IPv6Address(registry[1])
+
+        except ValueError:
+            raise ValueError("Kubernetes inventory image declaration is unsupported") from None
+
+        name = registry[2]
+
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9./:_@-]*", name) or "://" in name or (
+        "@" in name and not re.fullmatch(r"[^@]+@sha256:[0-9a-f]{64}", name)
+    ):
+        raise ValueError("Kubernetes inventory image declaration is unsupported")
+
+    return image
+
+
 def Containers(batch: InventoryBatch, resource: SecurityObject, spec: dict[str, object]) -> None:
     """Normalize bounded declared containers, selected booleans and advisory conditions.
 
@@ -621,12 +656,7 @@ def Containers(batch: InventoryBatch, resource: SecurityObject, spec: dict[str, 
                 raise ValueError("Kubernetes inventory containers exceed unique-name/total budgets")
 
             names.add(name)
-            image = None if fields.get("image") is None else Text(fields["image"], 512)
-
-            if image is not None and (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9./:_@-]*", image)
-                or "://" in image or ("@" in image and not re.fullmatch(
-                    r"[^@]+@sha256:[0-9a-f]{64}", image))):
-                raise ValueError("Kubernetes inventory image declaration is unsupported")
+            image = None if fields.get("image") is None else ImageDeclaration(fields["image"])
 
             security = OptionalFields(fields.get("securityContext"))
             attributes = {"asset_type": "kubernetes-container-declaration", "provider": _SOURCE_ID,
