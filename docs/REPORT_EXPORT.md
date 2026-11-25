@@ -71,6 +71,120 @@ thresholds or run a CI gate. The emitted report remains a pinned historical
 artifact after later model changes. A new explicit export selects the later
 saved snapshot; it cannot rewrite the prior output.
 
+## Review a handed-off HTML report
+
+Save the JSON outcome printed by the HTML export command above as
+`report-export.json` and hand it off with `report.html`. Both paths must
+refer to regular files. Run the check from the directory containing them.
+
+For other filenames or locations, use
+`python - 'delivery/received report.html' 'delivery/export receipt.json' <<'PY'`
+as the first line. Pass the HTML report path first and the JSON outcome path
+second.
+
+```bash
+python - <<'PY'
+from hashlib import file_digest
+from json import loads
+from os import fstat
+from pathlib import Path
+from re import fullmatch
+from stat import S_ISREG
+from sys import argv
+
+
+def UniqueFields(pairs):
+    """Read a JSON object with one value per field."""
+
+    fields = dict(pairs)
+
+    if len(fields) != len(pairs):
+        raise ValueError("Duplicate JSON field.")
+
+    return fields
+
+
+paths = argv[1:]
+
+if len(paths) not in (0, 2):
+    raise SystemExit("Supply the HTML report path and the JSON outcome path together or omit both.")
+
+reportPath, outcomePath = map(Path, paths or ("report.html", "report-export.json"))
+reportLabel = "HTML report" if paths else "report.html"
+outcomeLabel = "JSON outcome" if paths else "report-export.json"
+
+try:
+    if not S_ISREG(outcomePath.stat().st_mode):
+        raise SystemExit(f"{outcomeLabel} must be a regular file.")
+
+    outcome = loads(
+        outcomePath.read_text(encoding="utf-8"),
+        object_pairs_hook=UniqueFields,
+    )
+
+except (OSError, ValueError, RecursionError):
+    raise SystemExit(f"Could not read {outcomeLabel} as JSON.")
+
+if not isinstance(outcome, dict):
+    raise SystemExit("Expected an export outcome JSON object.")
+
+schemaVersion = outcome.get("schema_version")
+
+if (
+    type(schemaVersion) is not int or schemaVersion != 1
+    or outcome.get("command") != "report.export"
+    or outcome.get("status") != "completed"
+    or outcome.get("format") != "html"
+    or outcome.get("output_published") is not True
+):
+    raise SystemExit("Expected a completed, published schema-v1 HTML export.")
+
+sizeBytes = outcome.get("size_bytes")
+reportSha256 = outcome.get("report_sha256")
+
+if type(sizeBytes) is not int or not 0 <= sizeBytes <= 32 * 1024 * 1024:
+    raise SystemExit("Invalid size_bytes in the export outcome.")
+
+if not isinstance(reportSha256, str) or not fullmatch(r"[0-9a-f]{64}", reportSha256):
+    raise SystemExit("Invalid report_sha256 in the export outcome.")
+
+try:
+    if not S_ISREG(reportPath.stat().st_mode):
+        raise SystemExit(f"{reportLabel} must be a regular file.")
+
+    with reportPath.open("rb") as stream:
+        if fstat(stream.fileno()).st_size != sizeBytes:
+            raise SystemExit(f"{reportLabel} differs from the recorded byte size.")
+
+        if file_digest(stream, "sha256").hexdigest() != reportSha256:
+            raise SystemExit(f"{reportLabel} differs from the recorded SHA-256.")
+
+except OSError:
+    raise SystemExit(f"Could not read {reportLabel}.")
+
+print(f"{reportLabel} matches the export outcome's size and SHA-256.")
+PY
+```
+
+The check confirms byte consistency with the supplied outcome. Publisher
+authenticity requires independently trusted provenance for the files.
+Compare the report header's saved revision with `model_revision`. In **Overview**,
+open **Snapshot identity and technical summary** and compare **Canonical
+snapshot** with `snapshot_sha256`, the digest of the saved model.
+
+1. Open **Recorded operations** and use **Execution attribution** for a source's
+   saved outcome. Failed records remain visible. When execution records are
+   absent, which checks ran remains unknown. In **Assets**, **Not recorded**
+   marks an unknown inventory value.
+2. In **Findings**, use a finding's **Subject** link to locate the saved object.
+   Follow a link under **Evidence for this interpretation** to its row in
+   **Evidence and byte integrity**. Evidence numbers on finding cards match their
+   rows in the Evidence table. Open **Digest and metadata** for the exact reference.
+3. To direct another reader to the same row, cite the evidence link's fragment
+   with this report. `verified bytes` records the integrity check at export
+   time. The row contains reference metadata. Independent acquisition
+   verification uses the workspace's [owning evidence store](EVIDENCE.md).
+
 ## Bounds and output truth
 
 The consumer accepts at most 1,024 retained acquisition manifests, 1,024 distinct
