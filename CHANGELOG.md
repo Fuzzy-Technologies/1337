@@ -8,6 +8,22 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 59 — v0.4.59 — 2026-11-25
+
+#### Digest
+
+- Inspect a retained owner-declared business outcome and its saved critical Assets offline.
+
+#### Added
+
+- Add explicit console/shell inspection bound to the original declaration manifest,
+  scope attribution and complete current model pin. Reuse the accepted declaration
+  owner and exact persisted memberships, verify selected provenance evidence, and
+  return unchanged canonical records only after complete verification. Preserve
+  owner-declared scenario semantics without scoring, paths, incident inference or
+  model/workspace writes; failures emit no partial inspection.
+
+
 ### Patch 57 — v0.4.57 — 2026-11-25
 
 #### Digest

@@ -103,3 +103,64 @@ uv run --locked --extra dev python -m pytest \
 
 The profile adds no scanner, CLI, financial scoring or business-risk ranking. The
 dependent prioritization task remains separate from this declaration/path model.
+
+## Inspect a retained declaration through the product
+
+An operator can reopen one already persisted owner scenario and its current saved
+critical Assets without calculating paths or scores:
+
+```bash
+1337 business inspect /owned/retained-workspace \
+  --definition sha256:ORIGINAL_DEFINITION_MANIFEST_DIGEST \
+  --scope-reference scope:original-declaration \
+  --expected-revision 7 \
+  --expected-snapshot-sha256 CANONICAL_MODEL_SHA256 --json
+```
+
+Replace the example revision and both digest placeholders with your independent
+selections. The original definition manifest comes from the existing evidence
+owner. The full current model pin is the `model_revision` and `snapshot_sha256`
+of an existing verified `report export` result, or the existing
+`ReachabilityModelVersion.FromModel` SDK value. Revision alone is insufficient.
+The same command is available in the interactive shell; context supplies no
+implicit workspace, definition, scope or model pin.
+
+Inspection reuses `ReadBusinessEventDefinition` and requires
+`ApplyBusinessEvent` to be an exact no-op against the saved model. Missing or
+altered declaration/membership records are refused; inspection never creates or
+repairs them. The explicit scope is original attribution checked against the
+original definition manifest, not current execution authorization.
+
+The successful version-one terminal envelope has an `inspection` containing:
+
+- The complete existing `model_version`, original `definition_evidence_id`,
+  `definition_reference` and unchanged original `definition_record`.
+- The canonical saved `declaration`, `critical_assets` and descriptive
+  `memberships`, using the existing model record shapes and provenance.
+- `checked_model_evidence_references`, counting unique references checked for
+  those selected records, and `semantics: declared-unacceptable-outcome`.
+
+Every selected declaration, Asset and membership evidence reference is checked
+through the existing bounded report evidence consumer. Its limits remain 1,024
+distinct blobs, 32 MiB per blob and 128 MiB in total. These checks establish
+retained byte integrity, not source truth or authenticated ownership. Empty
+evidence-reference collections remain visible in canonical provenance; no
+supporting observation is invented. Unrelated saved records are not selected.
+
+After supporting-byte checks, the original definition and current complete
+model pin are read again. Freeze the operator-owned workspace during inspection;
+the operation does not claim a lock against hostile concurrent writers. Moving
+the complete workspace preserves its identities. No source, model or workspace
+file is written, and repeated inspection adds no observation clock.
+
+Without `--json`, the console shows the owner's title/outcome, supplied owner
+reference and critical Asset keys. JSON exposes their full retained records and
+declared text; select only material appropriate for the caller's terminal. The
+scope is explicitly an owner-declared unacceptable outcome and critical-asset
+membership. It establishes no observed incident, business loss or Action Priority.
+
+Exit `0` confirms complete inspection; `2` is invalid configuration, `4` is
+source/model/integrity or evidence-budget refusal, and `130` is interruption.
+A failed outcome contains no `inspection`, partial Asset list or original source
+text. The existing `core_mutation: none` and `evidence_commit: not-attempted`
+terminal facts describe this read-only operation. Help requires no storage read.

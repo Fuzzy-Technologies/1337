@@ -28416,3 +28416,58 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_commands.BusinessParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_commands.py"
+sourceHash = "sha256:6b8940a77135c61950f333f68cc841fcff83a8dc793aefcfedcd5035989d4033"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_commands.InspectBusinessEvent"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_commands.py"
+sourceHash = "sha256:4c32b35901f64e5ee099d00bb51742c8a54eb62fbcac29f7447c033250c9ed3e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_commands.RunBusinessCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_commands.py"
+sourceHash = "sha256:db64c1c6a157f238a26e637595026b0f40388bd5cac71988e10e9e8d954048f1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.do_business"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:e64b9c221db24b719f0830c92fc6191b49ef9e5f8c66aa83542f0f7937a3845c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.business-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.business_commands.md"
+sourceHash = "sha256:ceef40744477bc7db3f1bd67fc6844cfa96f15c560922b71e5efcff550fe1b09"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
