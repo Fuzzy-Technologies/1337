@@ -1,5 +1,9 @@
 # fuzzy1337.ioc_commands
 
+The additional explicit `syslog` namespace delegates to the separate
+[saved RFC 5424 handler](fuzzy1337.syslog_commands.md), with its own source-only
+profile and receipt. It does not reinterpret the IOC TSV contract below.
+
 The installed CLI and foreground shell expose Experimental contract-version-one
 `trace ioc import|inspect`. This module is their Internal implementation: all
 classes, methods, functions and helpers, including `IocParser` and

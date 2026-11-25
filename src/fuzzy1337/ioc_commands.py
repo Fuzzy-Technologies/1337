@@ -316,10 +316,10 @@ def DescribeIocMatches(snapshot: IocSnapshot, match: tuple[str, str]) -> str:
 
 
 def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: bool = False) -> int:
-    """Import or inspect IOC artifacts, or transfer one verified original evidence bundle.
+    """Route saved syslog commands or import, inspect and transfer original IOC artifacts.
 
     Args:
-        arguments: Explicit ioc namespace, action, owning workspace and selected inputs.
+        arguments: Explicit ioc or syslog namespace, action, workspace and selected inputs.
         output: Caller-owned presentation stream; untrusted error messages are never copied.
         json_output: Render safe counts and identifiers; explicit candidate export also includes
             verified normalized occurrences, original tokens and declared source attribution.
@@ -330,11 +330,19 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
         workspace state are never saved; refused acquisition retains its original raw/receipt.
     """
 
+    if arguments and arguments[0] == "syslog":
+        from fuzzy1337.syslog_commands import RunSyslogCommands
+
+        return RunSyslogCommands(arguments[1:], output, jsonOutput=json_output)
+
     parser = IocParser()
 
     if "--help" in arguments or "-h" in arguments:
         action = arguments[1] if len(arguments) > 1 and arguments[0] == "ioc" else None
         IocParser(action).print_help(file=output)
+
+        if not arguments or arguments[0] != "ioc":
+            output.write("Saved log profile: trace syslog <import|inspect> --help\n")
 
         return 0
 
