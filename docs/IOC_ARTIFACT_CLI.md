@@ -66,6 +66,12 @@ checks the owning manifests, role/media/size limits, complete original bindings
 and independent original-byte reparse. Altered candidate metadata is refused
 even when alternative public hashes are recomputed.
 
+Omit `--json` to see the verified original evidence manifest ID, source SHA-256
+and byte length in the text summary. The manifest ID identifies the original TSV
+record in the relocated workspace. For `sha256:<digest>`, see
+`evidence/records/<digest>.json` and its blob locator. The source SHA-256 is the
+checksum of the retained TSV bytes.
+
 Inspection works after moving the owning workspace and deleting the source file.
 It performs no save/acquisition, source rediscovery, network or process action.
 It accepts no source/license/consent overrides. The same explicit commands work

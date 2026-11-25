@@ -385,6 +385,11 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
             output.write(str(outcome["candidate_count"]) + " supplied candidates; "
                          "publisher authentication and maliciousness are not assessed.\n")
 
+            if outcome["command"] == "trace.ioc.inspect":
+                output.write(f"Original evidence manifest {outcome['raw_id']}\n"
+                             f"Source SHA-256 {outcome['source_sha256']} "
+                             f"({outcome['received_bytes']} bytes).\n")
+
     output.flush()
 
     return status

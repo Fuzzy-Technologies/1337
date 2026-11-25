@@ -11,6 +11,7 @@ import shutil
 import socket
 import subprocess
 from dataclasses import replace
+from io import StringIO
 
 import pytest
 
@@ -63,6 +64,10 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
     assert status == 0 and inspected["raw_id"] == result["raw_id"] and inspected[
         "evidence_commit"
     ] == "not-attempted", "Inspection rediscovered input or attempted evidence publication"
+    output = StringIO()
+    assert commands.RunIocCommands(InspectArguments(moved, result), output) == 0
+    assert f"Original evidence manifest {raw.evidence_id}\n" in output.getvalue()
+    assert f"Source SHA-256 {hashlib.sha256(RAW).hexdigest()} ({len(RAW)} bytes)." in output.getvalue()
     assert Files(moved) == before and all(before[name] == content
         for name, content in coreBefore.items()), "IOC product workflow wrote Core/owning state"
 
@@ -135,6 +140,9 @@ def test_OriginalChainCorruptionFailsReadOnlyInspection(tmp_path, record_key):
     assert status == 4 and rejected["failure"] == "integrity" and Files(root) == before, (
         "Product inspection ignored corrupt original chain bytes or rewrote evidence"
     )
+    output = StringIO()
+    assert commands.RunIocCommands(InspectArguments(root, result), output) == 4
+    assert output.getvalue() == "IOC artifact failed (exit 4).\n"
 
 
 @pytest.mark.parametrize("phase", ["raw", "receipt", "snapshot"])

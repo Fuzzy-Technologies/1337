@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 32 — v0.4.32 — 2026-11-25
+
+#### Digest
+
+- Make retained IOC source evidence easier to locate during offline inspection.
+
+#### Changed
+
+- Show the verified original evidence manifest ID, source SHA-256 and byte length
+  in the default `1337 trace ioc inspect` summary.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest
