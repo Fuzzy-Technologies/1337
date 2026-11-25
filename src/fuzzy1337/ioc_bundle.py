@@ -204,7 +204,8 @@ def RunIocBundleCommands(arguments: list[str], output: TextIO, *, machine: bool)
 
     Args:
         arguments: Exact trace/ioc bundle action and explicit selections.
-        output: Caller-owned safe summary stream; original bytes are never printed here.
+        output: Caller-owned summary stream; explicit JSON candidate export also includes
+            verified original tokens and declared source attribution.
         machine: Emit a version-one outcome with independently retainable transfer pins.
 
     Returns:
@@ -221,10 +222,15 @@ def RunIocBundleCommands(arguments: list[str], output: TextIO, *, machine: bool)
         "evidence_commit": "not-attempted", "core_mutation": "none"}
     status = 4
     phase = "configuration"
+    exported: dict[str, object] | None = None
 
     try:
         options = IocParser().parse_args(arguments)
         outcome["command"] = "trace.ioc." + options.action
+
+        if options.action == "verify-bundle" and options.export_candidates and not machine:
+            raise IocFailure("configuration", 2)
+
         Identity(options.receipt)
 
         if options.action == "export-bundle":
@@ -261,6 +267,9 @@ def RunIocBundleCommands(arguments: list[str], output: TextIO, *, machine: bool)
             PublishReport(destination, payload)
             outcome["output_published"] = True
 
+        if options.action == "verify-bundle" and options.export_candidates:
+            exported = json.loads(snapshot.Serialize())
+
         outcome["status"] = "completed"
         status = 0
 
@@ -283,6 +292,9 @@ def RunIocBundleCommands(arguments: list[str], output: TextIO, *, machine: bool)
     outcome["exit_code"] = status
 
     if machine:
+        if status == 0 and exported is not None:
+            outcome["candidate_export"] = exported
+
         output.write(json.dumps(outcome, sort_keys=True, allow_nan=False) + "\n")
 
     else:

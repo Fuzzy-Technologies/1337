@@ -8,6 +8,22 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 58 — v0.4.58 — 2026-11-25
+
+#### Digest
+
+- Read verified normalized IOC candidates from a transferred bundle without its workspace.
+
+#### Added
+
+- Accept explicit machine candidate export during detached bundle verification
+  using the existing snapshot DTO and independent original receipt/transfer pins.
+- Preserve default summaries, source order, duplicates, timestamps and original
+  provenance; refuse invalid disclosure combinations or damaged originals before
+  returning candidate data.
+
+
+
 ### Patch 57 — v0.4.57 — 2026-11-25
 
 #### Digest

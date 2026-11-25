@@ -36,7 +36,7 @@ JSON/base64 and original manifest hashes, exact roles/media, common parser and
 acquisition provenance, original receipt/source/budget/request bindings and
 independent source reparse. A candidate bundle cannot choose its own trusted
 receipt or transfer digest. It needs no source path or owning workspace and
-writes no evidence or model. Its terminal result exposes safe original IDs,
+writes no evidence or model. Its default terminal result exposes safe original IDs,
 transfer hash/length and candidate count, never original tokens or source text.
 
 ## Bounds and publication
@@ -65,3 +65,19 @@ investigator authentication, assessment authority or legal-admissibility proof.
 The existing acquisition receipt gains no consent/collector fields. Refused
 acquisitions, general workspace bundles, incident timelines, observed paths and
 broader Task #85/#86 acceptance remain separate work.
+
+## Explicit verified candidate presentation
+
+The additive `verify-bundle --export-candidates --json` option reuses ADR 0148's
+existing `candidate_export` field and unchanged schema-one snapshot DTO. The
+receiver still supplies the independent original receipt and transfer digest.
+All original manifests, bytes, provenance/budgets and source reparse must verify
+before the field is added to a successful terminal outcome. Default verification
+and the original transfer format/bytes remain unchanged. Text mode, matching and
+the exporter do not accept this disclosure combination.
+
+This is a source-free read of already preserved normalized occurrences, including
+original tokens and declared source/license attribution. It creates no evidence,
+workspace, model or output file and adds no parser, Core timeline/entity contract
+or authentication verdict. Refusals omit the optional field entirely. The complete
+Task #85/#86 scope remains open.
