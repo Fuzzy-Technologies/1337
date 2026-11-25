@@ -8,6 +8,22 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 67 — v0.4.67 — 2026-11-25
+
+#### Digest
+
+- Reuse checked model references when ordering immutable snapshot collections.
+
+#### Changed
+
+- Sort records by the references already computed for duplicate validation.
+  Preserve the existing byte decoder, FromDict checks, serialized bytes and
+  atomic publication behavior.
+- On one runner, ten alternating pairs using the same 256 objects, 256
+  observations and 236,573-byte snapshot reduced median durable Save time
+  from 57.9085 to 51.6015 ms (10.89%); CPU medians were 57.247 and 51.114 ms.
+  All 42 SDK and 17 saved-wire outcomes matched before and after the change.
+
 ### Patch 66 — v0.4.66 — 2026-11-25
 
 #### Digest
