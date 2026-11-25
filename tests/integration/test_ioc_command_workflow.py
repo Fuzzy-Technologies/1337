@@ -68,10 +68,16 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
     assert status == 0 and inspected["raw_id"] == result["raw_id"] and inspected[
         "evidence_commit"
     ] == "not-attempted", "Inspection rediscovered input or attempted evidence publication"
+    status, exported = Run([*InspectArguments(moved, result), "--export-candidates"])
+    assert status == 0 and exported["candidate_export"] == json.loads(parsed.Serialize()), (
+        "Offline candidate export differs from the independently replayed original snapshot"
+    )
     output = StringIO()
     assert commands.RunIocCommands(InspectArguments(moved, result), output) == 0
     assert f"Original evidence manifest {raw.evidence_id}\n" in output.getvalue()
-    assert f"Source SHA-256 {hashlib.sha256(RAW).hexdigest()} ({len(RAW)} bytes)." in output.getvalue()
+    assert f"Source SHA-256 {hashlib.sha256(RAW).hexdigest()} ({len(RAW)} bytes)." in (
+        output.getvalue()
+    )
     assert Files(moved) == before and all(before[name] == content
         for name, content in coreBefore.items()), "IOC product workflow wrote Core/owning state"
 
@@ -198,7 +204,8 @@ def test_RefusalRetainsActualRawAndTerminalReceiptWithoutSnapshot(tmp_path, raw,
     )
 
 
-def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp_path):
+@pytest.mark.parametrize("export", [False, True], ids=("summary", "candidate-export"))
+def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp_path, export):
     """Rehashed metadata sharing raw bytes must not borrow a separately retained receipt pin."""
 
     root, source = Owned(tmp_path)
@@ -218,10 +225,18 @@ def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp
     forgedSnapshot = store.Put(forged.Serialize(), "ioc-snapshot", "application/json",
                                 receipt.provenance)
     before = Files(root)
-    status, rejected = Run(["ioc", "inspect", str(root), "--snapshot",
-        forgedSnapshot.evidence_id, "--receipt", result["receipt_id"]])
+    arguments = ["ioc", "inspect", str(root), "--snapshot",
+                 forgedSnapshot.evidence_id, "--receipt", result["receipt_id"]]
+
+    if export:
+        arguments.append("--export-candidates")
+
+    status, rejected = Run(arguments)
     assert status == 4 and rejected["failure"] == "integrity" and Files(root) == before, (
         "Product inspect inferred its trusted receipt from coherently replaced candidate metadata"
+    )
+    assert "candidate_export" not in rejected and "forged-license" not in str(rejected), (
+        "A coherently substituted source reached candidate export despite anchor refusal"
     )
 
 
@@ -245,6 +260,29 @@ def test_OriginalChainCorruptionFailsReadOnlyInspection(tmp_path, record_key):
         "IOC artifact failed (exit 4).\n"
         "Failure category: integrity.\n"
     )
+
+
+@pytest.mark.parametrize("error", [OSError, KeyboardInterrupt], ids=("storage", "interrupt"))
+def test_CandidateExportWaitsForFinalOriginalVerification(tmp_path, monkeypatch, error):
+    """A late storage refusal or interruption cannot publish already replayed candidate data."""
+
+    root, source = Owned(tmp_path)
+    status, imported = Run(ImportArguments(root, source))
+    assert status == 0, "Late-refusal fixture did not acquire its original evidence"
+    before = Files(root)
+
+    def Verify(*args, **kwargs):
+        """Refuse the final owning raw-record check after independently anchored replay."""
+
+        raise error("secret-marker")
+
+    monkeypatch.setattr(commands, "OriginalRecord", Verify)
+    status, refused = Run([*InspectArguments(root, imported), "--export-candidates"])
+    assert status == (130 if error is KeyboardInterrupt else 4)
+    assert "candidate_export" not in refused and all(value not in str(refused) for value in (
+        "secret-marker", "EXAMPLE.Invalid.", "opaque.tsv"
+    )), "Late verification failure emitted candidate data or rejected exception text"
+    assert Files(root) == before, "Failed candidate export changed original evidence"
 
 
 @pytest.mark.parametrize("phase", ["raw", "receipt", "snapshot"])

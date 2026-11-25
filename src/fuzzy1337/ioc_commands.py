@@ -103,6 +103,8 @@ def IocParser(action: str | None = None) -> argparse.ArgumentParser:
     inspector.add_argument("--receipt", required=True)
     inspector.add_argument("--match", action="append", nargs=2, metavar=("KIND", "TOKEN"),
                            help="locate one supplied IOC's occurrences in text output")
+    inspector.add_argument("--export-candidates", action="store_true",
+                           help="include verified original tokens and provenance with --json")
 
     return actions.choices[action] if action in actions.choices else parser
 
@@ -298,7 +300,8 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
     Args:
         arguments: Explicit ioc namespace, action, owning workspace and selected inputs.
         output: Caller-owned presentation stream; untrusted error messages are never copied.
-        json_output: Render safe counts and confirmed identifiers, never original source bodies.
+        json_output: Render safe counts and identifiers; explicit candidate export also includes
+            verified normalized occurrences, original tokens and declared source attribution.
 
     Returns:
         Zero on verified success, two for invalid selections, four for acquisition/integrity
@@ -325,6 +328,7 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
     phase = "configuration"
     match: tuple[str, str] | None = None
     matchOutput = ""
+    exported: dict[str, object] | None = None
 
     try:
         options = parser.parse_args(arguments)
@@ -364,6 +368,9 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
             snapshot = acquired.snapshot
 
         else:
+            if options.export_candidates and (not json_output or options.match is not None):
+                raise IocFailure("configuration", 2)
+
             if options.match is not None:
                 if json_output or len(options.match) != 1:
                     raise IocFailure("configuration", 2)
@@ -381,13 +388,16 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
         if type(snapshot) is not IocSnapshot:
             raise IocFailure("integrity")
 
-        snapshot.Serialize()
+        serialized = snapshot.Serialize()
         store = IocEvidenceStore(root / "evidence", snapshot.limits.max_bytes)
         record = store.Get(snapshot.raw_evidence_id)
         OriginalRecord(record, LocalWorkspaceStore(root).Open().workspace_id, store, "ioc-source")
 
         if match is not None:
             matchOutput = DescribeIocMatches(snapshot, match)
+
+        if options.action == "inspect" and options.export_candidates:
+            exported = json.loads(serialized)
 
         outcome.update({"status": "completed", "raw_id": snapshot.raw_evidence_id,
             "acquisition_state": "succeeded", "candidate_count": len(snapshot.candidates),
@@ -411,6 +421,9 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
     outcome["exit_code"] = status
 
     if json_output:
+        if status == 0 and exported is not None:
+            outcome["candidate_export"] = exported
+
         output.write(json.dumps(outcome, sort_keys=True, allow_nan=False) + "\n")
 
     elif match is not None:

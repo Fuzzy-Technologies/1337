@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 33 — v0.4.33 — 2026-11-25
+
+#### Digest
+
+- Make verified retained IOC occurrences available to offline machine consumers.
+
+#### Added
+
+- Export the original normalized IOC snapshot through explicit
+  `trace ioc inspect --export-candidates --json`, preserving tokens, source/parser
+  attribution, original times, duplicate occurrences and byte coordinates after
+  independently anchored replay. Default summaries remain unchanged; refused
+  exports never contain a partial candidate payload.
+
+
 ### Patch 32 — v0.4.32 — 2026-11-25
 
 #### Digest

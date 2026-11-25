@@ -102,6 +102,40 @@ Zero matching occurrences is a successful verified lookup. An integrity refusal
 returns exit 4 with empty stdout. `--match` requires text mode. Use ordinary
 inspection with `--json` for the schema-one summary.
 
+## Export verified normalized candidates
+
+Explicitly request a machine handoff of the owned non-secret candidate data:
+
+```bash
+1337 trace ioc inspect /owned/case-workspace \
+  --snapshot 'sha256:<original-snapshot-manifest-digest>' \
+  --receipt 'sha256:<independently-retained-original-receipt-manifest-digest>' \
+  --export-candidates --json
+```
+
+On success, the usual schema-one terminal result also contains
+`candidate_export`: the unchanged schema-one normalized snapshot document. It
+includes every candidate in source order, original and normalized tokens,
+physical line/byte coordinates, source-declared timestamps/timezones, original
+raw/receipt manifest identities, source/version/license attribution, parser
+identity/version and original limits. Duplicate occurrences remain separate.
+The surrounding result retains the original acquisition clock and the selected
+snapshot manifest ID, separately from source-declared observation times.
+
+This flag explicitly discloses original tokens and declared source/license
+locators to stdout. Use it only for the owned non-secret data selected at import;
+handle redirected output with the same care as that data. Default inspection
+continues to emit only its summary. Export requires `--json`, cannot be combined
+with `--match`, and is unavailable during import. Invalid combinations fail
+before storage access. Any replay or integrity refusal omits `candidate_export`
+entirely and emits no partial candidates.
+
+Export uses the same independent original receipt anchor and retained-byte
+reparse, including after relocation and source deletion. It creates no output
+file and performs no acquisition or Core/workspace save. An ordinary shell may
+redirect its stdout when a local file is needed. It never resolves or assesses
+the exported indicators. See [ADR 0148](adr/0148-verified-ioc-candidate-export.md).
+
 ## Inspect one normalized occurrence
 
 Use the Python SDK with the `snapshot_id` and independent `receipt_id` saved from
