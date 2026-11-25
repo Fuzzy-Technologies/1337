@@ -77,18 +77,18 @@ def test_ActualEvidenceGateRejectsMissingSkippedOrUnconfirmedFacts(tmp_path, mon
     root = tmp_path / "functional-evidence/local-image-product"
     lifecycle = root / "lifecycle"
     lifecycle.mkdir(parents=True)
-    oracle_path = tmp_path / "tests/fixtures/trivy/product_oracle.v1.json"
-    oracle_path.parent.mkdir(parents=True)
+    oraclePath = tmp_path / "tests/fixtures/trivy/product_oracle.v1.json"
+    oraclePath.parent.mkdir(parents=True)
     cases = [{"case_id": "present", "expected_selected_advisory_match": True},
              {"case_id": "fixed", "expected_selected_advisory_match": False}]
-    oracle_path.write_text(json.dumps({"cases": cases}))
+    oraclePath.write_text(json.dumps({"cases": cases}))
     (lifecycle / "startup.json").write_text(json.dumps({"source_commit": HEAD,
         "owned_daemon": True, "ambient_containerd": False}))
     shutdown = {"cleanup_confirmed": change != "cleanup", "owned_root_retained": False,
                 "pytest_exit_code": 0, "failure_category": None}
     (lifecycle / "shutdown.json").write_text(json.dumps(shutdown))
     prefix = "test_InstalledLocalExportThenExplicitNativeScanPreservesConfigAndFinding["
-    xml_cases = []
+    xmlCases = []
     for case in cases:
         directory = root / case["case_id"]
         directory.mkdir()
@@ -96,10 +96,10 @@ def test_ActualEvidenceGateRejectsMissingSkippedOrUnconfirmedFacts(tmp_path, mon
             "outcome": "selected-two-phase-assertions-passed",
             "selected_advisory_match": case["expected_selected_advisory_match"],
             "scan_completeness": "not-assessed", "model_revision": 0 if change == "model" else 1}))
-        xml_cases.append('<testcase name="' + prefix + case["case_id"] + ']">' + (
+        xmlCases.append('<testcase name="' + prefix + case["case_id"] + ']">' + (
             "<skipped/>" if change == "skip" else "") + "</testcase>")
     (root / "pytest.xml").write_text("<testsuite>" + (
-        "" if change == "no-cases" else "".join(xml_cases)) + "</testsuite>")
+        "" if change == "no-cases" else "".join(xmlCases)) + "</testsuite>")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("ENROLLED_HEAD", "2" * 40 if change == "head" else HEAD)
     command = next(step["run"] for step in Workflow()["jobs"]["owned-local-image"]["steps"]
