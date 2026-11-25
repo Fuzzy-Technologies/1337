@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Never, TextIO, cast
 
 from fuzzy1337.adapters import EvidenceReference
+from fuzzy1337.adapters.contracts import JsonValue
 from fuzzy1337.evidence import (
     CheckStorageEntry,
     EvidenceError,
@@ -409,7 +410,7 @@ def WriteIntelDetails(details: dict[str, object], output: TextIO) -> None:
 
 
 def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
-    """Declare explicit offline import, verified inspection, and one finding's enrichment.
+    """Declare explicit offline import, inspection, finding preview and enrichment.
 
     Args:
         action: Optional known action whose parser is requested for focused help.
@@ -435,7 +436,7 @@ def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
     importer.add_argument("--expected-sha256")
     importer.add_argument("--max-bytes", type=int, default=MAX_SOURCE_BYTES)
 
-    for name in ("inspect", "apply"):
+    for name in ("inspect", "preview", "apply"):
         selected = actions.add_parser(name, add_help=False)
         selected.add_argument("workspace", type=Path)
         selected.add_argument("--snapshot", required=True)
@@ -459,7 +460,7 @@ def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
 def RunIntelCommands(
     arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
 ) -> int:
-    """Execute explicit local imports or typed pinned-source profiles with bounded summaries.
+    """Execute explicit imports, inspection, finding proposals or bounded pinned-source profiles.
 
     Args:
         arguments: Explicit action and its workspace, source or immutable selection arguments.
@@ -562,7 +563,7 @@ def RunIntelCommands(
         if identifiers is not None:
             outcome["details"] = IntelDetails(root, snapshot, identifiers)
 
-        if options.action == "apply":
+        if options.action in ("preview", "apply"):
             model = LocalModelStore(root)
             state = model.Open()
 
@@ -577,10 +578,28 @@ def RunIntelCommands(
                 state, options.finding, tuple(options.identifier), (snapshot,), provenance, root,
                 as_of=options.as_of, max_age_seconds=options.max_age_seconds,
             )
-            outcome["model_commit"] = "unknown"
-            saved = model.Save(proposed, expected_revision=delta.previous_revision)
-            outcome["model_commit"] = "confirmed"
-            outcome["model_revision"] = saved.revision
+            if options.action == "preview":
+                outcome["model_revision"] = state.revision
+                outcome["preview"] = {
+                    "profile_version": 1, "finding_reference": options.finding,
+                    "proposed_revision": proposed.revision,
+                    "already_applied": not delta.created,
+                    "observations": [
+                        {"reference": item.Reference(), **cast(dict[str, object], JsonValue(item))}
+                        for item in proposed.observations if item.Reference() in delta.created
+                    ],
+                    "target_applicability": "not-evaluated",
+                }
+
+                if len(CanonicalModelJson(outcome["preview"])) > MAX_INSPECTION_BYTES:
+                    del outcome["preview"]
+                    raise IntelFailure("inspection-limit")
+
+            else:
+                outcome["model_commit"] = "unknown"
+                saved = model.Save(proposed, expected_revision=delta.previous_revision)
+                outcome["model_commit"] = "confirmed"
+                outcome["model_revision"] = saved.revision
 
         outcome["status"] = "succeeded"
         status = 0
@@ -622,5 +641,9 @@ def RunIntelCommands(
                 output.write(f"Verified original source SHA-256: {outcome['source_sha256']}\n")
 
             WriteIntelDetails(details, output)
+
+        if outcome["status"] == "succeeded" and "preview" in outcome:
+            output.write("Verified enrichment preview; model save has not been attempted.\n")
+            output.write(IntelDisplay(outcome["preview"]) + "\n")
 
     return status

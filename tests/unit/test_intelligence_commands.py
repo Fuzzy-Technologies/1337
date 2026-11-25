@@ -77,17 +77,47 @@ def test_InvalidGrammarNeverEchoesRejectedArguments(arguments):
     assert "untrusted-value" not in json.dumps(outcome), "Rejected values leaked to output."
 
 
-@pytest.mark.parametrize("action", [None, "import", "inspect", "apply"])
+@pytest.mark.parametrize("action", [None, "import", "inspect", "preview", "apply"])
 def test_HelpUsesCallerStreamAndDescribesSelectedActionWithoutExecution(action):
     """Command-specific help exposes explicit options without requiring an owning workspace."""
 
     output = StringIO()
     arguments = ["--help"] if action is None else [action, "--help"]
     assert commands.RunIntelCommands(arguments, output) == 0, "Help returned a failure status."
-    expected = "import,inspect,apply" if action is None else (
+    expected = "import,inspect,preview,apply" if action is None else (
         "--feed" if action == "import" else "--snapshot"
     )
     assert expected in output.getvalue(), "Action help hid its required explicit selections."
+
+
+def test_PreviewNeverCallsModelSaveAndBoundsItsProjectionBeforePrinting(tmp_path, monkeypatch):
+    """Preview uses the verified proposal owner while refusing excessive output atomically."""
+
+    model, finding, imported = Imported(tmp_path)
+    arguments = ApplyArguments(model, finding, imported)
+    arguments[0] = "preview"
+    before = Files(model.root)
+
+    def RefuseSave(*args, **kwargs):
+        """Fail the test if a read-only preview reaches the mutation owner."""
+
+        pytest.fail("Preview must never call the model save boundary.")
+
+    monkeypatch.setattr(LocalModelStore, "Save", RefuseSave)
+    status, outcome = Run(arguments)
+    assert status == 0 and outcome["preview"]["observations"], "Verified preview failed."
+    status, text = Run(arguments, json_output=False)
+    assert status == 0 and "model save has not been attempted" in text, (
+        "Human preview omitted the explicit unsaved result."
+    )
+    monkeypatch.setattr(commands, "MAX_INSPECTION_BYTES", 1)
+    status, rejected = Run(arguments)
+    assert status == 4 and rejected["failure"] == "inspection-limit" and (
+        "preview" not in rejected
+    ), (
+        "An excessive preview printed a partial or implicitly truncated candidate."
+    )
+    assert Files(model.root) == before, "Preview success or failure changed retained bytes."
 
 
 @pytest.mark.parametrize("path", ["../owned", "owned/../source", "owned\x1bsource", "x" * 4097])
