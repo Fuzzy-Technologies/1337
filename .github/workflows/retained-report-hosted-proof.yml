@@ -1,5 +1,5 @@
 {
-  "name": "Reparse original saved RFC 5424 source after relocation and verify prior IOC behavior",
+  "name": "Verify the reduced test-only gate on historical shared tests and an isolated accepted unit change",
   "on": {
     "push": {
       "branches": [
@@ -11,13 +11,13 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "033ce2468579935d89c653bea1dfc4be7aab09a5",
-    "PRODUCT_TREE": "897e3e0498187ccdd04ca4cd3f76489be13b57cd"
+    "APPROVED_SOURCE_SHA": "b1878b73c8c8d56958ee0a335acb418e11475f08",
+    "PRODUCT_TREE": "3e7e7c05690f6b51c6c9890a4a7033fa5c186549"
   },
   "jobs": {
     "offline-milestones": {
       "runs-on": "ubuntu-24.04",
-      "timeout-minutes": 9,
+      "timeout-minutes": 12,
       "steps": [
         {
           "name": "Require the dedicated read-only proof invocation",
@@ -36,7 +36,44 @@
         {
           "name": "Retain the reviewed offline test driver from this workflow commit",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py syslog-review.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py historical-profile.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
+        },
+        {
+          "name": "Check out exactly the historical PR head and both parents",
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "79912c8467a23f8b806078f5f0738e01eb76d205",
+            "clean": true,
+            "persist-credentials": false,
+            "fetch-depth": 2,
+            "path": "historical-p65"
+          }
+        },
+        {
+          "name": "Move the authentic historical checkout outside the candidate workspace",
+          "shell": "bash",
+          "run": "set -euo pipefail\nhistorical=\"$GITHUB_WORKSPACE/historical-p65\"\ntest \"$(git -C \"$historical\" rev-parse HEAD)\" = 79912c8467a23f8b806078f5f0738e01eb76d205\ntest \"$(git -C \"$historical\" rev-parse HEAD^1)\" = 84d1101b3de10da09f89881f523a032cd909d696\ntest \"$(git -C \"$historical\" rev-parse HEAD^2)\" = b63d113396ff9daa9e7d27dce1512a5306f980d6\ntest \"$(git -C \"$historical\" rev-parse HEAD^{tree})\" = d799aab5e060546ec022180c4a5f60763671d3f4\nmv \"$historical\" \"$RUNNER_TEMP/real-p65-history\"\n"
+        },
+        {
+          "name": "Check out the authentic archived unit-only pull request for selector inspection",
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "f23e67750127a74dc05910a820b88456ce9be92e",
+            "clean": true,
+            "persist-credentials": false,
+            "fetch-depth": 2,
+            "path": "historical-p65-455"
+          }
+        },
+        {
+          "name": "Verify the separate original #455 checkout",
+          "shell": "bash",
+          "run": "set -euo pipefail\nhistorical=\"$GITHUB_WORKSPACE/historical-p65-455\"\ntest \"$(git -C \"$historical\" rev-parse HEAD^1)\" = 4240f4d94f9d3dfa6bacbf9768e358c2033a2c75\ntest \"$(git -C \"$historical\" rev-parse HEAD^{tree})\" = 2fbf66e5171c2e17db3f2f6adc54d7beb64bc2dc\nmv \"$historical\" \"$RUNNER_TEMP/real-p65-455\"\n"
+        },
+        {
+          "name": "Reconstruct the independently eligible single-file subset of the accepted #537 changes",
+          "shell": "bash",
+          "run": "set -euo pipefail\nhist=\"$RUNNER_TEMP/real-p65-history\"\npositive=\"$RUNNER_TEMP/independent-unit-slice\"\ngit -C \"$hist\" worktree add --quiet --detach \"$positive\" 84d1101b3de10da09f89881f523a032cd909d696\ngit -C \"$hist\" show 79912c8467a23f8b806078f5f0738e01eb76d205:tests/unit/test_runtime_commands.py > \"$positive/tests/unit/test_runtime_commands.py\"\npython3 -I - \"$positive/contracts/python-naming-baseline.json\" <<'PY'\nimport json,sys\nfrom pathlib import Path\npath=Path(sys.argv[1])\nbefore=path.read_bytes()\nremoved={(\"tests/unit/test_runtime_commands.py\",\"local\",\"top.test_EveryOriginalReadViewRequiresOnePhysicalLink\",v) for v in (\"handle_calls\",\"path_calls\")}\nkept=[]\nseen=set()\nfor line in before.splitlines(keepends=True):\n    clean=line.strip()\n    if clean.startswith(b\"[\") and clean!=b\"[\":\n        record=tuple(json.loads(clean.removesuffix(b\",\")))\n        if record in removed:\n            assert record not in seen\n            seen.add(record)\n            continue\n    kept.append(line)\nassert seen==removed\npath.write_bytes(b\"\".join(kept))\nPY\ntest \"$(git -C \"$positive\" hash-object tests/unit/test_runtime_commands.py)\" = be3ce55ed742ebd6478cf077af46466479f3caa7\ntest \"$(git -C \"$positive\" hash-object contracts/python-naming-baseline.json)\" = d2061d102db8797a8e31c9b4b4f80381f7b8f7b5\ngit -C \"$positive\" add -- tests/unit/test_runtime_commands.py contracts/python-naming-baseline.json\ntest \"$(git -C \"$positive\" write-tree)\" = 8222fe58b28e90ab123399e73a0769f1685cf209\nGIT_AUTHOR_NAME='Historical test fixture' GIT_COMMITTER_NAME='Historical test fixture' GIT_AUTHOR_EMAIL='fixture@example.invalid' GIT_COMMITTER_EMAIL='fixture@example.invalid' GIT_AUTHOR_DATE='2000-01-01T00:00:00+00:00' GIT_COMMITTER_DATE='2000-01-01T00:00:00+00:00' git -C \"$positive\" -c commit.gpgsign=false commit --quiet -m 'Reconstructed test fixture containing the two isolated runtime unit renames'\ntest \"$(git -C \"$positive\" rev-parse HEAD^1)\" = 84d1101b3de10da09f89881f523a032cd909d696\ntest \"$(git -C \"$positive\" rev-parse HEAD^{tree})\" = 8222fe58b28e90ab123399e73a0769f1685cf209\ntest -z \"$(git -C \"$positive\" status --porcelain --untracked-files=no)\"\ngit -C \"$positive\" rev-parse HEAD\n"
         },
         {
           "name": "Replace checkout with only the immutable product source",
@@ -58,21 +95,47 @@
         {
           "name": "Build and separately install the actual wheel with locked dependencies",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tests/unit/test_syslog_records.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n",
-          "id": "p64_setup"
+          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tools/passive_test_gate.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n"
         },
         {
-          "name": "Check source and run the complete saved-syslog and existing IOC regressions",
+          "name": "Run the candidate gate regression tests, collection policies, style and naming",
           "shell": "bash",
           "run": "python3 -I \"$RUNNER_TEMP/milestone-checks.py\""
         },
         {
-          "name": "Exercise nine independent console reads and refusals on the separately installed product",
-          "if": "always() && steps.p64_setup.outcome == 'success'",
+          "name": "Download the original complete #537 Ubuntu JUnit artifact",
+          "id": "previous_unit_timings",
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "github-token": "${{ github.token }}",
+            "run-id": "45674257034",
+            "artifact-ids": "15052005768",
+            "path": "${{ runner.temp }}/earlier-537",
+            "skip-decompress": true,
+            "digest-mismatch": "error"
+          }
+        },
+        {
+          "name": "Measure the eligible subset using a real installed historical wheel and check the full-profile controls",
           "shell": "bash",
-          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\npython3 -I \"$RUNNER_TEMP/syslog-review.py\" \"$RUNNER_TEMP/retained-proof-runtime/bin/1337\"\n"
+          "run": "set -euo pipefail\nroot=\"$GITHUB_WORKSPACE\"\nhist=\"$RUNNER_TEMP/real-p65-history\"\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nhelper=\"$RUNNER_TEMP/p65-tools\"\nmkdir -p \"$helper\"\ncp \"$root/tools/passive_test_gate.py\" \"$root/tools/python_naming.py\" \"$helper/\"\ncmp \"$root/uv.lock\" \"$hist/uv.lock\"\ncmp \"$root/pyproject.toml\" \"$hist/pyproject.toml\"\npython3 -I - <<'PY'\nimport os,hashlib,zipfile\nfrom pathlib import Path\ntmp = Path(os.environ[\"RUNNER_TEMP\"])\narchive, = [p for p in (tmp / \"earlier-537\").rglob(\"*\") if p.is_file()]\nassert hashlib.sha256(archive.read_bytes()).hexdigest() == \"450fb3faece7630008c8ff359c36c4d46b49fba60af766e75aff8312bd4d13c7\"\nwith zipfile.ZipFile(archive) as z:\n    entry, = [m for m in z.infolist() if m.filename == \"coverage/passive-units-parallel.xml\"]\n    assert entry.file_size < 32*1024*1024\n    raw = z.read(entry)\n    assert len(raw) == entry.file_size\n    (tmp / \"historic-native.xml\").write_bytes(raw)\n    (tmp / \"historic-native.sha256\").write_text(hashlib.sha256(raw).hexdigest())\nPY\n\"$runtime/bin/python\" -I -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/historic-wheel\" \"$hist\"\nset -- \"$RUNNER_TEMP/historic-wheel/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --reinstall --no-deps \"$1\"\ncd \"$RUNNER_TEMP\"\nif ! \"$runtime/bin/python\" -I \"$RUNNER_TEMP/historical-profile.py\" --historical-root \"$hist\" --positive-root \"$RUNNER_TEMP/independent-unit-slice\" --leaf-root \"$RUNNER_TEMP/real-p65-455\" --candidate-tools \"$helper\" --gate-blob b9f642abda5c8f945bdb32f059d8ab336e95f004 --naming-blob 1748583602d6eec3e9bb2b2cf417bc2e91038865 --baseline-xml \"$RUNNER_TEMP/historic-native.xml\" --baseline-xml-sha256 \"$(cat \"$RUNNER_TEMP/historic-native.sha256\")\" --output \"$RUNNER_TEMP/p65-proof\"; then\n  for name in actual-537 actual-455-selector-only reconstructed-positive; do f=\"$RUNNER_TEMP/p65-proof/$name.json\"; if test -f \"$f\"; then head -c 5500 \"$f\"; fi; done\n  if test -f \"$RUNNER_TEMP/p65-proof/candidate-gate.log\"; then tail -n 40 \"$RUNNER_TEMP/p65-proof/candidate-gate.log\"; fi\n  exit 1\nfi\n\"$runtime/bin/python\" -I - <<'PY'\nimport json,os,hashlib\nfrom pathlib import Path\ntmp=Path(os.environ[\"RUNNER_TEMP\"])\npath=tmp/\"p65-proof/historical-p65-benchmark.json\"\ndata=json.loads(path.read_bytes())\nprint(\"P65_HISTORICAL_RECEIPT\",json.dumps({k:data[k] for k in (\"reconstructed\",\"source\",\"base\",\"tree\",\"accepted-test-origin\",\"gate_blob\",\"installed_python_files\",\"baseline_xml_sha256\",\"wall_seconds\",\"cases_by_file\",\"original_full_pytest_seconds\",\"actual-537-full-suite-executed\")},sort_keys=True))\nprint(\"P65_RECORDED_DECISIONS\",json.dumps({key:{\"reason\":value[\"reason\"],\"files\":len(value[\"selection\"])} for key,value in data[\"controls\"].items()},sort_keys=True))\nprint(\"P65_JUNIT_IDENTITIES\",len(data[\"nodeids\"]),hashlib.sha256(path.read_bytes()).hexdigest())\nPY\n"
+        },
+        {
+          "name": "Retain the historical proof and measured candidate case identities",
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "with": {
+            "name": "passive-historical-selection-and-reconstructed-unit-subset",
+            "path": "${{ runner.temp }}/p65-proof\n${{ runner.temp }}/p65-focused.xml",
+            "if-no-files-found": "error",
+            "retention-days": 14
+          },
+          "if": "always()"
         }
-      ]
+      ],
+      "permissions": {
+        "contents": "read",
+        "actions": "read"
+      }
     }
   }
 }

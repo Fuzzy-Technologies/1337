@@ -1220,16 +1220,3 @@ Existing configuration/image profiles retain their required input contracts,
 refusal codes and no-clobber exports; native-web rejects artifact-only options.
 See [CI scanning](CI_SCAN.md) and
 [ADR 0138](adr/0138-current-run-native-web-ci-predicate.md).
-
-
-The owned saved RFC 5424 version-one operation is Experimental, separately from
-the ASCII TSV IOC family. Public SDK symbols are
-`syslog_records.ParseSavedSyslog` and `syslog_artifacts.SyslogSource` (including
-`ToDict`), `SyslogAcquisition`, `ImportSavedSyslogFile` and `LoadSavedSyslog`.
-The documented source-only canonical JSON, profile-specific original/receipt and
-`trace syslog import|inspect` are Experimental version one. All other symbols and
-the `syslog_commands` transport are Internal. See
-[the source guide](SYSLOG_SAVED_IMPORT.md) and
-[ADR 0156](adr/0156-owned-saved-rfc5424.md).
-This adds no Core Event/Identity/incident/timeline or global custody contract,
-no producer/actor authentication and no live acquisition.

@@ -581,7 +581,6 @@ class InteractiveShell(cmd.Cmd):
                 "paths analyze, raw <plan|run|replay>, report export, "
                 "runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect|export-bundle|verify-bundle>, "
-                "trace syslog <import|inspect>, "
                 "select <object-id>, "
                 "sbom <image|import spdx-graph|import cyclonedx>, "
                 "scan <quick|crawl|ports|web|nuclei|image|config>, "
@@ -650,9 +649,7 @@ class InteractiveShell(cmd.Cmd):
             ),
             "trace": (
                 "trace ioc <import|inspect|export-bundle|verify-bundle>: import selected "
-                "candidates, inspect originals or transfer and verify one explicit evidence bundle. "
-                "trace syslog <import|inspect>: retain an explicit saved RFC 5424 file "
-                "or inspect independently pinned original source records."
+                "candidates, inspect originals or transfer and verify one explicit evidence bundle."
             ),
             "scan": (
                 "scan <quick|crawl|ports|web|nuclei|image|config> <workspace>: run governed scans; "
@@ -866,10 +863,10 @@ class InteractiveShell(cmd.Cmd):
         self.RunLocalCommand("report", argument)
 
     def do_trace(self, argument: str) -> None:
-        """Use explicit local IOC or saved syslog sources without implicit shell authority.
+        """Use explicitly owned local IOC candidates without deriving authority from shell state.
 
         Args:
-            argument: IOC or syslog action, workspace, source selections or independent anchors.
+            argument: IOC action, owning workspace, source selections or independent anchors.
         """
 
         self.RunLocalCommand("trace", argument)

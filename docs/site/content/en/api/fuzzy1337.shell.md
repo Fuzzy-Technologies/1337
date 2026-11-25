@@ -1,10 +1,5 @@
 # fuzzy1337.shell
 
-Foreground `trace syslog import|inspect` forwards explicit selections to the same
-[saved RFC 5424 handler](fuzzy1337.syslog_commands.md) as the console. Workspace,
-original file, framing, checksum and receipt are never inferred from shell context;
-the existing private command-history treatment of `trace` is retained.
-
 Read-only `view model --query <file> [--json]` replays an explicit standard
 `LensQuery.ToDict()` document for one render through the unchanged typed decoder
 and lens projection. It replaces the preset without saving a preference; omitted
