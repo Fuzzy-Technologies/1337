@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 32 — v0.4.32 — 2026-11-25
+
+#### Digest
+
+- Keep saved nested image inventory bound to its exact source attribution.
+
+#### Fixed
+
+- Exclude unclaimed canonical containment attributed only to another image,
+  while preserving independently attributed selected-image edges even when
+  another source declares the same relation for another image.
+- Apply original SPDX relationship restrictions per complete provenance record;
+  missing or invalid image references cannot authorize that source context.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest

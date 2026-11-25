@@ -36,6 +36,17 @@ claims, another image, licenses, OS objects or layers as package membership.
 No supplied package membership means inventory status `unknown`; observed
 membership means `observed`, without a completeness or vulnerability verdict.
 
+Containment attribution is evaluated per complete canonical provenance record.
+An eligible relation must retain at least one exact provenance record also
+retained by the selected image. If that relation and provenance record have
+original `spdx-relationship-claim` observations, at least one must explicitly
+name the selected image; missing or non-string image references do not authorize
+that context. A foreign source's claim cannot suppress an independently
+attributed selected-image context on the same canonical relation. Unclaimed
+canonical edges remain eligible through their exact selected-image provenance;
+unclaimed edges attributed only to another image remain excluded. Shared package
+identity or equal checksum bytes alone do not establish this attribution.
+
 Return only existing RELATED_TO associations from the selected config image with
 `association: configured-image-use`, `basis: supplied-inspect` and a Docker
 container endpoint whose explicit `image_reference` agrees. An equal-byte
