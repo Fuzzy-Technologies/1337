@@ -1,9 +1,10 @@
 # fuzzy1337.command_registry
 
-The `trace` descriptor also advertises the separate Experimental saved-file
-`trace syslog import|inspect` operation. Discovery supplies no original file,
-checksum, receipt, source attribution or read declaration and grants no authority.
-See the [source-only handler](fuzzy1337.syslog_commands.md).
+The `intel` descriptor additionally advertises `preview-set|apply-set` over
+explicit original local snapshot/receipt pairs. Discovery supplies no roots,
+finding, revision, interpretation inputs or save permission. The
+[set consumer](fuzzy1337.intelligence_set_commands.md) owns verification and one
+optional existing CAS; no capability or registration contract is added.
 
 The `paths` descriptor advertises Experimental version-one `paths analyze` over
 one explicit pinned saved-model source/target selection and original reachability

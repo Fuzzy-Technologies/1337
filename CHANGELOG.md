@@ -8,44 +8,24 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
-### Patch 66 — v0.4.66 — 2026-11-25
+### Patch 68 — v0.4.68 — 2026-11-25
 
 #### Digest
 
-- Read existing external SARIF reports with exact original custody and portable source facts.
+- Preview several verified saved intelligence sources as one candidate and save
+  that combined interpretation with one existing model CAS.
 
 #### Added
 
-- Add explicit `bridge sarif import|inspect` over caller-owned SARIF 2.1.0 files,
-  the existing bounded physical-file reader and immutable evidence owner.
-- Preserve source rule/tool/severity/position declarations, order, duplicates and
-  unknown fields without canonical Finding, target, execution or risk inference.
-- Reopen exact original/receipt/SHA pins after source deletion and workspace copy;
-  keep source URI/path/schema/help strings inert and owning state unchanged.
-
-#### Security
-
-- Bound complete source/projection/receipt/output, preflight original context
-  before body reads, retain independent publication acknowledgements and refuse
-  unsupported external properties or failed verification without partial facts.
-
-### Patch 64 — v0.4.64 — 2026-11-25
-
-#### Digest
-
-- Reopen an explicitly owned saved RFC 5424 log from exact retained bytes after
-  source removal or workspace relocation.
-
-#### Added
-
-- Add bounded source-only RFC 5424 v1 parsing and `trace syslog import|inspect`,
-  reusing the existing artifact/evidence owners. Preserve original header fields,
-  source timestamps/offset knowledge, NILs, ordered structured data, provenance
-  and byte coordinates behind independent original receipt and SHA-256 pins.
-- Keep raw and receipt acknowledgements independent; reproduce parser refusals
-  without partial records. Default output withholds SD values; explicit JSON
-  record export includes them. MSG content stays only in the retained original.
-  No live input, Core Event/Identity, incident, authentication or scoring follows.
+- Add explicit local `intel preview-set|apply-set` over independent original
+  snapshot/receipt pairs and the unchanged multi-source SDK. Check aggregate
+  allocations before original reparse and verify every source before output.
+  Preserve canonical assertion order, source attribution, CVSS/KEV/EPSS meanings,
+  freshness, unmatched IDs and existing operator triage.
+- Refuse invalid sets without a saved valid prefix or partial preview. Preserve
+  idempotent replay, independent save uncertainty and bounded checked terminal
+  presentation. No acquisition, applicability verdict, risk policy or new Core/
+  receipt format is introduced.
 
 
 ### Patch 63 — v0.4.63 — 2026-11-25

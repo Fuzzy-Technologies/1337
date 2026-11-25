@@ -184,3 +184,97 @@ See [ADR 0069](adr/0069-explicit-local-intelligence-cli.md) and the
 and their finite source/output boundaries.
 [ADR 0149](adr/0149-read-only-finding-intelligence-preview.md) defines the unsaved
 finding preview and its equality with the apply proposal.
+
+
+## One combined preview and save from several originals
+
+Experimental `intel preview-set|apply-set` exposes the existing multiple-snapshot
+SDK operation. It accepts two to sixteen explicit original successful **local**
+snapshot/receipt pairs from `intel import`. The separate selected EPSS gzip, CWE
+ZIP and HTTPS families retain their own contracts and are not converted here.
+
+After importing each original file with its explicit source/version/license
+metadata, retain the returned independent snapshot and receipt manifest IDs.
+Delete the caller files and copy the complete workspace if desired, then use:
+
+```text
+1337 intel preview-set /absolute/copied-workspace \
+  --selection sha256:CVE_SNAPSHOT sha256:CVE_RECEIPT \
+  --selection sha256:CWE_SNAPSHOT sha256:CWE_RECEIPT \
+  --selection sha256:KEV_SNAPSHOT sha256:KEV_RECEIPT \
+  --selection sha256:EPSS_SNAPSHOT sha256:EPSS_RECEIPT \
+  --finding object:EXISTING_FINDING \
+  --identifier CVE-1900-9999 --identifier CWE-89 \
+  --expected-revision 3 --as-of 2026-11-25T13:00:00Z \
+  --max-age-seconds 86400 --scope scope:owned --run run:explicit-review --json
+```
+
+Replace every placeholder, synthetic identifier, revision and time with your
+actual independent selections. Each root is a full lowercase manifest identity.
+Both snapshot roots and receipt roots must be unique. No source, association,
+finding or interpretation input is inferred from another record or shell context.
+
+Every pair passes the existing complete receipt/original-source verifier.
+One unchanged `ApplyVerifiedEnrichment` call then constructs one candidate
+observation, with original source/license/time/evidence references, canonical
+URLs, stale flags and unmatched IDs. Source CVSS assessments remain attributed;
+KEV membership is not target exploitation, CWE is not verified applicability,
+and EPSS freshness still uses its score clock rather than acquisition time.
+All associations remain `candidate` with `review: null`. Finding severity,
+confidence, remediation and operator disposition are preserved.
+
+The distinct schema-one terminal profile `local-intelligence-set-cli-v1` contains
+`selections` (verified original IDs, feed/catalog, raw SHA/length and count) and
+the existing version-one `preview` shape (complete new observations/content
+references, `proposed_revision` and `already_applied`). Selection metadata follows
+caller pair order; SDK assertions follow canonical snapshot content-reference
+order. Permuting the same input pairs preserves the candidate observation.
+Repeated unsaved preview with the same inputs returns identical output and
+performs no write or interpretation-clock refresh.
+
+To save that candidate, replace `preview-set` with `apply-set` and repeat all
+pins and interpretation inputs. Apply reopens/verifies again and calls the
+existing CAS **once**, rather than saving each source independently. Preview
+reserves no revision and grants no approval. A changed revision refuses the
+whole set. Exact already-saved replay is idempotent, including after later triage.
+
+### Whole-set limits and refusal
+
+Canonical owning manifests first establish total snapshot payload <=16 MiB and
+receipt payload <=512 KiB, before any selected body read. Receipts individually
+retain their 32 KiB limit. Bounded snapshot decoding then establishes total
+original raw bytes <=16 MiB **before any original reparse**. Totals count each
+selected root's declared bytes, without silently deduplicating shared content.
+This preflight does not replace original verification.
+
+The existing SDK allows at most 64 requested unique IDs and separately at most
+64 **matched source assertions** across all selected snapshots. One ID matched
+in CVE, KEV and EPSS contributes three assertions. The existing 64 KiB model
+attribute cap also applies: a count-admitted complete observation may still
+exceed its byte bound and is refused without truncation. Sixty-four is an upper
+count ceiling, not guaranteed capacity. All original parser/source/model bounds
+remain unchanged. Preview is <=1 MiB; the whole ASCII-safe response is <=2 MiB.
+Complete output is checked before apply can save.
+
+A missing/corrupt/foreign source, mismatched receipt at any position, chronology,
+limit or revision refusal exposes neither partial `selections` nor `preview`
+and saves no valid prefix. Generic diagnostics exclude rejected arguments,
+filenames and exception text. Source strings are JSON escaped, including human
+output. One terminal write is checked and is never retried.
+
+Preview reports `model_commit: not-attempted` and the read saved revision.
+Successful apply reports the confirmed returned revision. Both report
+`evidence_commit: not-attempted`. Invalid selection exits `2`, verification/limit/
+save/output refusal `4`, interruption `130` and complete success `0`.
+
+A save can commit before its reply is lost: `model_commit: unknown` and unknown
+`model_revision` claim no rollback. Reopen the model, select its actual current
+revision and deliberately replay the same interpretation through the existing
+idempotent owner. Known CAS conflict/busy ownership reports `not-committed`.
+A late output failure preserves an already confirmed save acknowledgement.
+
+This operation adds no acquisition, live provider, automatic matching, refresh,
+applicability verdict, risk policy or Core/receipt format. Its source-shaped
+synthetic acceptance fixtures prove supported formats and original-byte custody,
+not authentic publisher data or signature verification.
+See [ADR 0159](adr/0159-combined-local-intelligence-enrichment.md).

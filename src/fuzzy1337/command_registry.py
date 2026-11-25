@@ -239,8 +239,10 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="intel",
-            summary="Import local intelligence and inspect, preview or apply selected snapshots.",
-            usage="1337 intel <import|inspect|preview|apply> <workspace>",
+            summary=("Import local intelligence and inspect, preview or apply "
+                     "snapshots and source sets."),
+            usage=("1337 intel <import|inspect|preview|apply|preview-set|apply-set> "
+                   "<workspace>"),
             capabilities=("intelligence.local-snapshot", "intelligence.finding-enrichment"),
         ),
         CommandDescriptor(
@@ -292,16 +294,11 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("runtime.owned-offline-import",),
         ),
         CommandDescriptor(
-            identifier="bridge",
-            summary="Import owned saved SARIF source assertions or inspect their original custody.",
-            usage="1337 bridge sarif <import|inspect> <workspace>",
-        ),
-        CommandDescriptor(
             identifier="trace",
             summary=(
-                "Import local IOC candidates or saved syslog and inspect pinned originals."
+                "Import explicit local IOC candidates or inspect independently anchored artifacts."
             ),
-            usage="1337 trace <ioc|syslog> ...",
+            usage="1337 trace ioc <import|inspect|export-bundle|verify-bundle> ...",
             capabilities=("trace.local-ioc-candidates",),
         ),
     )

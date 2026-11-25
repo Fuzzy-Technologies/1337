@@ -29,7 +29,6 @@ DEFAULT_VIEW = "context"
 LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
     "api",
-    "bridge",
     "business",
     "ci",
     "commands",
@@ -286,8 +285,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "paths", "sbom", "api", "trace", "raw", "image", "extension", "business",
-                "bridge"
+                "paths", "sbom", "api", "trace", "raw", "image", "extension", "business"
             }:
                 position = index - firstIndex
 
@@ -458,16 +456,14 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "paths", "sbom", "api", "trace", "raw", "image", "extension", "business",
-                    "bridge"
+                    "paths", "sbom", "api", "trace", "raw", "image", "extension", "business"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension", "business",
-            "bridge"
+            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension", "business"
         }:
             handlers = {"business": self.do_business,
                         "workspace": self.do_workspace, "scope": self.do_scope,
@@ -482,7 +478,6 @@ class InteractiveShell(cmd.Cmd):
                         "response": self.do_response,
                         "raw": self.do_raw,
                         "trace": self.do_trace,
-                        "bridge": self.do_bridge,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -578,16 +573,15 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         helpText = {
             "": (
-                "api import graphql-introspection, bridge sarif <import|inspect>, "
-                "business inspect, ci scan, commands, "
+                "api import graphql-introspection, business inspect, ci scan, commands, "
                 "context, demo local, "
                 "history [query], image export-local, extension validate, "
                 "lens [<name>] [--json], "
-                "intel <import|inspect|preview|apply>, model <workspace-path>, palette [query], "
+                "intel <import|inspect|preview|apply|preview-set|apply-set>, "
+                "model <workspace-path>, palette [query], "
                 "paths analyze, raw <plan|run|replay>, report export, "
                 "runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect|export-bundle|verify-bundle>, "
-                "trace syslog <import|inspect>, "
                 "select <object-id>, "
                 "sbom <image|import spdx-graph|import cyclonedx>, "
                 "scan <quick|crawl|ports|web|nuclei|image|config>, "
@@ -621,8 +615,9 @@ class InteractiveShell(cmd.Cmd):
             ),
             "history": "history [query]: search previous shell commands from newest to oldest.",
             "intel": (
-                "intel <import|inspect|preview|apply> <workspace>: select local source files, "
-                "verified snapshots/receipts, or one finding's enrichment."
+                "intel <import|inspect|preview|apply|preview-set|apply-set> <workspace>: "
+                "select local source files, original snapshot/receipt pairs, or one finding's "
+                "combined candidate enrichment."
             ),
             "lens": (
                 "lens [<name>] [--json]: select pentest, dfir, devsecops, or purple; "
@@ -654,16 +649,9 @@ class InteractiveShell(cmd.Cmd):
                 "original product custody with explicit image/scope/run and both revision bases; "
                 "CycloneDX file mode requires --expected-sha256."
             ),
-            "bridge": (
-                "bridge sarif <import|inspect> <workspace>: retain an explicit saved file or "
-                "verify original/receipt/SHA pins; source URI/path strings are never opened."
-            ),
             "trace": (
                 "trace ioc <import|inspect|export-bundle|verify-bundle>: import selected "
-                "candidates, inspect originals or transfer and verify one explicit "
-                "evidence bundle. "
-                "trace syslog <import|inspect>: retain an explicit saved RFC 5424 file "
-                "or inspect independently pinned original source records."
+                "candidates, inspect originals or transfer and verify one explicit evidence bundle."
             ),
             "scan": (
                 "scan <quick|crawl|ports|web|nuclei|image|config> <workspace>: run governed scans; "
@@ -757,12 +745,6 @@ class InteractiveShell(cmd.Cmd):
 
                 status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
                                             json_output=jsonOutput)
-
-            elif command == "bridge":
-                from fuzzy1337.bridge_commands import RunBridgeCommands
-
-                status = RunBridgeCommands(arguments, cast(TextIO, self.stdout),
-                                           jsonOutput=jsonOutput)
 
             elif command == "trace":
                 from fuzzy1337.ioc_commands import RunIocCommands
@@ -882,20 +864,11 @@ class InteractiveShell(cmd.Cmd):
 
         self.RunLocalCommand("report", argument)
 
-    def do_bridge(self, argument: str) -> None:
-        """Import or inspect saved external reports without deriving source or execution authority.
-
-        Args:
-            argument: Explicit saved-report action, file or original custody and SHA selections.
-        """
-
-        self.RunLocalCommand("bridge", argument)
-
     def do_trace(self, argument: str) -> None:
-        """Use explicit local IOC or saved syslog sources without implicit shell authority.
+        """Use explicitly owned local IOC candidates without deriving authority from shell state.
 
         Args:
-            argument: IOC or syslog action, workspace, source selections or independent anchors.
+            argument: IOC action, owning workspace, source selections or independent anchors.
         """
 
         self.RunLocalCommand("trace", argument)

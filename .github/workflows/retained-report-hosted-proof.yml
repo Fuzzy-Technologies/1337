@@ -1,5 +1,5 @@
 {
-  "name": "Accept corrected installed SARIF and syslog commands with Windows-safe original fixture bytes",
+  "name": "Verify the installed multi-source intelligence preview and one-revision save",
   "on": {
     "push": {
       "branches": [
@@ -11,8 +11,8 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "c594abdaf7b62b74cad545d1763989248b7e0803",
-    "PRODUCT_TREE": "d9a1307310598e81589ca5d44549c869055b0f12"
+    "APPROVED_SOURCE_SHA": "e9d0a5b98a13e38a553a0edbf0d316bf5fd43942",
+    "PRODUCT_TREE": "ad8e9df1b19b461c664da1b57fd71dfec0c4322d"
   },
   "jobs": {
     "offline-milestones": {
@@ -36,7 +36,7 @@
         {
           "name": "Retain the reviewed offline test driver from this workflow commit",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py syslog-review.py shared-source.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
+          "run": "set -euo pipefail\ntest \"$(git --no-replace-objects rev-parse HEAD)\" = \"$GITHUB_SHA\"\nfor filename in milestone-checks.py; do\npath=\".github/proof/$filename\"\nentry=\"$(git --no-replace-objects ls-tree \"$GITHUB_SHA\" -- \"$path\")\"\n[[ \"$entry\" == \"100644 blob \"*$'\\t'\"$path\" ]]\ngit --no-replace-objects show \"$GITHUB_SHA:$path\" > \"$RUNNER_TEMP/$filename\"\ndone\n"
         },
         {
           "name": "Replace checkout with only the immutable product source",
@@ -49,11 +49,6 @@
           }
         },
         {
-          "name": "Verify the authenticated upstream file with Git line-ending conversion enabled",
-          "shell": "bash",
-          "run": "set -euo pipefail\np=tests/contract/fixtures/sarif/external-eslint.sarif\nout=\"$RUNNER_TEMP/fixture-crlf\"\nmkdir \"$out\"\ntest \"$(git check-attr text -- \"$p\")\" = \"$p: text: unset\"\ngit -c core.autocrlf=true checkout-index --force --prefix=\"$out/\" -- \"$p\"\ntest \"$(git hash-object --no-filters \"$out/$p\")\" = 2d2fa5cacfa1fddd40500fb173b6ef37ca1a9ab8\ntest \"$(sha256sum \"$out/$p\" | cut -d\" \" -f1)\" = d50cd7b2dc4ef6890c4ee5c905a2591fde69e8f5fee0e4c99dfceab0d947294d\ntest \"$(wc -c < \"$out/$p\")\" = 1453\n"
-        },
-        {
           "name": "Set up Python 3.13",
           "uses": "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
           "with": {
@@ -63,25 +58,24 @@
         {
           "name": "Build and separately install the actual wheel with locked dependencies",
           "shell": "bash",
-          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tests/unit/test_syslog_records.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n",
+          "run": "set -euo pipefail\ntest \"$(git rev-parse HEAD)\" = \"$APPROVED_SOURCE_SHA\"\ntest \"$(git rev-parse HEAD^{tree})\" = \"$PRODUCT_TREE\"\ntest -f tests/unit/test_intelligence_sets.py\npython -m pip install --disable-pip-version-check uv==0.11.33\nruntime=\"$RUNNER_TEMP/retained-proof-runtime\"\nUV_PROJECT_ENVIRONMENT=\"$runtime\" uv sync --locked --extra dev --no-install-project --python \"$(command -v python)\"\n\"$runtime/bin/python\" -m build --wheel --no-isolation --outdir \"$RUNNER_TEMP/proof-dist\"\nset -- \"$RUNNER_TEMP/proof-dist/\"*.whl\ntest \"$#\" -eq 1 && test -f \"$1\"\nuv pip install --python \"$runtime/bin/python\" --no-deps \"$1\"\nuv pip check --python \"$runtime/bin/python\"\n\"$runtime/bin/python\" -I - \"$1\" <<'PY'\n\"\"\"Pin the actual separately installed wheel without importing checkout production code.\"\"\"\nimport hashlib\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nimport fuzzy1337\n\nmodule = Path(fuzzy1337.__file__).resolve()\nassert module.is_relative_to(Path(sys.prefix).resolve()), \"Require installed wheel code\"\nassert not module.is_relative_to(Path(os.environ[\"GITHUB_WORKSPACE\"]).resolve()), (\n    \"An editable checkout cannot establish wheel acceptance\"\n)\nwheel = Path(sys.argv[1])\nrecord = {\"filename\": wheel.name, \"sha256\": hashlib.sha256(wheel.read_bytes()).hexdigest(),\n          \"python\": sys.version.split()[0], \"installed_module\": str(module)}\nwith (Path(os.environ[\"RUNNER_TEMP\"]) / \"hosted-proof-wheel.json\").open(\"x\") as stream:\n    json.dump(record, stream, sort_keys=True)\nPY\necho \"$runtime/bin\" >> \"$GITHUB_PATH\"\n",
           "id": "p64_setup"
         },
         {
-          "name": "Run complete changed-profile units, pinned installed cases, five-module branch coverage and static checks",
+          "name": "Exercise four retained sources, original-file removal, concurrent triage, one-save and legacy contracts",
           "shell": "bash",
-          "run": "python3 -I \"$RUNNER_TEMP/milestone-checks.py\""
+          "run": "set -euo pipefail\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/milestone-checks.py\"\n"
         },
         {
-          "name": "Read original saved records after relocation and verify ten independent timestamp oracles",
-          "if": "always() && steps.p64_setup.outcome == 'success'",
-          "shell": "bash",
-          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/syslog-review.py\" \"$RUNNER_TEMP/retained-proof-runtime/bin/1337\"\n"
-        },
-        {
-          "name": "Reopen both saved original sources after file deletion and folder copy; refuse crossed original handles",
-          "if": "always() && steps.p64_setup.outcome == 'success'",
-          "shell": "bash",
-          "run": "set -euo pipefail\ncd \"$RUNNER_TEMP\"\n\"$RUNNER_TEMP/retained-proof-runtime/bin/python\" -I \"$RUNNER_TEMP/shared-source.py\" \"$GITHUB_WORKSPACE/tests/contract/fixtures/sarif/external-eslint.sarif\"\n"
+          "name": "Retain actual JUnit identities and changed-module coverage",
+          "if": "always()",
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "with": {
+            "name": "retained-intelligence-selection-results",
+            "path": "${{ runner.temp }}/local-source-set.xml\n${{ runner.temp }}/local-source-set-coverage.json",
+            "if-no-files-found": "error",
+            "retention-days": 14
+          }
         }
       ]
     }

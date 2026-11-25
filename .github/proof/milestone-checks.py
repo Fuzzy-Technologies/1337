@@ -1,6 +1,6 @@
-"""Exercise the installed RFC 5424 record parser, custody and transport with old IOC regressions."""
+"""Run the new local source-set, legacy single-source and disk persistence paths against an installed wheel."""
 from collections import Counter
-import hashlib
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -8,52 +8,42 @@ import subprocess
 import sys
 from xml.etree import ElementTree
 
-root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
-tmp = Path(os.environ["RUNNER_TEMP"]).resolve()
-sources = ["src/fuzzy1337/" + v + ".py" for v in ("syslog_records","syslog_artifacts","syslog_commands","ioc_commands","shell","command_registry","cli","bridge_commands","bridge_sarif")]
-tests = ["tests/unit/test_syslog_records.py","tests/unit/test_syslog_artifacts.py","tests/unit/test_syslog_commands.py",
-         "tests/e2e/test_syslog_cli.py","tests/unit/test_ioc_commands.py","tests/integration/test_ioc_command_workflow.py",
-         "tests/unit/test_bridge_sarif.py","tests/unit/test_bridge_commands.py","tests/e2e/test_bridge_sarif_cli.py",
-         "tests/unit/test_command_registry.py","tests/unit/test_shell.py","tests/unit/test_cli.py",
-         "tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule",
-         "tests/unit/test_python_style.py::test_RepositoryPythonSourcesFollowCompleteStyleContract",
-         "tests/unit/test_source_documentation_headers.py::test_SourceDocumentationAndHeadersMatchContract",
-         "tests/unit/test_locale_documentation.py::test_MissingTranslationsRemainHonest"]
-p=[sys.executable,"-I","-m"]
-commands=[("ruff",[*p,"ruff","check",*sources,"tests/syslog_helpers.py","tests/sarif_helpers.py",*[v.split("::")[0] for v in tests]]),
-          ("mypy",[*p,"mypy",*sources]),("naming",[sys.executable,"-I","tools/python_naming.py"]),
-          ("markdown-tables",[sys.executable,"-I","tools/markdown_tables.py"])]
-xml=tmp/"saved-syslog-cases.xml"
-coverage=tmp/"saved-syslog-coverage.json"
-covcfg=tmp/"saved-syslog.coveragerc"
-covcfg.write_text("[run]\nbranch = True\nparallel = True\npatch = subprocess\n[report]\nfail_under = 0\n",encoding="utf-8")
-modules=("syslog_records","syslog_artifacts","syslog_commands","bridge_sarif","bridge_commands")
-commands.append(("pytest",[*p,"pytest","-o","addopts=","--strict-config","--strict-markers","-n","2","--dist=loadscope",
-                          "--timeout=150","--rootdir",str(root),"-q","--tb=short","--junitxml",str(xml),
-                          "--cov-config="+str(covcfg),"--cov-branch","--cov-fail-under=0",
-                          "--cov-report=json:"+str(coverage),*["--cov=fuzzy1337."+v for v in modules],*tests]))
-statuses={}
-for name,cmd in commands:
-    statuses[name]=subprocess.run(cmd,cwd=root,check=False).returncode
-print("SHARED_SAVED_SOURCE_CHECKS",json.dumps(statuses,sort_keys=True),flush=True)
+root=Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+tmp=Path(os.environ["RUNNER_TEMP"])
+py=[sys.executable,"-I","-m"]
+sources=["src/fuzzy1337/"+name+".py" for name in ("intelligence_set_commands","intelligence_commands","command_registry","shell")]
+tests=["tests/unit/test_intelligence_sets.py","tests/e2e/test_intelligence_sets_cli.py",
+       "tests/unit/test_intelligence.py","tests/unit/test_intelligence_acquisition.py","tests/unit/test_intelligence_commands.py",
+       "tests/e2e/test_intelligence_cli.py","tests/integration/test_intelligence_acquisition_persistence.py","tests/integration/test_intelligence_persistence.py",
+       "tests/contract/test_intelligence_contract.py","tests/unit/test_command_registry.py","tests/unit/test_shell.py",
+       "tests/unit/test_python_style.py::test_RepositoryPythonSourcesFollowCompleteStyleContract",
+       "tests/unit/test_source_documentation_headers.py::test_SourceDocumentationAndHeadersMatchContract",
+       "tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule",
+       "tests/unit/test_locale_documentation.py::test_MissingTranslationsRemainHonest"]
+xml=tmp/"local-source-set.xml"
+cov=tmp/"local-source-set-coverage.json"
+cfg=tmp/"local-source-set.coveragerc"
+cfg.write_text("[run]\nbranch = True\nparallel = True\npatch = subprocess\n[report]\nfail_under = 0\n",encoding="utf-8")
+cmds={"ruff":[*py,"ruff","check",*sources,*[t.split("::")[0] for t in tests],"tests/intelligence_set_helpers.py"],
+      "typing":[*py,"mypy",*sources],"names":[sys.executable,"-I","tools/python_naming.py"],
+      "markdown-tables":[sys.executable,"-I","tools/markdown_tables.py"],
+      "pytest":[*py,"pytest","-o","addopts=","--strict-config","--strict-markers","-n","2","--dist=loadscope",
+                "--timeout","180","-q","--tb=short","--junitxml",str(xml),"--cov-config="+str(cfg),
+                "--cov=fuzzy1337.intelligence_set_commands","--cov-branch","--cov-fail-under=0","--cov-report=json:"+str(cov),*tests]}
+statuses={name:subprocess.run(cmd,cwd=root,timeout=400,check=False).returncode for name,cmd in cmds.items()}
 cases=ElementTree.parse(xml).findall(".//testcase") if xml.exists() else []
+failed=[c.get("name") for c in cases if any(c.find(k) is not None for k in ("failure","error","skipped"))]
 counts=Counter(c.get("classname") for c in cases)
-failures=[(c.get("classname"),c.get("name")) for c in cases if any(c.find(t) is not None for t in ("failure","error","skipped"))]
-if failures: print("SHARED_SAVED_SOURCE_FAILED_CASES",json.dumps(failures),flush=True)
-report=json.loads(coverage.read_bytes()) if coverage.exists() else {}
-covered={}
-for m in modules:
-    matches=[s["summary"] for name,s in report.get("files",{}).items() if name.endswith("/"+m+".py")]
-    if len(matches)==1:
-        s=matches[0]
-        covered[m]=round(100*(s["covered_lines"]+s["covered_branches"])/(s["num_statements"]+s["num_branches"]),3)
-receipt={"source":os.environ["APPROVED_SOURCE_SHA"],"tree":os.environ["PRODUCT_TREE"],"collected":len(cases),
-         "by_module":dict(counts),"combined_coverage":covered,"statuses":statuses,"failure_count":len(failures),
-         "junit_sha256":hashlib.sha256(xml.read_bytes()).hexdigest() if xml.exists() else None,
-         "wheel":json.loads((tmp/"hosted-proof-wheel.json").read_bytes())}
-print("SHARED_SAVED_SOURCE_RESULT",json.dumps(receipt,sort_keys=True),flush=True)
-assert all(v==0 for v in statuses.values()) and not failures and len(cases)>0
-assert all(m in covered and covered[m]>80 for m in modules),covered
-assert "test_InstalledConsoleReopensCopiedOriginalWithoutInputAndRefusesCorruption" in {c.get("name") for c in cases}
-
-assert "test_InstalledSarifImportPreservesExternalFactsAfterSourceDeletionAndCopiedReplay" in {c.get("name") for c in cases}
+covered=None
+if cov.exists():
+    infos=json.loads(cov.read_bytes()).get("files",{})
+    parts=[f["summary"] for p,f in infos.items() if p.endswith("/intelligence_set_commands.py")]
+    if len(parts)==1:
+        x=parts[0]
+        covered=round(100*(x["covered_lines"]+x["covered_branches"])/(x["num_statements"]+x["num_branches"]),3)
+record={"source":os.environ["APPROVED_SOURCE_SHA"],"tree":os.environ["PRODUCT_TREE"],"by_file":dict(counts),"total":len(cases),
+        "failed":failed,"checks":statuses,"combined_coverage":covered,"wheel":json.loads((tmp/"hosted-proof-wheel.json").read_bytes()),
+        "junit_sha256":sha256(xml.read_bytes()).hexdigest() if xml.exists() else None}
+print("COMBINED_INTELLIGENCE_ACCEPTANCE",json.dumps(record,sort_keys=True),flush=True)
+assert all(code==0 for code in statuses.values()) and not failed and covered and covered>80
+assert "test_InstalledFourFeedSetReopensThenSavesOnePreviewedObservation" in {c.get("name") for c in cases}

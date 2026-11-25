@@ -1,2 +1,0 @@
-# Keep the authenticated external producer sample byte-exact on every checkout.
-external-eslint.sarif -text
