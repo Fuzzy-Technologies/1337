@@ -1091,3 +1091,17 @@ module = "fuzzy1337.business_commands"
 source = "src/fuzzy1337/business_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.business_commands.md"
+
+[[surfaces]]
+# Internal source-only saved SARIF parser and original-byte custody, without executor authority.
+module = "fuzzy1337.bridge_sarif"
+source = "src/fuzzy1337/bridge_sarif.py"
+mode = "authored"
+page = "api/fuzzy1337.bridge_sarif.md"
+
+[[surfaces]]
+# Internal IMPORT-only file/retained operator facade; no public Python SDK.
+module = "fuzzy1337.bridge_commands"
+source = "src/fuzzy1337/bridge_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.bridge_commands.md"

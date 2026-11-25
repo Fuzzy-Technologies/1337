@@ -8,6 +8,27 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 66 — v0.4.66 — 2026-11-25
+
+#### Digest
+
+- Read existing external SARIF reports with exact original custody and portable source facts.
+
+#### Added
+
+- Add explicit `bridge sarif import|inspect` over caller-owned SARIF 2.1.0 files,
+  the existing bounded physical-file reader and immutable evidence owner.
+- Preserve source rule/tool/severity/position declarations, order, duplicates and
+  unknown fields without canonical Finding, target, execution or risk inference.
+- Reopen exact original/receipt/SHA pins after source deletion and workspace copy;
+  keep source URI/path/schema/help strings inert and owning state unchanged.
+
+#### Security
+
+- Bound complete source/projection/receipt/output, preflight original context
+  before body reads, retain independent publication acknowledgements and refuse
+  unsupported external properties or failed verification without partial facts.
+
 ### Patch 61 — v0.4.61 — 2026-11-25
 
 #### Digest
