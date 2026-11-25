@@ -6,7 +6,10 @@
 from __future__ import annotations
 
 import cmd
+import json
+import os
 import shlex
+import stat
 import sys
 from collections import deque
 from collections.abc import Iterable
@@ -17,8 +20,9 @@ from typing import TextIO, cast
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 from fuzzy1337.component_health import RunUpdate
-from fuzzy1337.lenses import LENS_CATALOG, ResolveLens
+from fuzzy1337.lenses import LENS_CATALOG, LensQuery, ResolveLens
 from fuzzy1337.model import CanonicalModelJson, LocalModelStore, ModelState
+from fuzzy1337.workspace import RejectWorkspaceConstant, UniqueWorkspaceObject
 
 DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
@@ -29,6 +33,7 @@ SHELL_COMMANDS = (
     "commands",
     "context",
     "demo",
+    "extension",
     "help",
     "history",
     "image",
@@ -53,6 +58,48 @@ SHELL_COMMANDS = (
 )
 VIEWS = ("context", "updates", "model")
 HISTORY_LIMIT = 100
+MAX_LENS_QUERY_BYTES = 64 * 1024
+
+
+def ReadLensQuery(path: Path) -> LensQuery:
+    """Read one bounded literal query file through the existing typed lens decoder.
+
+    Args:
+        path: Explicit regular UTF-8 JSON file, without a final symbolic link.
+
+    Returns:
+        Immutable replacement query with the standard six LensQuery fields.
+
+    Raises:
+        OSError: The selected file cannot be opened for reading.
+        ValueError: Input is not a regular bounded file or a strict typed query.
+    """
+
+    if not stat.S_ISREG(path.lstat().st_mode):
+        raise ValueError("lens query must be a regular file without a symbolic link")
+
+    flags = (os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+             | getattr(os, "O_NONBLOCK", 0))
+
+    with os.fdopen(os.open(path, flags), "rb") as stream:
+        metadata = os.fstat(stream.fileno())
+
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_LENS_QUERY_BYTES:
+            raise ValueError("lens query must be a regular file of at most 65536 bytes")
+
+        payload = stream.read(MAX_LENS_QUERY_BYTES + 1)
+
+    if len(payload) > MAX_LENS_QUERY_BYTES:
+        raise ValueError("lens query exceeds 65536 bytes")
+
+    try:
+        document = json.loads(payload.decode("utf-8"), object_pairs_hook=UniqueWorkspaceObject,
+                              parse_constant=RejectWorkspaceConstant)
+
+        return LensQuery.FromDict(document)
+
+    except (UnicodeError, RecursionError) as error:
+        raise ValueError("lens query must be bounded valid UTF-8 JSON") from error
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,7 +284,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "paths", "sbom", "api", "trace", "raw", "image"
+                "paths", "sbom", "api", "trace", "raw", "image", "extension"
             }:
                 position = index - firstIndex
 
@@ -408,19 +455,20 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "paths", "sbom", "api", "trace", "raw", "image"
+                    "paths", "sbom", "api", "trace", "raw", "image", "extension"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace", "response", "raw", "image"
+            "paths", "sbom", "api", "trace", "response", "raw", "image", "extension"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
                         "ci": self.do_ci,
                         "image": self.do_image,
+                        "extension": self.do_extension,
                         "runtime": self.do_runtime,
                         "paths": self.do_paths,
                         "sbom": self.do_sbom,
@@ -524,7 +572,8 @@ class InteractiveShell(cmd.Cmd):
         helpText = {
             "": (
                 "api import graphql-introspection, ci scan, commands, context, demo local, "
-                "history [query], image export-local, lens [<name>] [--json], "
+                "history [query], image export-local, extension validate, "
+                "lens [<name>] [--json], "
                 "intel <import|inspect|preview|apply>, model <workspace-path>, palette [query], "
                 "paths analyze, raw <plan|run|replay>, report export, "
                 "runtime import <docker-inspect|kubernetes-list>, "
@@ -533,11 +582,14 @@ class InteractiveShell(cmd.Cmd):
                 "sbom <image|import spdx-graph>, scan <quick|crawl|ports|web|nuclei|image|config>, "
                 "scope create, "
                 "workspace <create|open>, "
-                "update [--json], updates, view <name> [--json], quit"
+                "update [--json], updates, view <name> [--query <file>] [--json], quit"
             ),
             "api": (
                 "api import graphql-introspection <workspace>: import one explicit owned offline "
                 "file or retained original manifest with endpoint/scope and exact revision bases."
+            ),
+            "extension": (
+                "extension validate <manifest>: validate metadata offline without activation."
             ),
             "image": "image export-local <workspace>: plan or explicitly approve local export; "
                      "archive scanning requires separate scope and approval.",
@@ -600,7 +652,10 @@ class InteractiveShell(cmd.Cmd):
             "workspace": "workspace <create|open>: initialize or verify durable shared state.",
             "update": "update [--json]: inspect local component health without installing updates.",
             "updates": "updates: render queued progress or future model updates.",
-            "view": "view <name> [--json]: select context, updates, or model; JSON requires model.",
+            "view": (
+                "view <name> [--query <file>] [--json]: select context, updates, or model; "
+                "query and JSON require model. Query replaces the lens preset for this view only."
+            ),
             "quit": "quit: leave the interactive shell.",
         }
         message = helpText.get(topic)
@@ -626,7 +681,13 @@ class InteractiveShell(cmd.Cmd):
             jsonOutput = "--json" in prefix
             arguments = [item for item in prefix if item != "--json"] + native
 
-            if command == "raw":
+            if command == "extension":
+                from fuzzy1337.extension_commands import RunExtensionCommands
+
+                status = RunExtensionCommands(arguments, cast(TextIO, self.stdout),
+                                              jsonOutput=jsonOutput)
+
+            elif command == "raw":
                 from fuzzy1337.raw_commands import RunRawCommands
 
                 status = RunRawCommands(arguments, cast(TextIO, self.stdout),
@@ -731,6 +792,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("scope", argument)
+
+    def do_extension(self, argument: str) -> None:
+        """Validate one explicit local manifest without resolving or activating its entry points.
+
+        Args:
+            argument: Validate action, manifest path and optional JSON presentation.
+        """
+
+        self.RunLocalCommand("extension", argument)
 
     def do_image(self, argument: str) -> None:
         """Plan or export a local reference with the same explicit CLI authority requirements.
@@ -1014,21 +1084,44 @@ class InteractiveShell(cmd.Cmd):
         """Select a presentation view and render an explicitly bound model snapshot.
 
         Args:
-            argument: Supported view name with optional --json for model output.
+            argument: View name with optional --query file and --json for model output.
         """
 
-        parts = argument.strip().lower().split()
-        jsonOutput = bool(parts and parts[-1] == "--json")
+        usage = "usage: view <name> [--query <file>] [--json]"
 
-        if jsonOutput:
-            parts.pop()
+        try:
+            parts = shlex.split(argument)
 
-        if len(parts) > 1 or (jsonOutput and parts != ["model"]):
-            self.Write("usage: view <name> [--json]")
+        except ValueError:
+            self.Write(usage)
 
             return
 
-        view = parts[0] if parts else ""
+        view = parts[0].lower() if parts else ""
+        options = parts[1:]
+        jsonOutput = False
+        queryPath = None
+
+        while options:
+            option = options.pop(0).lower()
+
+            if option == "--json" and not jsonOutput:
+                jsonOutput = True
+
+            elif (option == "--query" and queryPath is None and options
+                  and options[0] and not options[0].startswith("--")):
+                queryPath = Path(options.pop(0))
+
+            else:
+                self.Write(usage)
+
+                return
+
+        if view.startswith("--") or ((jsonOutput or queryPath is not None) and view != "model"):
+            self.Write(usage)
+
+            return
+
         if not view:
             self.Write("Available views: " + ", ".join(VIEWS))
             return
@@ -1042,20 +1135,32 @@ class InteractiveShell(cmd.Cmd):
 
             return
 
+        query = None
+
+        if queryPath is not None:
+            try:
+                query = ReadLensQuery(queryPath)
+
+            except (OSError, ValueError) as error:
+                self.Write(f"Could not open lens query: {error}")
+
+                return
+
         self._state = replace(self._state, view=view)
 
         if view == "model":
-            self.RenderModel(json_output=jsonOutput)
+            self.RenderModel(json_output=jsonOutput, query=query)
 
             return
 
         self.Write(f"Selected view: {view}")
 
-    def RenderModel(self, *, json_output: bool = False) -> None:
+    def RenderModel(self, *, json_output: bool = False, query: LensQuery | None = None) -> None:
         """Render a read-only reference view; model records remain with the shared snapshot.
 
         Args:
             json_output: Emit the versioned reference document instead of compact terminal rows.
+            query: Explicit per-render replacement; None uses the descriptor's default query.
         """
 
         if self._model is None:
@@ -1064,7 +1169,7 @@ class InteractiveShell(cmd.Cmd):
             return
 
         descriptor = ResolveLens(self._state.lens)
-        projected = descriptor.Project(self._model)
+        projected = descriptor.Project(self._model, query)
 
         if json_output:
             self.Write(CanonicalModelJson(projected).decode("utf-8"))

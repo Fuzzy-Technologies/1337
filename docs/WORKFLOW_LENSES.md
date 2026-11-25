@@ -48,6 +48,40 @@ later persisted changes. Job subscriptions and live updates are not connected
 by this feature. Shell lens selection stays in local presentation state and
 does not save a workspace preference.
 
+### Replay a saved query
+
+For a loaded model, `view model --query "Saved Query.JSON" [--json]` replays an
+explicit query produced by `LensQuery.ToDict()`. It **replaces** the selected
+lens's preset for that invocation. It is not an additional intersection, a
+descriptor document, or a reference-view document. The next `view model` without
+`--query` uses the original preset again; changing lenses also uses their presets.
+The model revision, selected object, lens descriptor and all saved inputs remain
+unchanged. JSON and terminal output apply the same query.
+
+The file must contain exactly the six standard fields; for example:
+
+```json
+{
+  "object_kinds": ["asset"],
+  "relation_kinds": [],
+  "attributes_match": {"version": "1"},
+  "key_contains": "BUILD",
+  "require_provenance": false,
+  "include_observations": false
+}
+```
+
+Choose a regular UTF-8 JSON file of at most 65,536 bytes. The final selected path
+cannot be a symbolic link. Quote paths containing spaces; their case is preserved.
+Empty kind arrays retain the standard all-kinds meaning. Matching, induced
+relations and observation inclusion use `LensQuery.FromDict()` and
+`LensDescriptor.Project()` unchanged. Unknown/missing fields, duplicate JSON
+keys, non-finite numbers, invalid types/kinds, malformed or oversized files are
+refused without a projection or fallback. A refusal retains the previously bound
+model and presentation state. Query loading creates no file, acquires no evidence,
+starts no action and saves no preference. The shell reports command failures as
+diagnostics; the enclosing interactive session still exits normally on `quit`.
+
 ## SDK entry
 
 ```python

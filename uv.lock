@@ -45,6 +45,9 @@ dev = [
 openapi-yaml = [
     { name = "pyyaml" },
 ]
+validate = [
+    { name = "jsonschema" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -53,6 +56,7 @@ requires-dist = [
     { name = "fuzzyroutines", specifier = "==2.1.0" },
     { name = "hatchling", marker = "extra == 'dev'", specifier = "==1.33.0" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = "==4.26.0" },
+    { name = "jsonschema", marker = "extra == 'validate'", specifier = "==4.26.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.4.1" },
     { name = "playwright", marker = "extra == 'browser'", specifier = "==1.64.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.2.0" },
@@ -63,7 +67,7 @@ requires-dist = [
     { name = "pyyaml", marker = "extra == 'openapi-yaml'", specifier = "==6.0.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.17.5" },
 ]
-provides-extras = ["openapi-yaml", "dev", "browser"]
+provides-extras = ["validate", "openapi-yaml", "dev", "browser"]
 
 [[package]]
 name = "ast-serialize"

@@ -13,8 +13,8 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
+from tests.workflow_fixture import ReadWorkflow
 from tools import passive_lab_lifecycle as lifecycle
 
 PROJECT = "passive-health-unit"
@@ -165,7 +165,7 @@ def WorkflowJobs():
 
     path = Path(__file__).resolve().parents[2] / ".github/workflows/python-quality.yml"
 
-    return yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"]
+    return ReadWorkflow(path)["jobs"]
 
 
 def test_PassiveBatchRunsOneCompleteUnitPartitionWithoutProductAcceptanceFlags():

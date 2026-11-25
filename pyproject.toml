@@ -17,6 +17,7 @@ dependencies = ["fuzzyroutines==2.1.0"]
 1337-dev = "fuzzy1337.dev_commands:Main"
 
 [project.optional-dependencies]
+validate = ["jsonschema==4.26.0"]
 openapi-yaml = ["PyYAML==6.0.3"]
 dev = [
     "build==1.6.1",

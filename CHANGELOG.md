@@ -8,6 +8,80 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 54 — v0.4.54 — 2026-11-25
+
+#### Digest
+
+- Preserve single-record CVE inspection JSON on strict ASCII terminal streams.
+
+#### Fixed
+
+- Escape Unicode using standard JSON syntax when the caller's output codec
+  cannot represent original source text or mandatory notices. Keep existing
+  UTF-8 output bytes, decoded facts and saved custody identities unchanged.
+
+### Patch 53 — v0.4.53 — 2026-11-25
+
+#### Digest
+
+- Admit independent reviewed passive batches through separate immutable policy
+  registry entries without conflicting product-workflow pins.
+
+#### Changed
+
+- Capture one upstream policy registry commit and select each batch by its exact
+  base, branch and complete raw diff. Execute only the actual base classifier.
+
+#### Security
+
+- Require full old/new blob hashes and modes for every changed file. Refuse
+  normalized policy exceptions, candidate-owned entries and unsafe registry blobs.
+
+
+### Patch 52 — v0.4.52 — 2026-11-25
+
+#### Digest
+
+- Validate one local extension manifest against the installed Stable v1 schema offline.
+
+#### Added
+
+- Add `extension validate` to console, module and shell entry points through
+  optional `1337[validate]`, preserving the minimal mandatory runtime. Report
+  bounded code/path diagnostics and exact input/schema digests without resolving
+  entry points, evaluating Core ranges, loading extensions or accessing the network.
+  Preserve the actual v1 schema and its existing version acceptance unchanged.
+
+
+### Patch 51 — v0.4.51 — 2026-11-25
+
+#### Digest
+
+- Replay explicit saved lens queries against an already loaded model snapshot.
+
+#### Added
+
+- Accept `view model --query <file> [--json]` through the existing typed
+  `LensQuery` decoder and reference projection. Each query replaces the selected
+  lens preset for one render; omission retains the existing output and defaults.
+- Bound regular UTF-8 query inputs to 65,536 bytes and refuse ambiguous or invalid
+  documents without fallback, saved preferences, evidence acquisition or actions.
+
+### Patch 50 — v0.4.50 — 2026-11-25
+
+#### Digest
+
+- Reopen an explicit saved CVE selection in one offline operator command.
+
+#### Added
+
+- Add `intel cve https inspect-set` for two to four original selection/receipt
+  pairs in caller order. Preserve independent source notices, provenance and
+  custody, including after relocation, through the existing verified loaders.
+- Bound input and terminal output; refuse mixed or corrupt original custody
+  without partial positive assertions. Add no persisted set identity, network
+  receive, refresh, storage write, target association or new risk assessment.
+
 ### Patch 49 — v0.4.49 — 2026-11-25
 
 #### Digest
@@ -50,6 +124,49 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Include the canonical extension-manifest schema and example in wheels directly
   from their existing contract sources, including builds from the source distribution.
   Document local `importlib.resources` access without changing schema-v1 semantics.
+
+
+### Patch 46 — v0.4.46 — 2026-11-25
+
+#### Digest
+
+- Keep nested ToolAdapter SDK envelopes typed and immutable before serialization.
+
+#### Fixed
+
+- Reject mutable or untyped nested request, report, execution, evidence and
+  normalized-output records at construction. Preserve valid ordered collections
+  and the version-one wire representation without introducing execution or transport.
+- Refuse DTO subclasses at invocation/report/result wire boundaries, including
+  frozen dataclass subclasses with mutable extra fields. Provider extensions retain
+  the documented immutable attributes and structural adapter protocol.
+
+
+### Patch 45 — v0.4.45 — 2026-11-25
+
+#### Digest
+
+- Import supported saved Kubernetes Lists with bounded multiline annotations.
+
+#### Fixed
+
+- Apply single-line restrictions to selected inventory facts rather than ignored
+  original JSON text. Preserve exact annotation evidence, UTF-8 and string byte
+  ceilings, selected-field refusals and no-op replay after workspace relocation.
+
+
+### Patch 44 — v0.4.44 — 2026-11-25
+
+#### Digest
+
+- Import saved GraphQL introspection records that explicitly identify root types.
+
+#### Fixed
+
+- Accept optional `kind: "OBJECT"` on named query, mutation and subscription
+  roots while preserving indexed type validation, null optional roots and exact
+  original-byte provenance. Explicit null or conflicting kind declarations
+  remain normalization refusals before any model or workspace save.
 
 
 ### Patch 43 — v0.4.43 — 2026-11-25

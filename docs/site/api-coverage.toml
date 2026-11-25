@@ -1070,3 +1070,10 @@ module = "fuzzy1337.sql_boolean_assessment"
 source = "src/fuzzy1337/sql_boolean_assessment.py"
 mode = "authored"
 page = "api/fuzzy1337.sql_boolean_assessment.md"
+
+[[surfaces]]
+# Internal offline CLI/shell transport; the Stable contract is the packaged v1 schema.
+module = "fuzzy1337.extension_commands"
+source = "src/fuzzy1337/extension_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.extension_commands.md"

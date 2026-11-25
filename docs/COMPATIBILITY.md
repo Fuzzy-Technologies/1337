@@ -177,6 +177,18 @@ grant, launch path or authenticated historical worker identity.
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
+Its nested invocation/report/result records require typed SDK members before
+construction succeeds. Valid tuple, list and ordered iterator collections retain
+their original serialized version-one shape and ordering. Mutable mappings and
+duck records cannot stand in for nested request, report, execution, evidence or
+normalized-output contracts. The invocation/report/result envelopes and nested
+members require exact concrete SDK classes; subclasses, including frozen dataclasses,
+now raise `ValueError` because additional fields could change serialized meaning.
+DTO subclassing is not a supported version-one extension point. Provider extensions
+use immutable attributes and the `ToolAdapter` protocol. Ordinary concrete SDK calls
+keep their fields and values; the SDK does not deserialize arbitrary JSON into
+records or grant source trust.
+
 `fuzzy1337.lenses` is an Experimental Python library at contract version `1`.
 ADR 0029 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
@@ -643,6 +655,15 @@ Preview reserves no later write and grants no target-applicability conclusion.
 The command implementation remains Internal; no remote scheduling or automatic
 refresh is introduced.
 
+ADR 0152 adds the Experimental `intel cve https inspect-set` operator projection
+over two to four explicit saved selection/receipt pairs. It reuses each original
+verified loader in caller order, requiring distinct CVEs at one source commit;
+independent source notices, scopes and clocks remain attributable per member.
+The separate version-one `cve-https-saved-set-cli` terminal profile is bounded to
+8 MiB and publishes no successful subset on refusal. It creates no persisted
+set identity, changes no source/envelope/receipt or single-record CLI format,
+and adds no network receive, storage write, association or assessment.
+
 ### Read-only saved image inventory
 
 The Experimental `sbom image` console and shell command selects an exact saved
@@ -714,6 +735,53 @@ it. Consumers may pass the decoded schema and example to their own JSON Schema
 Draft 2020-12 validator. Validation tooling is not a runtime dependency of the
 installed core. Loading these data resources neither resolves implementation
 locators nor activates extensions.
+
+An installed consumer can also opt into structural validation:
+
+```sh
+python -m pip install './1337-0.3.0-py3-none-any.whl[validate]'
+1337 extension validate ./extension-manifest.json --json
+python -m fuzzy1337 extension validate ./extension-manifest.json
+```
+
+Use the selected wheel's actual filename; the example uses this revision's
+distribution version. Installation obtains the optional pinned JSON Schema
+validator; subsequent validation is offline. An installation from a prepared
+local wheelhouse can use the ordinary pip `--no-index --find-links` options.
+The base installation still provides command help and
+reports `validator-unavailable` if validation is requested without that extra.
+The command always uses the installed Stable v1 schema. Source `$schema` values
+remain instance data; source `$ref` fields are subject to the schema's ordinary
+closed-object rules. Neither selects a schema or retrieves a file or URL.
+
+This is an Experimental consumer command, not a new Stable Python API or a
+registration interface. `valid` means only structural acceptance by the actual
+v1 schema, including its existing version-pattern acceptance. It does not
+certify full SemVer conformance, evaluate the declared Core range, resolve entry
+points, import extension modules, activate an extension or approve execution.
+The schema and example are unchanged.
+
+The consumer admits one regular local UTF-8 JSON file, at most 65,536 bytes,
+4,096 value nodes and nesting depth 32 (the root has depth zero). Duplicate
+members, non-JSON constants and numbers outside the parser's finite numeric
+representation are refused before schema validation. These operational limits
+produce `failed`, never a claim of schema invalidity. Validation reads the
+selected file without modifying it or opening a workspace.
+
+The JSON result uses Experimental profile `schema_version: 1`. It records the
+complete admitted input and installed schema SHA-256 digests, `status`, a fixed
+`failure` code, and up to 64 diagnostics with JSON Schema keyword `code` and
+RFC 6901 instance `path`; `diagnostics_truncated` explicitly marks additional
+errors. The empty path identifies the root. Missing-required-member and
+additional-property errors identify their containing object. Diagnostics omit
+rejected values, filenames and exception text. Both output forms explicitly
+state that Core compatibility is not evaluated and activation is not attempted.
+
+Exit codes are 0 for `valid`, 1 for `invalid`, 2 for input/setup refusal, 4 for
+an unavailable or unusable installed schema, and 130 for interruption. Input
+refusals use `configuration`, `input-file`, `input-json` or `input-limit`;
+setup refusals use `validator-unavailable` or `schema-unavailable`. A failure
+has no partial diagnostic list. See [ADR 0153](adr/0153-offline-extension-validation.md).
 
 The manifest declares:
 

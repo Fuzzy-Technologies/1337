@@ -1,5 +1,14 @@
 # fuzzy1337.shell
 
+Read-only `view model --query <file> [--json]` replays an explicit standard
+`LensQuery.ToDict()` document for one render through the unchanged typed decoder
+and lens projection. It replaces the preset without saving a preference; omitted
+queries and subsequent lens changes keep their original defaults. The regular
+UTF-8 input has a 65,536-byte cap and no final symbolic link; malformed, ambiguous
+or unsupported queries fail without projection, fallback or presentation changes.
+The selected snapshot, lens and object remain unchanged, with no evidence
+acquisition, model/workspace writes or action execution.
+
 Foreground `paths analyze` forwards only explicit quoted arguments to the same
 Internal read-only owner as the installed CLI and preserves its actual exit code.
 Shell context supplies no workspace, exact saved-model revision/snapshot pin,
