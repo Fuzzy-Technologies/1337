@@ -8,6 +8,49 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 46 — v0.4.46 — 2026-11-25
+
+#### Digest
+
+- Keep nested ToolAdapter SDK envelopes typed and immutable before serialization.
+
+#### Fixed
+
+- Reject mutable or untyped nested request, report, execution, evidence and
+  normalized-output records at construction. Preserve valid ordered collections
+  and the version-one wire representation without introducing execution or transport.
+- Refuse DTO subclasses at invocation/report/result wire boundaries, including
+  frozen dataclass subclasses with mutable extra fields. Provider extensions retain
+  the documented immutable attributes and structural adapter protocol.
+
+
+### Patch 45 — v0.4.45 — 2026-11-25
+
+#### Digest
+
+- Import supported saved Kubernetes Lists with bounded multiline annotations.
+
+#### Fixed
+
+- Apply single-line restrictions to selected inventory facts rather than ignored
+  original JSON text. Preserve exact annotation evidence, UTF-8 and string byte
+  ceilings, selected-field refusals and no-op replay after workspace relocation.
+
+
+### Patch 44 — v0.4.44 — 2026-11-25
+
+#### Digest
+
+- Import saved GraphQL introspection records that explicitly identify root types.
+
+#### Fixed
+
+- Accept optional `kind: "OBJECT"` on named query, mutation and subscription
+  roots while preserving indexed type validation, null optional roots and exact
+  original-byte provenance. Explicit null or conflicting kind declarations
+  remain normalization refusals before any model or workspace save.
+
+
 ### Patch 43 — v0.4.43 — 2026-11-25
 
 #### Digest

@@ -14,6 +14,8 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.workflow_fixture import ParseWorkflow, ReadWorkflow
+
 WORKFLOWS = {
     "python-quality.yml": {"quality", "browser-page-quality", "container-quality", "synthetic-lab",
                            "external-targets"},
@@ -120,7 +122,7 @@ def Workflow(name: str) -> dict[str, Any]:
 
     path = Path(__file__).resolve().parents[2] / ".github" / "workflows" / name
 
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    return ReadWorkflow(path)
 
 
 @pytest.mark.parametrize("name", WORKFLOWS)
@@ -1714,3 +1716,120 @@ def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
     assert (result.returncode == 0) is (mutation is None), (
         "Only complete synthetic prerequisite facts may pass the inert gate predicate."
     )
+
+
+def test_WorkflowReaderCachesTextWithoutSharingMutableMappings(tmp_path, monkeypatch):
+    """Parse equal bytes once while preserving nested ownership and YAML aliases per caller."""
+
+    source = tmp_path / "workflow.yml"
+    payload = (
+        "env: &owned\n  MODE: passive\n"
+        "on:\n  pull_request:\n    branches: [develop]\n"
+        "jobs:\n  quality:\n    env: *owned\n    steps:\n      - run: owned fixture\n"
+    )
+    source.write_text(payload, encoding="utf-8")
+    parse = yaml.safe_load
+    expected = parse(payload)
+    calls = []
+
+    def Parse(text):
+        """Count actual parser entries without replacing its accepted values or errors."""
+
+        calls.append(text)
+
+        return parse(text)
+
+    ParseWorkflow.cache_clear()
+    monkeypatch.setattr(yaml, "safe_load", Parse)
+
+    try:
+        first = Workflow(str(source))
+        second = Workflow(str(source))
+        assert first == second == expected and first is not second, (
+            "Equal workflow text must produce equal but independently owned documents"
+        )
+        assert first["env"] is first["jobs"]["quality"]["env"], (
+            "YAML alias identity must remain intact inside each individual document"
+        )
+        first["env"]["MODE"] = "mutated"
+        first[True]["pull_request"]["branches"].append("master")
+        first["jobs"]["quality"]["steps"].clear()
+        first["jobs"]["injected"] = {"steps": []}
+        assert second == Workflow(str(source)) == expected, (
+            "Nested mapping/list edits must never leak into another scenario or the cached source"
+        )
+        assert calls == [payload], "Unchanged workflow text must enter SafeLoader only once"
+
+    finally:
+        ParseWorkflow.cache_clear()
+
+
+@pytest.mark.parametrize("refused", ["jobs: [\n", "jobs: !unreviewed fixture\n"],
+                         ids=("syntax", "unsupported-tag"))
+def test_WorkflowReaderObservesSourceEditsAndPreservesParserDiagnostics(tmp_path, refused):
+    """Content changes stay visible and failed parsing keeps the original exception and message."""
+
+    source = tmp_path / "workflow.yml"
+    source.write_text("name: first\n", encoding="utf-8")
+    ParseWorkflow.cache_clear()
+
+    try:
+        first = Workflow(str(source))
+        source.write_text("name: second\n", encoding="utf-8")
+        assert Workflow(str(source)) == {"name": "second"} and first == {"name": "first"}, (
+            "Caching equal text must not hide a later change to the source file"
+        )
+        source.write_text(refused, encoding="utf-8")
+
+        with pytest.raises(yaml.YAMLError) as original:
+            yaml.safe_load(refused)
+
+        for _ in range(2):
+            with pytest.raises(yaml.YAMLError) as observed:
+                Workflow(str(source))
+
+            assert type(observed.value) is type(original.value) and (
+                str(observed.value) == str(original.value)
+            ), "Cached reading must retain SafeLoader's original refusal type and diagnostic"
+
+        source.write_text("name: repaired\n", encoding="utf-8")
+        assert Workflow(str(source)) == {"name": "repaired"}, (
+            "A parse refusal cannot poison a later repaired source value"
+        )
+
+    finally:
+        ParseWorkflow.cache_clear()
+
+
+def test_PassiveWorkflowReaderSharesParsingButNeverSharesScenarioEdits(monkeypatch):
+    """Both public readers reuse equal bytes while returning isolated job graphs."""
+
+    from tests.unit.test_passive_integration import WorkflowJobs
+
+    parse = yaml.safe_load
+    calls = []
+
+    def Parse(text):
+        """Observe the same real Python workflow parse through both reader entry points."""
+
+        calls.append(text)
+
+        return parse(text)
+
+    ParseWorkflow.cache_clear()
+    monkeypatch.setattr(yaml, "safe_load", Parse)
+
+    try:
+        jobs = WorkflowJobs()
+        expected = Workflow("python-quality.yml")["jobs"]
+        jobs["quality"]["strategy"]["matrix"]["include"][0]["python"] = "mutated"
+        jobs["container-quality"]["steps"][0]["env"]["INTEGRATION_PROFILE"] = "mutated"
+        jobs["synthetic-lab"]["steps"].clear()
+        del jobs["external-targets"]
+        assert WorkflowJobs() == Workflow("python-quality.yml")["jobs"] == expected, (
+            "Mutations from one reader must not alter a later scenario in either module"
+        )
+        assert len(calls) == 1, "Both readers must share one parse of identical workflow bytes"
+
+    finally:
+        ParseWorkflow.cache_clear()

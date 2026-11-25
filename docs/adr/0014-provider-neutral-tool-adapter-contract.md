@@ -46,6 +46,19 @@ Provider-specific fields may be retained as immutable JSON-like attributes at th
 adapter boundary. They must not create provider-specific object or relation types
 in the shared model.
 
+Invocation, report and result envelopes require their typed nested SDK records;
+an outer frozen dataclass does not make an embedded caller-owned mapping immutable.
+Evidence and normalized-output collections retain supported ordered iterables but
+reject untyped record members, mappings, text and null collections. Constructors
+refuse malformed Python input with `ValueError` before serialization. The envelopes
+and their nested records require exact concrete SDK types: frozen dataclass
+subclasses may introduce mutable fields serialized by the generic renderer.
+DTO inheritance is not a version-one extension point; provider extensions use the
+immutable attributes and structural `ToolAdapter` protocol. Concrete SDK calls
+and their contract-version-one serialized fields and values remain unchanged.
+Consumer-side validation still rejects explicitly forged DTOs; construction does
+not establish source authenticity or replace canonical owner checks.
+
 ## Consequences
 
 Positive:
