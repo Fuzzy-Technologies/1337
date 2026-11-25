@@ -330,6 +330,62 @@ def test_HtmlFindingsJumpToSavedDispositionGroups():
     assert actual == expected
 
 
+def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
+    """Hide nonmatching cards and empty disposition groups through native fragment state."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    extra = Finding(host.Reference(), "synthetic.unknown", "saved",
+                    "Another unknown finding", host.provenance)
+    state, _ = ApplyFindings(report.state, (extra,))
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    filters, = findings.findall('nav[@aria-labelledby="finding-severity-filter-label"]')
+    assert filters.get("hidden") == "hidden"
+    assert filters.findtext('span[@id="finding-severity-filter-label"]') == (
+        "Filter by saved severity"
+    )
+    assert [(link.get("href"), link.text) for link in filters.findall("a")] == [
+        ("#findings", "All (5)"),
+        ("#findings-severity-high", "High (1)"),
+        ("#findings-severity-low", "Low (1)"),
+        ("#findings-severity-informational", "Informational (1)"),
+        ("#findings-severity-unknown", "Unknown (2)"),
+    ]
+    selected, = findings.findall('p[@id="findings-severity-unknown"]')
+    assert (selected.get("tabindex"), selected.get("hidden")) == ("-1", "hidden")
+    assert selected.text.startswith("Showing Unknown (2).")
+    assert {card.get("id"): card.get("data-finding-severities")
+            for card in findings.findall("article")} == {
+        f"finding-{entity.Reference()[7:]}": entity.attributes["severity"]
+        for entity in state.Objects(ObjectKind.FINDING)
+    }
+    assert [heading.get("id") for heading in findings.findall("h3")
+            if "unknown" in heading.attrib["data-finding-severities"].split()] == [
+        "findings-open", "findings-confirmed"
+    ]
+    stylesheet = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
+    unknownSelector = (
+        '#findings-severity-unknown:target ~ [data-finding-severities]'
+        ':not([data-finding-severities~="unknown"])'
+    )
+    defaults, guard, conditional = stylesheet.partition(
+        f"@media screen {{\n@supports selector({unknownSelector}) {{\n"
+    )
+    assert guard
+    assert ".finding-severity-filter[hidden] {display:none}" in defaults
+    assert ".finding-severity-selection[hidden] {display:none}" in defaults
+    screenRules, closing, tail = conditional.partition("\n}\n}\n")
+    assert closing and not tail
+    for rule in (
+        ".finding-severity-filter[hidden] {display:flex}",
+        ".finding-severity-selection[hidden]:target {display:block}",
+        f"{unknownSelector} {{display:none}}",
+    ):
+        assert rule not in defaults and rule in screenRules
+
+
 @pytest.mark.parametrize("verify,expectedIntegrity", [
     (False, "not verified"), (True, "verified bytes"),
 ], ids=["unverified", "verified"])

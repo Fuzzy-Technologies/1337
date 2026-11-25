@@ -67,6 +67,24 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 #evidence tbody tr:target > th[scope="row"] {outline:2px solid var(--cyan);outline-offset:-2px}}
 @media print {body {background:white;color:black} a,h1,h2,h3,.finding > h4,summary {color:black}}
 """
+_FINDING_SEVERITY_SELECTOR = (
+    "#findings-severity-{severity}:target ~ [data-finding-severities]"
+    ':not([data-finding-severities~="{severity}"])'
+)
+_FINDING_SEVERITY_CSS = (
+    ".finding-severity-filter[hidden] {display:none}\n"
+    ".finding-severity-selection[hidden] {display:none}\n"
+    "@media screen {\n"
+    "@supports selector("
+    f"{_FINDING_SEVERITY_SELECTOR.format(severity=FindingSeverity.UNKNOWN.value)}) {{\n"
+    ".finding-severity-filter[hidden] {display:flex}\n"
+    ".finding-severity-selection[hidden]:target {display:block}\n"
+    + "".join(
+        f"{_FINDING_SEVERITY_SELECTOR.format(severity=severity.value)} {{display:none}}\n"
+        for severity in FindingSeverity
+    )
+    + "}\n}\n"
+)
 
 
 def ReportBytes(payload: bytes) -> bytes:
@@ -659,7 +677,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<meta name="color-scheme" content="dark">',
         '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; '
         'style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">',
-        f"<title>1337 Evidence report</title><style>{_CSS}</style></head><body><main>",
+        f"<title>1337 Evidence report</title><style>{_CSS}{_FINDING_SEVERITY_CSS}</style>"
+        "</head><body><main>",
         '<p class="brand">Fuzzy Technologies · Security Workbench</p>'
         '<h1>Security assessment report</h1>',
         f"<p>Workspace: {Html(report.state.workspace_id)} · "
@@ -711,9 +730,11 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     findingsByStatus: dict[FindingStatus, list[_RetainedFindingRow]] = {
         status: [] for status in FindingStatus
     }
+    severityCounts = dict.fromkeys(FindingSeverity, 0)
 
     for row in rows.findings:
         findingsByStatus[row.finding.status].append(row)
+        severityCounts[row.finding.severity] += 1
 
     findingGroups = [
         (f"findings-{status.value}", f"{status.value.title()} ({len(group)})", group)
@@ -724,6 +745,21 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         lines.append('<nav aria-label="Finding dispositions">')
         lines.extend(f'<a href="#{groupId}">{label}</a>' for groupId, label, _ in findingGroups)
         lines.append("</nav>")
+        severityFilters = [
+            (f"findings-severity-{severity.value}", f"{severity.value.title()} ({count})")
+            for severity, count in reversed(severityCounts.items()) if count
+        ]
+        lines.append('<nav class="finding-severity-filter" '
+                     'aria-labelledby="finding-severity-filter-label" hidden="hidden">'
+                     '<span id="finding-severity-filter-label">Filter by saved severity</span>')
+        lines.append(f'<a href="#findings">All ({len(rows.findings)})</a>')
+        lines.extend(f'<a href="#{filterId}">{label}</a>' for filterId, label in severityFilters)
+        lines.append("</nav>")
+        lines.extend(
+            f'<p class="finding-severity-selection" id="{filterId}" tabindex="-1" hidden="hidden">'
+            f"Showing {label}. Disposition counts include all retained findings.</p>"
+            for filterId, label in severityFilters
+        )
 
     else:
         lines.append("<p>No finding records were retained. To assess a vulnerability, run an "
@@ -731,7 +767,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                      "report does not perform one.</p>")
 
     for groupId, label, findings in findingGroups:
-        lines.append(f'<h3 id="{groupId}" tabindex="-1">{label}</h3>')
+        severities = " ".join(sorted({row.finding.severity.value for row in findings}))
+        lines.append(f'<h3 id="{groupId}" tabindex="-1" data-finding-severities="{severities}">'
+                     f"{label}</h3>")
 
         for row in findings:
             finding = row.finding
@@ -746,7 +784,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                                         "established by this disposition alone.",
             }[finding.status]
             lines.extend([
-                f'<article class="finding" id="{_FindingId(reference)}" tabindex="-1">'
+                f'<article class="finding" id="{_FindingId(reference)}" tabindex="-1" '
+                f'data-finding-severities="{finding.severity.value}">'
                 + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
                 + f'<span class="badge">{Html(finding.status.value)}</span>'
                 + f"<h4>{Html(finding.summary)}</h4>",

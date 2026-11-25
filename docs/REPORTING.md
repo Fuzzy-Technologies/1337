@@ -88,7 +88,12 @@ subject. Links use the exact saved subject reference and cover all dispositions.
 
 Use the Findings disposition links to jump to open, confirmed, dismissed or
 resolved findings. Each populated group shows its count and keeps its findings
-in canonical order. All finding cards remain visible when printing the report.
+in canonical order.
+
+Use the saved severity filter to show matching cards, including Unknown when
+present. All restores the full view, as does a link to another report section or
+record. Disposition counts describe the full snapshot. Printing includes every
+finding card.
 
 A finding's evidence link uses the number on its row in the Evidence table.
 Follow the link to read the retained reference and its byte-integrity status.

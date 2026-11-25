@@ -22,6 +22,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   navigation.
 - Link to populated asset groups and show their retained object counts.
 - Group offline HTML findings by saved disposition and link directly to each group.
+- Filter offline HTML findings by saved severity, including Unknown.
 - Link retained assets to finding cards by their exact saved subject references.
 - Build JUnit metadata from one retained report projection.
 
