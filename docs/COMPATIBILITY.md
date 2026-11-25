@@ -774,11 +774,11 @@ remain instance data; source `$ref` fields are subject to the schema's ordinary
 closed-object rules. Neither selects a schema or retrieves a file or URL.
 
 This is an Experimental consumer command, not a new Stable Python API or a
-registration interface. `valid` means only structural acceptance by the actual
-v1 schema, including its existing version-pattern acceptance. It does not
-certify full SemVer conformance, evaluate the declared Core range, resolve entry
-points, import extension modules, activate an extension or approve execution.
-The schema and example are unchanged.
+registration interface. Without a version profile, `valid` means only structural
+acceptance by the actual v1 schema, including its existing version-pattern
+acceptance. It does not certify full SemVer conformance, evaluate the declared
+Core range, resolve entry points, import extension modules, activate an extension
+or approve execution. The schema and example are unchanged.
 
 The consumer admits one regular local UTF-8 JSON file, at most 65,536 bytes,
 4,096 value nodes and nesting depth 32 (the root has depth zero). Duplicate
@@ -801,6 +801,40 @@ an unavailable or unusable installed schema, and 130 for interruption. Input
 refusals use `configuration`, `input-file`, `input-json` or `input-limit`;
 setup refusals use `validator-unavailable` or `schema-unavailable`. A failure
 has no partial diagnostic list. See [ADR 0153](adr/0153-offline-extension-validation.md).
+
+### Opt-in extension version-string profile
+
+An integrator can explicitly add the published
+[SemVer 2.0.0](https://semver.org/spec/v2.0.0.html) version-string grammar check:
+
+```sh
+1337 extension validate ./extension-manifest.json --version-profile semver-2.0.0 --json
+```
+
+The canonical Stable v1 schema runs first. Only a structurally accepted manifest
+receives this additional check of `/extension/version`; canonical diagnostics
+remain authoritative. The selected profile requires ASCII `major.minor.patch`
+with no leading zero in numeric core components, nonempty dot-separated
+prerelease/build identifiers containing ASCII letters, digits or hyphens, and
+no leading zero in an entirely numeric prerelease identifier. For example,
+`1.2.3-01` is invalid, while `1.2.3-01a`, `1.2.3--` and `1.2.3+001` are valid.
+Build identifiers may have leading zeros. Whitespace is not trimmed.
+There is no integer conversion or additional component-length limit; the
+existing manifest input bounds still apply.
+
+The opt-in JSON result adds `version_profile: "semver-2.0.0"`; human output also
+names the selected profile. A supplementary refusal returns exit 1 and
+`status: "invalid"`, with the fixed diagnostic
+`{"code":"semver-2.0.0","path":"/extension/version"}` and no rejected value.
+Unknown profile names fail configuration admission with exit 2 before reading
+the manifest. Input/schema digests and all existing failure/exit semantics are
+preserved. The default command and its result fields do not change.
+
+This checks the version-string grammar in specification sections 2, 9 and 10,
+not release history, version precedence or compatibility ranges. It neither
+interprets the opaque Core range nor resolves or activates an extension.
+The optional validator extra remains required; syntax alone cannot bypass
+canonical schema validation.
 
 The manifest declares:
 
