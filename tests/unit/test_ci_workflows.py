@@ -26,6 +26,17 @@ INTEGRATION_CONDITION = (
     "github.event_name == 'push' || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == false)"
 )
+MACOS_DEVELOP_TARGET = (
+    "github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'"
+)
+MACOS_PORTABILITY_CONDITION = (
+    "github.event_name == 'pull_request' && github.event.pull_request.draft == false && "
+    + MACOS_DEVELOP_TARGET
+)
+FULL_PYTHON_CONDITION = (
+    f"({INTEGRATION_CONDITION}) && !(github.event_name == 'pull_request' && "
+    f"{MACOS_DEVELOP_TARGET})"
+)
 NATIVE_IMAGE_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
@@ -176,13 +187,56 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     assert naming["run"] == "uv run --locked --extra dev python tools/python_naming.py", (
         "The naming gate must run as a standalone command."
     )
-    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
-        "Only existing Ready/push integration events may start the full Python check."
+    assert " ".join(full["if"].split()) == FULL_PYTHON_CONDITION, (
+        "Only Ready/push events outside the macOS develop exception run the full Python check."
     )
     assert " ".join(full["run"].split()) == (
         "uv run --locked --extra dev 1337-dev check --fail-fast "
         "--suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}"
     ), "The full matrix must preserve its complete gate and original platform suite budget."
+    portabilitySteps = steps[steps.index(naming) + 1:steps.index(full)]
+    assert [step["name"] for step in portabilitySteps] == [
+        "Run macOS quality checks before pytest",
+        "Run focused macOS portability tests",
+        "Run macOS package build",
+    ], "The macOS portability profile must run in order after the naming check."
+
+    for step in portabilitySteps:
+        assert " ".join(step["if"].split()) == MACOS_PORTABILITY_CONDITION, (
+            "Every portability step must apply only to Ready macOS PRs targeting develop."
+        )
+        assert step.get("continue-on-error", False) is False, (
+            "A failed portability step must stop subsequent quality steps."
+        )
+
+    pretest, portability, build = portabilitySteps
+    assert "timeout-minutes" not in pretest and "timeout-minutes" not in build, (
+        "Non-test phases must use the job ceiling."
+    )
+    assert jobs["quality"]["timeout-minutes"] == "${{ matrix.job_timeout_minutes || 15 }}", (
+        "The quality job must retain its platform ceiling."
+    )
+    assert portability["timeout-minutes"] == 5, "Only focused pytest has a five-minute deadline."
+    prefix = ["uv", "run", "--locked", "--extra", "dev"]
+    assert [shlex.split(command) for command in pretest["run"].splitlines()] == [
+        prefix + ["1337-dev", "compile"],
+        prefix + ["1337-dev", "lint"],
+        prefix + ["1337-dev", "typecheck"],
+        prefix + ["1337-dev", "performance"],
+    ], "The non-test checks must run in order before pytest."
+    commands = portability["run"].replace("\\\n", " ").splitlines()
+    assert [shlex.split(command) for command in commands] == [
+        prefix + [
+            "pytest", "-q", "-x", "-n", "0", "--timeout=15", "--timeout-method=thread",
+            "-o", "addopts=", "--strict-config", "--strict-markers", "--no-cov",
+            "tests/unit/test_test_runner.py", "tests/unit/test_test_progress.py",
+            "--junitxml=functional-evidence/macos-portability.xml",
+        ],
+    ], "The focused pytest step must retain its exact offline selection and JUnit path."
+    assert build["run"] == "uv run --locked --extra dev 1337-dev build", (
+        "The package build must run after pytest."
+    )
+
     container = jobs["container-quality"]
     assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
         "The complete container gate must retain its original Ready/push condition."
@@ -362,8 +416,8 @@ def test_TraversalRateCheckpointKeepsExactBoundedWindowsSelectionsAndOriginalEvi
     )
     full = next(step for step in jobs["quality"]["steps"]
         if step.get("name") == "Run repository quality gate")
-    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
-        "The existing final Ready/push gate must remain unchanged."
+    assert " ".join(full["if"].split()) == FULL_PYTHON_CONDITION, (
+        "The full gate must retain its Ready/push condition with the macOS develop exception."
     )
 
 
@@ -565,8 +619,8 @@ def test_PortableProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate(
         "Portable checkpoint modules cannot share a prepend-mode pytest import name."
     )
     full = steps["Run repository quality gate"]
-    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
-        "The complete gate must run unchanged at final readiness."
+    assert " ".join(full["if"].split()) == FULL_PYTHON_CONDITION, (
+        "Final readiness must select the established full or macOS portability profile."
     )
     assert "1337-dev check" in full["run"], "Final integration no longer runs the complete gate."
     assert full["env"]["FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE"] == (
