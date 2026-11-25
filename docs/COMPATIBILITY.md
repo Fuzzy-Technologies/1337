@@ -625,6 +625,15 @@ current authority. All `fuzzy1337.ioc_commands` classes, functions, methods and
 helpers, including `IocParser` and `RunIocCommands`, remain Internal implementation
 surfaces; their visibility does not establish a supported Python SDK.
 
+Experimental `trace ioc export-bundle|verify-bundle` uses the separate
+`ioc-evidence-bundle-v1` transfer profile under ADR 0151. Explicit original-byte
+opt-in exports exactly one independently verified successful raw/receipt/snapshot
+chain. Detached verification requires a separately retained original receipt ID
+and complete transfer SHA-256; no source workspace, acquisition or Core write is
+needed. Original owning schemas and budgets remain unchanged. New-file atomic
+no-clobber publication retains the report publisher's truthful post-link failure
+semantics. `fuzzy1337.ioc_bundle` and all its helpers remain Internal.
+
 `fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
 receipt library under ADR 0060. Explicit local source bytes or an immutable
 official CISA mirror selection produce bounded immutable evidence and truthful
@@ -645,6 +654,15 @@ Failed verification, excessive output or interruption omits the candidate previe
 Preview reserves no later write and grants no target-applicability conclusion.
 The command implementation remains Internal; no remote scheduling or automatic
 refresh is introduced.
+
+ADR 0152 adds the Experimental `intel cve https inspect-set` operator projection
+over two to four explicit saved selection/receipt pairs. It reuses each original
+verified loader in caller order, requiring distinct CVEs at one source commit;
+independent source notices, scopes and clocks remain attributable per member.
+The separate version-one `cve-https-saved-set-cli` terminal profile is bounded to
+8 MiB and publishes no successful subset on refusal. It creates no persisted
+set identity, changes no source/envelope/receipt or single-record CLI format,
+and adds no network receive, storage write, association or assessment.
 
 ### Read-only saved image inventory
 
@@ -692,6 +710,78 @@ Deprecated behavior must not be silently repurposed with different semantics.
 ## Extension manifest
 
 `contracts/extension-manifest.schema.json` defines the first public machine-readable extension boundary.
+
+Wheels built from this revision include the canonical schema and example under
+`contracts/` byte for byte, including builds from the source distribution.
+After installing such a wheel, consumers can read both locally using only the
+Python standard library, without a repository checkout or HTTP request:
+
+```python
+import json
+from importlib.resources import files
+
+root = files("fuzzy1337").joinpath("contracts")
+schemaBytes = root.joinpath("extension-manifest.schema.json").read_bytes()
+exampleBytes = root.joinpath("examples", "extension-manifest.example.json").read_bytes()
+schema = json.loads(schemaBytes)
+example = json.loads(exampleBytes)
+```
+
+The packaged resource paths are `fuzzy1337/contracts/extension-manifest.schema.json`
+and `fuzzy1337/contracts/examples/extension-manifest.example.json`. The build maps
+the existing canonical files to those locations; there is no separately maintained
+copy. The schema's `$id` identifies the contract and does not require retrieving
+it. Consumers may pass the decoded schema and example to their own JSON Schema
+Draft 2020-12 validator. Validation tooling is not a runtime dependency of the
+installed core. Loading these data resources neither resolves implementation
+locators nor activates extensions.
+
+An installed consumer can also opt into structural validation:
+
+```sh
+python -m pip install './1337-0.3.0-py3-none-any.whl[validate]'
+1337 extension validate ./extension-manifest.json --json
+python -m fuzzy1337 extension validate ./extension-manifest.json
+```
+
+Use the selected wheel's actual filename; the example uses this revision's
+distribution version. Installation obtains the optional pinned JSON Schema
+validator; subsequent validation is offline. An installation from a prepared
+local wheelhouse can use the ordinary pip `--no-index --find-links` options.
+The base installation still provides command help and
+reports `validator-unavailable` if validation is requested without that extra.
+The command always uses the installed Stable v1 schema. Source `$schema` values
+remain instance data; source `$ref` fields are subject to the schema's ordinary
+closed-object rules. Neither selects a schema or retrieves a file or URL.
+
+This is an Experimental consumer command, not a new Stable Python API or a
+registration interface. `valid` means only structural acceptance by the actual
+v1 schema, including its existing version-pattern acceptance. It does not
+certify full SemVer conformance, evaluate the declared Core range, resolve entry
+points, import extension modules, activate an extension or approve execution.
+The schema and example are unchanged.
+
+The consumer admits one regular local UTF-8 JSON file, at most 65,536 bytes,
+4,096 value nodes and nesting depth 32 (the root has depth zero). Duplicate
+members, non-JSON constants and numbers outside the parser's finite numeric
+representation are refused before schema validation. These operational limits
+produce `failed`, never a claim of schema invalidity. Validation reads the
+selected file without modifying it or opening a workspace.
+
+The JSON result uses Experimental profile `schema_version: 1`. It records the
+complete admitted input and installed schema SHA-256 digests, `status`, a fixed
+`failure` code, and up to 64 diagnostics with JSON Schema keyword `code` and
+RFC 6901 instance `path`; `diagnostics_truncated` explicitly marks additional
+errors. The empty path identifies the root. Missing-required-member and
+additional-property errors identify their containing object. Diagnostics omit
+rejected values, filenames and exception text. Both output forms explicitly
+state that Core compatibility is not evaluated and activation is not attempted.
+
+Exit codes are 0 for `valid`, 1 for `invalid`, 2 for input/setup refusal, 4 for
+an unavailable or unusable installed schema, and 130 for interruption. Input
+refusals use `configuration`, `input-file`, `input-json` or `input-limit`;
+setup refusals use `validator-unavailable` or `schema-unavailable`. A failure
+has no partial diagnostic list. See [ADR 0153](adr/0153-offline-extension-validation.md).
 
 The manifest declares:
 

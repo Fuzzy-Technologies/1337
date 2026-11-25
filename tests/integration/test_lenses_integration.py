@@ -4,11 +4,12 @@
 """Real portable workspace/model/evidence consumed by read-only shell and SDK lenses."""
 
 import json
+import shlex
 from io import StringIO
 from pathlib import Path
 
 from fuzzy1337.evidence import EvidenceProvenance, LocalEvidenceStore
-from fuzzy1337.lenses import LENS_CATALOG
+from fuzzy1337.lenses import LENS_CATALOG, LensQuery, ResolveLens
 from fuzzy1337.model import (
     CanonicalModelJson,
     LocalModelStore,
@@ -143,4 +144,44 @@ def test_CorruptPersistedModelCannotReplaceThePreviousView(tmp_path):
 
     assert json.loads(output.getvalue().splitlines()[-1])["revision"] == state.revision, (
         'Lens contract failed: corrupt persisted model cannot replace the previous view.'
+    )
+
+
+def test_SavedQueryReplaysExistingSnapshotWithoutStoreWrites(tmp_path, monkeypatch):
+    """A saved explicit filter replaces the default without acquiring, saving or reopening state."""
+
+    root, state = Workspace(tmp_path)
+    query = LensQuery(object_kinds=(ObjectKind.ASSET,), attributes_match={"version": "1"})
+    path = tmp_path / "Saved Inventory Query.JSON"
+    path.write_bytes(CanonicalModelJson(query.ToDict()))
+    before = Files(tmp_path)
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    shell.onecmd(f"model {root}")
+
+    def Deny(*arguments, **keywords):
+        """Refuse any model/workspace write, evidence acquisition or implicit snapshot reopen."""
+
+        raise AssertionError("Explicit query replay must consume only the already bound snapshot")
+
+    for owner, method in ((LocalModelStore, "Save"), (LocalModelStore, "Create"),
+                          (LocalModelStore, "Open"), (LocalWorkspaceStore, "Save"),
+                          (LocalEvidenceStore, "Put")):
+        monkeypatch.setattr(owner, method, Deny)
+
+    shell.onecmd(f"view model --query {shlex.quote(str(path))} --json")
+    actual = json.loads(output.getvalue().splitlines()[-1])
+    assert actual == ResolveLens("pentest").Project(state, query), (
+        "Shell replay must preserve exact SDK snapshot, filter and reference semantics"
+    )
+    assert len(actual["object_references"]) == 1, (
+        "An explicit asset query must replace the host-oriented preset rather than intersect it"
+    )
+    shell.onecmd("view model --json")
+    defaultView = json.loads(output.getvalue().splitlines()[-1])
+    assert defaultView == ResolveLens("pentest").Project(state), (
+        "Replaying a file must not change subsequent default output"
+    )
+    assert Files(tmp_path) == before, (
+        "Model, workspace, evidence and query bytes must remain unchanged"
     )

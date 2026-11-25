@@ -50,6 +50,14 @@ changes registration/consent/policy, chooses impact, or starts execution. A fail
 open retains the previous bound snapshot. Reopening is explicit; this change
 does not subscribe to jobs or pretend a loaded snapshot is a live stream.
 
+The additive `view model --query <file> [--json]` option replays an explicit
+standard `LensQuery.ToDict()` document through the existing decoder and projection.
+It replaces the preset for one render only, with no new query grammar, preference
+persistence or authority. The input is a regular UTF-8 JSON file bounded to
+65,536 bytes, with no final symbolic link, duplicate keys or non-finite numbers.
+Invalid input emits no projection and leaves existing presentation/model state
+unchanged. Omission preserves the existing preset output.
+
 ## Validation
 
 Unit and schema/decoder contract tests exercise all four descriptors, filters,

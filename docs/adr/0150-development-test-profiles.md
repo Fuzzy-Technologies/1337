@@ -61,7 +61,7 @@ refuse acceptance. Ordinary full checkpoints and master retain their complete
 all-layer, all-module coverage gate.
 
 The required Python workflow verifies the complete batch against a separately
-pinned immutable manifest. A branch prefix requests passive verification and
+reviewed manifest in a captured immutable registry commit. A branch prefix requests passive verification and
 never earns acceptance. A missing, failed, skipped or held routing decision
 fails required checks; the container guard runs before any Docker action.
 Optional active/external workflows reject every requested passive branch
@@ -80,6 +80,31 @@ may execute locally. Reuse that exact measured checkpoint rather than duplicatin
 it across agents or after integration into `develop`. A final admitted Ready
 passive batch is the shared full-unit checkpoint; platform and package
 compatibility establish their own narrower boundaries.
+
+### Independent policy registry migration
+
+The initial bootstrap stored one `PASSIVE_POLICY_COMMIT` literal in the shared
+routing workflow. Independent product PRs therefore conflicted while selecting
+different reviewed policies. The accepted successor fetches the actual upstream
+`feature/ci-batch-policies` ref once, captures its immutable commit and selects
+one `contracts/passive-batches/<sha256>.json` blob. The SHA-256 key frames the
+actual base commit, exact head branch and complete raw full-object diff with
+NUL delimiters. Independent batches use separate manifests in one registry
+snapshot without editing a shared product file or adding another CI action.
+
+Policy registry contents are data only. The isolated classifier is extracted
+from the actual base commit, never the candidate or policy registry. Every
+record binds all five raw fields exactly; the new loader rejects the historical
+normalized-workflow exception. Missing, crossed, malformed, oversized or
+nonregular policy blobs remain held. Ordinary/master routes and optional active
+vetoes are unchanged.
+
+The migration can be admitted using the existing base-owned raw classifier.
+Its final workflow blob is already known when the separate registry manifest
+is prepared, so no normalized content or self-referential commit pin is needed.
+Previously started checks remain bound to their original revisions. See
+[`PASSIVE_ROUTING.md`](../PASSIVE_ROUTING.md) for the exact key and reproducible
+entry construction.
 
 Keep the existing `loadscope` scheduler and bounded automatic worker cap.
 Independent cases run in process-isolated workers; declared `serial` cases run

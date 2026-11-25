@@ -75,6 +75,13 @@ and reparses all original JSON. Another acquisition, workspace or source-family
 root cannot replace the original. Inspection works after moving the whole owning
 workspace, without a receive, model save or original external input file.
 
+Single-record JSON output preserves the existing canonical bytes on UTF-8
+streams. If the caller's declared output codec cannot represent the complete
+document, standard JSON Unicode escapes preserve all source text and mandatory
+notices, including on `PYTHONIOENCODING=ascii:strict`. Decoding the JSON yields
+the same structure and Unicode strings. This terminal presentation does not
+change saved envelope, receipt, source bytes or their identities.
+
 Raw, selection and receipt publication acknowledgements remain independent.
 `unknown` means publication may have happened. Partial receives and failed
 parsing/hash/storage retain honest terminal facts and bounded evidence where
@@ -95,11 +102,52 @@ The result separates verified custody, attempted failure and not-attempted
 members. A partial batch can retain successful selections and independent
 acknowledgements. Reopen each successful selection with its own receipt through
 `LoadHttpsCveSelection`. Batch output has no persistent aggregate receipt or
-model write. The existing CLI continues to select one record at a time.
+model write. Fetch remains a single-record CLI operation.
 
 The [batch design](adr/0145-pinned-selected-cve-https-batch.md) records the
 ownership and interruption boundaries. Genuine batch HTTPS acceptance remains
 pending.
+
+## Reopen an explicit saved selection offline
+
+Use one installed console invocation to verify two to four already saved members
+under [ADR 0152](adr/0152-saved-cve-selection-inspection.md):
+
+```bash
+1337 intel cve https inspect-set ./relocated-workspace \
+  --member sha256:<first-selection-manifest-digest> sha256:<first-receipt-manifest-digest> \
+  --member sha256:<second-selection-manifest-digest> sha256:<second-receipt-manifest-digest> \
+  --json
+```
+
+Replace the placeholders with the exact original `selection_id` and `receipt_id`
+returned for each successful acquisition. Repeat `--member` in the intended order;
+all manifest identities must be distinct. Each member is independently verified
+through `LoadHttpsCveSelection`, including its source notices, original raw pin,
+successful receipt and complete original-byte reparse. Members must name distinct
+canonical CVEs at one immutable source commit in the same owning workspace.
+Local import, CWE/EPSS and mixed-acquisition roots cannot replace those pairs.
+The existing per-member allocation ceilings remain unchanged.
+
+The separate Experimental `cve-https-saved-set-cli` terminal profile is version
+`1`. Its `members` preserve caller order, independent collection scopes and
+acquisition clocks, source facts, both custody IDs and separate selection/snapshot
+references. A caller-supplied list does not prove that its members were collected
+by one historical batch. There is no persisted set ID or aggregate receipt.
+
+All pairs pass syntax, uniqueness and count checks before storage is read. All
+members must verify before any positive projection is printed. A corrupt or
+foreign member refuses the whole projection; it does not print a successful
+subset. Configuration returns exit `2`, integrity or presentation failure `4`,
+and interruption `130`. The complete ASCII-escaped human/JSON projection is
+limited to 8 MiB, with no truncation. An incomplete output write is an error.
+
+Inspection reads only the explicitly selected saved custody. Relocation of the
+whole workspace is supported. It performs no network receive, refresh, evidence
+publication, model write, Finding association or new assessment. Original source
+CVSS assertions remain source facts; applicability and risk are not evaluated,
+and publisher authentication remains not assessed. Single-record `inspect` and
+all persisted source, envelope and receipt formats are unchanged.
 
 ## Attribution and interpretation
 

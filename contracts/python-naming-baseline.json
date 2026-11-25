@@ -869,6 +869,7 @@
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_commands"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_context"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_demo"],
+  ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_extension"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_help"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_history"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_image"],

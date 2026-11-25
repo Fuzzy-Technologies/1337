@@ -7,7 +7,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -20,7 +24,69 @@ from fuzzy1337.model import LocalModelStore
 from tests.e2e.test_intelligence_cli import Files
 from tests.e2e.test_intelligence_cli import ImportArguments as LocalImportArguments
 from tests.integration.test_intelligence_acquisition_persistence import Context
-from tests.unit.test_intelligence_cve_https_commands import Arguments, Body, Refuse
+from tests.integration.test_intelligence_cve_batch import Requests
+from tests.unit.test_intelligence_cve_https_commands import (
+    Arguments,
+    Body,
+    Refuse,
+    SavedArguments,
+    SavedMembers,
+)
+
+
+@pytest.mark.parametrize("count", [2, 4])
+def test_ConsoleSavedCveSetReopensRelocatedOriginalsWithoutExternalActivity(
+    tmp_path, monkeypatch, count,
+):
+    """The installed console verifies retained members in one offline read-only invocation."""
+
+    root, outcomes = SavedMembers(tmp_path, monkeypatch, Requests(count))
+    relocated = tmp_path / "relocated"
+    shutil.move(root, relocated)
+    guard = tmp_path / "guard"
+    guard.mkdir()
+    loaded = guard / "loaded"
+    (guard / "sitecustomize.py").write_text('''
+"""Deny every process launch or socket operation in the saved-selection console proof."""
+import sys
+from pathlib import Path
+Path(''' + repr(str(loaded)) + ''').write_text('loaded', encoding='ascii')
+def Audit(event, arguments):
+    """Fail before any external receive or executable activity can occur."""
+    if event.startswith('socket.') or event in {
+        'subprocess.Popen', 'os.system', 'os.exec', 'os.posix_spawn', 'os.fork', 'os.forkpty',
+    }:
+        raise AssertionError('Saved CVE console attempted external activity')
+sys.addaudithook(Audit)
+''', encoding="utf-8")
+    executable = Path(sys.executable).parent / ("1337.exe" if os.name == "nt" else "1337")
+    environment = {**os.environ, "PYTHONPATH": str(guard), "PYTHONIOENCODING": "ascii:strict"}
+    before = Files(relocated)
+    result = subprocess.run(
+        [str(executable), "intel", "cve", "https", *SavedArguments(relocated, outcomes), "--json"],
+        cwd=tmp_path, env=environment, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert loaded.read_text(encoding="ascii") == "loaded", "Console activity guard must load"
+    assert result.returncode == 0 and not result.stderr, (
+        "Actual saved-set console must verify original custody without launching a receiver"
+    )
+    document = json.loads(result.stdout)
+    assert [member["selection_id"] for member in document["members"]] == [
+        outcome.snapshot_record.evidence_id for outcome in outcomes
+    ], "Actual saved-set console must preserve every selected custody pair in caller order"
+    assert Files(relocated) == before, (
+        "Installed saved-set console must leave every owning byte intact"
+    )
+    (relocated / "evidence" / outcomes[-1].raw.reference.locator).write_bytes(b"corrupt")
+    corrupted = Files(relocated)
+    refused = subprocess.run(
+        [str(executable), "intel", "cve", "https", *SavedArguments(relocated, outcomes), "--json"],
+        cwd=tmp_path, env=environment, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert refused.returncode == 4 and not refused.stderr and json.loads(refused.stdout)[
+        "members"
+    ] == [], "Actual console must refuse corrupt originals without partial positive assertions"
+    assert Files(relocated) == corrupted, "Actual console integrity refusal must preserve all bytes"
 
 
 def Run(arguments, capsys):

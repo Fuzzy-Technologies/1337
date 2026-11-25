@@ -8,6 +8,124 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 54 — v0.4.54 — 2026-11-25
+
+#### Digest
+
+- Preserve single-record CVE inspection JSON on strict ASCII terminal streams.
+
+#### Fixed
+
+- Escape Unicode using standard JSON syntax when the caller's output codec
+  cannot represent original source text or mandatory notices. Keep existing
+  UTF-8 output bytes, decoded facts and saved custody identities unchanged.
+
+### Patch 53 — v0.4.53 — 2026-11-25
+
+#### Digest
+
+- Admit independent reviewed passive batches through separate immutable policy
+  registry entries without conflicting product-workflow pins.
+
+#### Changed
+
+- Capture one upstream policy registry commit and select each batch by its exact
+  base, branch and complete raw diff. Execute only the actual base classifier.
+
+#### Security
+
+- Require full old/new blob hashes and modes for every changed file. Refuse
+  normalized policy exceptions, candidate-owned entries and unsafe registry blobs.
+
+
+### Patch 52 — v0.4.52 — 2026-11-25
+
+#### Digest
+
+- Validate one local extension manifest against the installed Stable v1 schema offline.
+
+#### Added
+
+- Add `extension validate` to console, module and shell entry points through
+  optional `1337[validate]`, preserving the minimal mandatory runtime. Report
+  bounded code/path diagnostics and exact input/schema digests without resolving
+  entry points, evaluating Core ranges, loading extensions or accessing the network.
+  Preserve the actual v1 schema and its existing version acceptance unchanged.
+
+
+### Patch 51 — v0.4.51 — 2026-11-25
+
+#### Digest
+
+- Replay explicit saved lens queries against an already loaded model snapshot.
+
+#### Added
+
+- Accept `view model --query <file> [--json]` through the existing typed
+  `LensQuery` decoder and reference projection. Each query replaces the selected
+  lens preset for one render; omission retains the existing output and defaults.
+- Bound regular UTF-8 query inputs to 65,536 bytes and refuse ambiguous or invalid
+  documents without fallback, saved preferences, evidence acquisition or actions.
+
+### Patch 50 — v0.4.50 — 2026-11-25
+
+#### Digest
+
+- Reopen an explicit saved CVE selection in one offline operator command.
+
+#### Added
+
+- Add `intel cve https inspect-set` for two to four original selection/receipt
+  pairs in caller order. Preserve independent source notices, provenance and
+  custody, including after relocation, through the existing verified loaders.
+- Bound input and terminal output; refuse mixed or corrupt original custody
+  without partial positive assertions. Add no persisted set identity, network
+  receive, refresh, storage write, target association or new risk assessment.
+
+### Patch 49 — v0.4.49 — 2026-11-25
+
+#### Digest
+
+- Transfer one verified retained IOC acquisition without copying its workspace.
+
+#### Added
+
+- Explicitly export original IOC raw bytes, acquisition receipt and derived
+  snapshot with their original manifests to a deterministic bounded bundle.
+- Verify the bundle independently after source-workspace deletion using separately
+  retained transfer and receipt pins, with no evidence or model write.
+- Reuse complete atomic no-clobber publication and report any complete output
+  retained after a lost acknowledgement without claiming a partial success.
+
+
+### Patch 48 — v0.4.48 — 2026-11-25
+
+#### Digest
+
+- Export already saved workspaces into opt-in GitLab finding reports without starting scans.
+
+#### Added
+
+- Provide a reusable hidden GitLab job with the existing JUnit finding adapter,
+  complete canonical JSON and original offline export receipts. Publish only
+  matched complete bundles and keep stale results outside artifact selection.
+- Document GitLab's Tests UI projection, preserved JSON facts and the distinction
+  between successful export, finding failures and source execution outcomes.
+
+
+### Patch 47 — v0.4.47 — 2026-11-25
+
+#### Digest
+
+- Make the Stable extension manifest contract available from an installed wheel offline.
+
+#### Fixed
+
+- Include the canonical extension-manifest schema and example in wheels directly
+  from their existing contract sources, including builds from the source distribution.
+  Document local `importlib.resources` access without changing schema-v1 semantics.
+
+
 ### Patch 46 — v0.4.46 — 2026-11-25
 
 #### Digest
