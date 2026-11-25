@@ -8,8 +8,11 @@ from __future__ import annotations
 import ast
 import io
 import re
+import sys
 import tokenize
 from pathlib import Path
+
+import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PYTHON_ROOTS = ("src", "tests", "labs")
@@ -161,19 +164,6 @@ def test_HtmlParserCallbacksRetainFrameworkNamesWithoutExemptingOwnedHelpers():
     )
 
 
-def DocstringNodes(tree: ast.Module) -> tuple[ast.AST, ...]:
-    """Return nodes governed by the repository docstring contract."""
-
-    return (
-        tree,
-        *(
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
-        ),
-    )
-
-
 def ModuleConstants(tree: ast.Module) -> tuple[ast.Name, ...]:
     """Return module-level names whose uppercase spelling marks constants."""
 
@@ -193,53 +183,38 @@ def ModuleConstants(tree: ast.Module) -> tuple[ast.Name, ...]:
     return tuple(constants)
 
 
-def test_ProjectOwnedIdentifiersFollowStyleContract():
-    """Verify callable, parameter, class, and constant naming."""
+def SourceViolations(path: Path, source: str) -> tuple[str, ...]:
+    """Check every existing style rule in one source read, parse and AST walk."""
 
+    tree = ast.parse(source)
     violations = []
-    for path in PythonFiles():
-        tree = ast.parse(path.read_text(encoding="utf-8"))
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if node.name.startswith("test_"):
-                    validName = TEST_FUNCTION_PATTERN.fullmatch(node.name)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name.startswith("test_"):
+                validName = TEST_FUNCTION_PATTERN.fullmatch(node.name)
 
-                else:
-                    validName = IsFrameworkFunction(node) or PASCAL_PATTERN.fullmatch(node.name)
-                if not validName:
-                    violations.append(f"{Relative(path)}:{node.lineno}: function {node.name}")
+            else:
+                validName = IsFrameworkFunction(node) or PASCAL_PATTERN.fullmatch(node.name)
 
-                arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
-                for argument in arguments:
-                    if argument.arg in {"_", "self", "cls", *EXTERNAL_PARAMETERS}:
-                        continue
-                    if not PARAMETER_PATTERN.fullmatch(argument.arg):
-                        violations.append(
-                            f"{Relative(path)}:{argument.lineno}: parameter {argument.arg}"
-                        )
+            if not validName:
+                violations.append(f"{Relative(path)}:{node.lineno}: function {node.name}")
 
-            elif isinstance(node, ast.ClassDef) and not PASCAL_PATTERN.fullmatch(node.name):
-                violations.append(f"{Relative(path)}:{node.lineno}: class {node.name}")
+            arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
 
-        for constant in ModuleConstants(tree):
-            if not UPPER_SNAKE_PATTERN.fullmatch(constant.id):
-                violations.append(f"{Relative(path)}:{constant.lineno}: constant {constant.id}")
+            for argument in arguments:
+                if argument.arg in {"_", "self", "cls", *EXTERNAL_PARAMETERS}:
+                    continue
 
-    assert not violations, "Project-owned identifier style invariant failed:\n" + "\n".join(
-        violations
-    )
+                if not PARAMETER_PATTERN.fullmatch(argument.arg):
+                    violations.append(
+                        f"{Relative(path)}:{argument.lineno}: parameter {argument.arg}"
+                    )
 
+        elif isinstance(node, ast.ClassDef) and not PASCAL_PATTERN.fullmatch(node.name):
+            violations.append(f"{Relative(path)}:{node.lineno}: class {node.name}")
 
-def test_DocstringsCommentsAndAssertionsAreEnglishAndActionable():
-    """Require English documentation and diagnostic assertion messages."""
-
-    violations = []
-    for path in PythonFiles():
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-
-        for node in DocstringNodes(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             docstring = ast.get_docstring(node, clean=False)
             line = getattr(node, "lineno", 1)
             name = getattr(node, "name", "module")
@@ -249,27 +224,126 @@ def test_DocstringsCommentsAndAssertionsAreEnglishAndActionable():
             elif CYRILLIC_PATTERN.search(docstring):
                 violations.append(f"{Relative(path)}:{line}: non-English docstring")
 
-        for token in tokenize.generate_tokens(io.StringIO(source).readline):
-            if token.type != tokenize.COMMENT:
-                continue
-            comment = token.string.removeprefix("#").strip()
-            if comment and CYRILLIC_PATTERN.search(comment):
-                violations.append(f"{Relative(path)}:{token.start[0]}: non-English comment")
+        if isinstance(node, ast.Assert) and node.msg is None:
+            violations.append(f"{Relative(path)}:{node.lineno}: assert without message")
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assert) and node.msg is None:
-                violations.append(f"{Relative(path)}:{node.lineno}: assert without message")
+    for constant in ModuleConstants(tree):
+        if not UPPER_SNAKE_PATTERN.fullmatch(constant.id):
+            violations.append(f"{Relative(path)}:{constant.lineno}: constant {constant.id}")
 
-    assert not violations, "Python documentation invariant failed:\n" + "\n".join(violations)
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type != tokenize.COMMENT:
+            continue
+
+        comment = token.string.removeprefix("#").strip()
+
+        if comment and CYRILLIC_PATTERN.search(comment):
+            violations.append(f"{Relative(path)}:{token.start[0]}: non-English comment")
+
+    for lineNumber, line in enumerate(source.splitlines(), start=1):
+        if CYRILLIC_PATTERN.search(line):
+            violations.append(f"{Relative(path)}:{lineNumber}: Cyrillic text")
+
+    return tuple(violations)
 
 
-def test_NoCyrillicTextAppearsInPythonSources():
-    """Keep all Python code and embedded source text English-only."""
+def test_RepositoryPythonSourcesFollowCompleteStyleContract():
+    """Validate all source naming, documentation and language rules in one uncached traversal."""
 
     violations = []
-    for path in PythonFiles():
-        for lineNumber, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if CYRILLIC_PATTERN.search(line):
-                violations.append(f"{Relative(path)}:{lineNumber}")
 
-    assert not violations, "Cyrillic text found in Python sources:\n" + "\n".join(violations)
+    for path in PythonFiles():
+        violations.extend(SourceViolations(path, path.read_text(encoding="utf-8")))
+
+    assert not violations, "Python source style invariant failed:\n" + "\n".join(violations)
+
+
+def AssertRejectedSource(temporaryPath, monkeypatch, source, expected):
+    """Run the real repository traversal on a selected inert source and require its diagnostic."""
+
+    selected = temporaryPath / "src" / "owned.py"
+    selected.parent.mkdir()
+    selected.write_text(source, encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "REPOSITORY_ROOT", temporaryPath)
+
+    with pytest.raises(AssertionError, match=re.escape(expected)) as caught:
+        test_RepositoryPythonSourcesFollowCompleteStyleContract()
+
+    assert "src/owned.py:" in str(caught.value), "Refusal must identify the actual selected source"
+
+
+@pytest.mark.parametrize("source,expected", [
+    ('"""Owned module."""\ndef owned_helper():\n    """Owned helper."""\n',
+     "function owned_helper"),
+    ('"""Owned module."""\nasync def owned_helper():\n    """Owned helper."""\n',
+     "function owned_helper"),
+    ('"""Owned module."""\ndef test_lowercase():\n    """Owned test."""\n',
+     "function test_lowercase"),
+    ('"""Owned module."""\nclass bad_class:\n    """Owned class."""\n', "class bad_class"),
+    ('"""Owned module."""\nclass _Hidden:\n    """Owned class."""\n', "class _Hidden"),
+    ('"""Owned module."""\ndef Owned(BadArgument):\n    """Owned helper."""\n',
+     "parameter BadArgument"),
+    ('"""Owned module."""\ndef Owned(BadPositional, /):\n    """Owned helper."""\n',
+     "parameter BadPositional"),
+    ('"""Owned module."""\ndef Owned(*, BadKeyword):\n    """Owned helper."""\n',
+     "parameter BadKeyword"),
+    ('"""Owned module."""\nBAD__VALUE = 1\n', "constant BAD__VALUE"),
+    ('"""Owned module."""\nBAD__VALUE: int = 1\n', "constant BAD__VALUE"),
+])
+def test_IdentifierMatcherRejectsInertViolations(tmp_path, monkeypatch, source, expected):
+    """Every naming category remains a failing rule, including private and asynchronous helpers."""
+
+    AssertRejectedSource(tmp_path, monkeypatch, source, expected)
+
+
+@pytest.mark.parametrize("source,expected", [
+    ("value = 1\n", "missing docstring for module"),
+    ('"""Owned module."""\ndef Owned():\n    pass\n', "missing docstring for Owned"),
+    ('"""Owned module."""\nasync def Owned():\n    pass\n', "missing docstring for Owned"),
+    ('"""Owned module."""\nclass Owned:\n    pass\n', "missing docstring for Owned"),
+    ('"""\u0410."""\n', "non-English docstring"),
+    ('"""Owned module."""\n# \u0410\n', "non-English comment"),
+    ('"""Owned module."""\nassert True\n', "assert without message"),
+])
+def test_DocumentationMatcherRejectsInertViolations(
+    tmp_path, monkeypatch, source, expected,
+):
+    """Prove documentation and assertion regressions fail through the full source validator."""
+
+    AssertRejectedSource(tmp_path, monkeypatch, source, expected)
+
+
+@pytest.mark.parametrize("source", [
+    '"""Owned module."""\nvalue = "\u0410"\n',
+    '"""Owned module."""\n# \u0410\n',
+    '"""\u0410."""\n',
+    '"""Owned module."""\n\u0410 = 1\n',
+])
+def test_CyrillicMatcherRejectsInertSourceContexts(tmp_path, monkeypatch, source):
+    """Reject Cyrillic in literals, comments, docstrings and identifiers without executing it."""
+
+    AssertRejectedSource(tmp_path, monkeypatch, source, "Cyrillic text")
+
+
+def test_RepeatedValidationSeesChangedAndNewFilesWithoutAProcessCache(tmp_path, monkeypatch):
+    """A second traversal sees new files and same-length edits instead of trusting stale results."""
+
+    selected = tmp_path / "src" / "owned.py"
+    selected.parent.mkdir()
+    valid = '"""Owned module."""\ndef Owned():\n    """Owned helper."""\n'
+    selected.write_text(valid, encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "REPOSITORY_ROOT", tmp_path)
+    test_RepositoryPythonSourcesFollowCompleteStyleContract()
+    selected.write_text(valid.replace("def Owned", "def owned"), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="function owned"):
+        test_RepositoryPythonSourcesFollowCompleteStyleContract()
+
+    selected.write_text(valid, encoding="utf-8")
+    test_RepositoryPythonSourcesFollowCompleteStyleContract()
+    added = tmp_path / "labs" / "added.py"
+    added.parent.mkdir()
+    added.write_text('"""Owned module."""\nassert True\n', encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="labs/added.py:2: assert without message"):
+        test_RepositoryPythonSourcesFollowCompleteStyleContract()

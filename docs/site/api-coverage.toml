@@ -1077,3 +1077,9 @@ module = "fuzzy1337.extension_commands"
 source = "src/fuzzy1337/extension_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.extension_commands.md"
+[[surfaces]]
+# Internal matched CI bundle publication through existing offline report commands.
+module = "fuzzy1337.retained_report_ci"
+source = "src/fuzzy1337/retained_report_ci.py"
+mode = "authored"
+page = "api/fuzzy1337.retained_report_ci.md"

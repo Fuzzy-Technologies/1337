@@ -1,0 +1,79 @@
+name: Export a saved 1337 model
+description: Offline JSON/JUnit and original export receipts, uploaded as one matched artifact
+inputs:
+  saved_workspace:
+    description: Existing complete saved workspace inside github.workspace
+    required: true
+  report_key:
+    description: Unique key in this run; 1-64 letters, digits, underscores or hyphens, starting alphanumeric
+    required: true
+outputs:
+  artifact-id:
+    description: Original GitHub artifact ID returned by upload-artifact
+    value: ${{ steps.upload.outputs.artifact-id }}
+  artifact-url:
+    description: Original GitHub artifact URL returned by upload-artifact
+    value: ${{ steps.upload.outputs.artifact-url }}
+  artifact-digest:
+    description: Original GitHub artifact SHA-256 returned by upload-artifact
+    value: ${{ steps.upload.outputs.artifact-digest }}
+runs:
+  using: composite
+  steps:
+    - name: Export the selected saved model offline
+      id: export
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        REPORT_PROJECT: ${{ github.workspace }}
+        REPORT_RUN: ${{ github.run_id }}
+        REPORT_ATTEMPT: ${{ github.run_attempt }}
+        REPORT_KEY: ${{ inputs.report_key }}
+        F1337_SAVED_WORKSPACE: ${{ inputs.saved_workspace }}
+      run: |
+        python3 -I - <<'PY'
+        """Bootstrap the installed shared exporter without running checkout code."""
+
+        import os
+        import re
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        try:
+            project = Path(os.environ["REPORT_PROJECT"]).resolve(strict=True)
+            runId = os.environ["REPORT_RUN"]
+            attempt = os.environ["REPORT_ATTEMPT"]
+            key = os.environ["REPORT_KEY"]
+
+            if (not re.fullmatch(r"[1-9][0-9]{0,19}", runId)
+                    or not re.fullmatch(r"[1-9][0-9]{0,19}", attempt)
+                    or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", key)
+                    or Path.cwd().resolve() != project):
+                raise ValueError("Use the actual project/run/attempt and a unique bounded report key.")
+
+            namespace = f"{runId}-{attempt}-{key}"
+            bundle = project / f"1337-retained-report-{namespace}"
+
+            if bundle.exists() or bundle.is_symlink():
+                retired = Path(tempfile.mkdtemp(prefix=".1337-retired-", dir=project))
+                bundle.rename(retired / "bundle")
+
+            from fuzzy1337.retained_report_ci import Main
+
+            raise SystemExit(Main(project, namespace, os.environ.get("F1337_SAVED_WORKSPACE", "")))
+
+        except (ImportError, KeyError, OSError, ValueError) as error:
+            print(f"Retained report bootstrap refused: {error}", file=sys.stderr)
+            raise SystemExit(4) from error
+        PY
+    - name: Upload only the completed retained report bundle
+      id: upload
+      if: ${{ success() && steps.export.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: 1337-retained-report-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.report_key }}
+        path: ${{ github.workspace }}/1337-retained-report-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.report_key }}/
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7

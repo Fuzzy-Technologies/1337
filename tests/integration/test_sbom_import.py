@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 import pytest
@@ -23,7 +24,162 @@ from fuzzy1337.reachability import (
 )
 from fuzzy1337.scope import LocalScopeStore, ScopeSnapshot
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceBusyError, WorkspaceConflictError
-from tests.sbom_helpers import Arguments, Context, OwnedSbom, Run, Value
+from tests.sbom_helpers import (
+    Arguments,
+    Context,
+    CycloneDxArguments,
+    CycloneDxContext,
+    OwnedSbom,
+    Run,
+    Value,
+)
+
+
+def test_CycloneDxActualProductCustodyReplaysAfterRelocationWithoutFileClock(tmp_path):
+    """Only a successful owned file operation supplies portable original product replay."""
+
+    owned = CycloneDxContext(tmp_path)
+    raw = owned.source.read_bytes()
+    status, acquired = Run(CycloneDxArguments(owned))
+    assert status == 0, "Original CycloneDX product acquisition must precede closed replay"
+    record = LocalEvidenceStore(owned.root / "evidence").Get(acquired["evidence_id"])
+    originalManifest = record.Serialize()
+    model = LocalModelStore(owned.root).Open()
+    workspace = LocalWorkspaceStore(owned.root).Open()
+    moved = tmp_path / "relocated"
+    owned.root.rename(moved)
+    owned.source.unlink()
+    relocated = OwnedSbom(moved, owned.source)
+
+    def NoClock():
+        """Trip any attempt to manufacture a second source acquisition during replay."""
+
+        raise AssertionError("Retained CycloneDX cannot call the original file clock")
+
+    status, replay = Run(
+        CycloneDxArguments(relocated, evidenceId=record.evidence_id), clock=NoClock,
+    )
+    assert status == 0 and replay["created"] == replay["updated"] == 0, (
+        "Exact original relocated replay must not duplicate inventory or product custody"
+    )
+    actual = (LocalModelStore(moved).Open(), LocalWorkspaceStore(moved).Open())
+    assert actual == (model, workspace), (
+        "Replay must retain both exact saved owner bases"
+    )
+    evidence = LocalEvidenceStore(moved / "evidence")
+    assert evidence.Get(record.evidence_id).Serialize() == originalManifest and evidence.Read(
+        record.reference,
+    ) == raw, "Relocated replay must preserve complete original source and manifest bytes"
+
+
+@pytest.mark.parametrize("invalid", ["version", "root", "nested"])
+def test_CycloneDxUnsupportedInventoryKeepsOriginalWithoutPartialModel(tmp_path, invalid):
+    """The finite SDK refuses unsupported documents after preserving actual acquisition."""
+
+    owned = CycloneDxContext(tmp_path)
+    document = json.loads(owned.source.read_bytes())
+
+    if invalid == "version":
+        document["specVersion"] = "1.5"
+
+    elif invalid == "root":
+        document["metadata"]["component"]["hashes"][0]["content"] = "b" * 64
+
+    else:
+        document["components"][0]["components"] = [document["components"][1]]
+
+    raw = json.dumps(document).encode()
+    owned.source.write_bytes(raw)
+    beforeModel = LocalModelStore(owned.root).Open()
+    beforeWorkspace = LocalWorkspaceStore(owned.root).Open()
+    status, outcome = Run(CycloneDxArguments(owned))
+    assert status == 4 and outcome["failure"] == "normalization" and outcome[
+        "acquisition_commit"
+    ] == "confirmed", "Invalid inventory must retain actual acquisition without SDK success"
+    assert outcome["model_commit"] == outcome["workspace_commit"] == "not-attempted", (
+        "Unsupported input must never save partial normalized inventory"
+    )
+    evidence = LocalEvidenceStore(owned.root / "evidence")
+    assert evidence.Read(evidence.Get(outcome["evidence_id"]).reference) == raw, (
+        "Failed interpretation must not rewrite actual original source bytes"
+    )
+    assert LocalModelStore(owned.root).Open() == beforeModel and LocalWorkspaceStore(
+        owned.root,
+    ).Open() == beforeWorkspace, "SDK refusal must preserve both original saved owner bases"
+
+
+@pytest.mark.parametrize("change", ["run", "kind", "profile", "different-acquisition"])
+def test_CycloneDxReplayCannotBorrowAnotherContextOrEqualByteAcquisition(
+    tmp_path, monkeypatch, change,
+):
+    """Replay checks the exact original product binding before selected raw reads."""
+
+    owned = CycloneDxContext(tmp_path)
+    status, acquired = Run(CycloneDxArguments(owned))
+    assert status == 0, "A genuine original must precede replay substitution"
+    evidence = LocalEvidenceStore(owned.root / "evidence")
+    record = evidence.Get(acquired["evidence_id"])
+    arguments = CycloneDxArguments(owned, evidenceId=record.evidence_id)
+
+    if change == "different-acquisition":
+        other = evidence.Put(evidence.Read(record.reference), "sbom", "application/json",
+            replace(record.provenance, source_version="another-original"))
+        workspace = LocalWorkspaceStore(owned.root)
+        workspace.Save(replace(workspace.Open(), evidence_record_references=tuple(sorted({
+            *workspace.Open().evidence_record_references, other.evidence_id}))))
+        arguments = CycloneDxArguments(owned, evidenceId=other.evidence_id)
+
+    elif change == "profile":
+        arguments[1] = "spdx-graph"
+
+    else:
+        arguments = Value(arguments, "--run" if change == "run" else "--image-digest-kind",
+                          "run:substitute" if change == "run" else "manifest")
+
+    def Forbidden(*arguments, **options):
+        """Trip generic/raw reads after substitution of an original custody field."""
+
+        raise AssertionError("Substituted CycloneDX replay reached raw evidence")
+
+    monkeypatch.setattr(commands, "OpenReportInput", Forbidden)
+    monkeypatch.setattr(LocalEvidenceStore, "Read", Forbidden)
+    status, outcome = Run(arguments)
+    assert status == 4 and outcome["failure"] == "source-context", (
+        "Only the exact original acquisition and operator interpretation can supply replay custody"
+    )
+
+
+@pytest.mark.parametrize("owner", ["model", "workspace"])
+def test_CycloneDxLostReplyPreservesDurableStateAndExactRecovery(tmp_path, monkeypatch, owner):
+    """Actual independent saves retain unknown acknowledgements and never imply rollback."""
+
+    owned = CycloneDxContext(tmp_path)
+    storeType = LocalModelStore if owner == "model" else LocalWorkspaceStore
+    originalSave = storeType.Save
+
+    def Lost(store, proposal, **options):
+        """Persist the real proposal, then lose its response once without retry."""
+
+        originalSave(store, proposal, **options)
+
+        raise OSError("PRIVATE_MARKER")
+
+    with monkeypatch.context() as boundary:
+        boundary.setattr(storeType, "Save", Lost)
+        status, failed = Run(CycloneDxArguments(owned))
+
+    assert status == 4 and failed[owner + "_commit"] == "unknown", (
+        "An actually saved but unacknowledged transition must remain explicitly unknown"
+    )
+    assert "PRIVATE_MARKER" not in str(failed), "Storage refusal must not echo exception text"
+    assert LocalModelStore(owned.root).Open().revision == 1, (
+        "A lost model response or later workspace failure must preserve the real durable model"
+    )
+    status, recovered = Run(CycloneDxArguments(owned, evidenceId=failed["evidence_id"]))
+    assert status == 0 and recovered["created"] == recovered["updated"] == 0, (
+        "Original product custody must permit explicit recovery without duplicate inventory"
+    )
+
 
 
 def Imported(parent):

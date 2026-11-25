@@ -16,9 +16,108 @@ import fuzzy1337.sbom_commands as commands
 from fuzzy1337 import artifact_inputs
 from fuzzy1337.artifact_inputs import ArtifactReadConsent
 from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, LocalEvidenceStore
-from fuzzy1337.images import IMAGE_IMPORT_MAX_BYTES
+from fuzzy1337.images import IMAGE_IMPORT_MAX_BYTES, ApplyVerifiedCycloneDx, ImageIdentity
+from fuzzy1337.model import LocalModelStore, ModelProvenance
 from fuzzy1337.workspace import LocalWorkspaceStore
-from tests.sbom_helpers import Arguments, Context, Run, Value
+from tests.sbom_helpers import (
+    IMAGE_DIGEST,
+    Arguments,
+    Context,
+    CycloneDxArguments,
+    CycloneDxContext,
+    Run,
+    Value,
+)
+
+
+@pytest.mark.parametrize("fault", ["missing", "uppercase", "duplicate", "abbreviation"])
+def test_CycloneDxHashAndLiteralScalarsValidateBeforeSourceRead(tmp_path, monkeypatch, fault):
+    """Original file byte pin and unambiguous fields are required before source access."""
+
+    owned = CycloneDxContext(tmp_path)
+    arguments = CycloneDxArguments(owned)
+
+    if fault == "missing":
+        position = arguments.index("--expected-sha256")
+        del arguments[position:position + 2]
+
+    elif fault == "uppercase":
+        arguments = Value(arguments, "--expected-sha256", "A" * 64)
+
+    elif fault == "duplicate":
+        arguments += ["--scope=owned"]
+
+    else:
+        arguments[arguments.index("--source-version")] = "--source-vers"
+
+    def Forbidden(*arguments, **options):
+        """Trip any source or storage read after rejected explicit hash/configuration."""
+
+        raise AssertionError("Invalid original CycloneDX configuration reached source bytes")
+
+    monkeypatch.setattr(commands, "ReadOwnedSbom", Forbidden)
+    monkeypatch.setattr(commands.SbomEvidenceStore, "Manifest", Forbidden)
+    status, outcome = Run(arguments)
+    assert status == 2 and outcome["acquisition_commit"] == "not-attempted", (
+        "Missing/invalid byte pins and ambiguous options must refuse before original acquisition"
+    )
+
+
+def test_CycloneDxWrongExpectedHashCannotPublishOriginalOrModel(tmp_path):
+    """A validly formed mismatching byte pin refuses before immutable evidence publication."""
+
+    owned = CycloneDxContext(tmp_path)
+    beforeModel = LocalModelStore(owned.root).Open()
+    beforeWorkspace = LocalWorkspaceStore(owned.root).Open()
+    arguments = Value(CycloneDxArguments(owned), "--expected-sha256", "b" * 64)
+    status, outcome = Run(arguments)
+    assert status == 4 and outcome["failure"] == "source-digest" and outcome[
+        "acquisition_commit"
+    ] == "not-attempted", "Expected source SHA-256 must match before any original publication"
+    assert LocalModelStore(owned.root).Open() == beforeModel and LocalWorkspaceStore(
+        owned.root,
+    ).Open() == beforeWorkspace, "A mismatching original pin must preserve both saved bases"
+    assert not list((owned.root / "evidence/records").glob("*.json")), (
+        "A mismatching original pin must not create an acquisition manifest"
+    )
+
+
+@pytest.mark.parametrize("withInventory", [False, True], ids=["raw-only", "existing-sdk-inventory"])
+def test_CycloneDxSdkOriginalCannotBecomeProductReplayThroughWorkspaceReferences(
+    tmp_path, monkeypatch, withInventory,
+):
+    """Even acknowledged original SDK custody cannot invent a past product file operation."""
+
+    owned = CycloneDxContext(tmp_path)
+    record = LocalEvidenceStore(owned.root / "evidence").Put(owned.source.read_bytes(), "sbom",
+        "application/json", EvidenceProvenance("owned-sbom", "scope:owned", "inventory.sdk",
+            "sdk-v1", None, AT.isoformat(), AT.isoformat()))
+    workspace = LocalWorkspaceStore(owned.root)
+    workspace.Save(replace(workspace.Open(), evidence_record_references=(record.evidence_id,),
+        evidence_references=(record.reference,), scope_references=("scope:owned",)))
+
+    if withInventory:
+        store = LocalModelStore(owned.root)
+        basis = store.Open()
+        image = ImageIdentity(IMAGE_DIGEST)
+        context = ModelProvenance("inventory.sdk", "run:owned-cyclonedx", AT.isoformat(),
+            "scope:owned", image.Object(basis.workspace_id).Reference(),
+            evidence_references=(record.reference,))
+        proposed, _ = ApplyVerifiedCycloneDx(basis, record, context, image, owned.root)
+        store.Save(proposed, expected_revision=basis.revision)
+
+    def Forbidden(*arguments, **options):
+        """Trip selected raw/report reads when genuine product file custody is absent."""
+
+        raise AssertionError("SDK-only acquisition borrowed product replay custody")
+
+    monkeypatch.setattr(LocalEvidenceStore, "Read", Forbidden)
+    monkeypatch.setattr(commands, "OpenReportInput", Forbidden)
+    status, outcome = Run(CycloneDxArguments(owned, evidenceId=record.evidence_id))
+    assert status == 4 and outcome["failure"] == "source-context", (
+        "Workspace references or existing SDK objects must not manufacture product read custody"
+    )
+
 
 AT = datetime(2026, 10, 14, 10, 0, tzinfo=UTC)
 

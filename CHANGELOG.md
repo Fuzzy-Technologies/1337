@@ -8,6 +8,62 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 57 — v0.4.57 — 2026-11-25
+
+#### Digest
+
+- Import owned CycloneDX inventory through the offline operator CLI.
+
+#### Added
+
+- Add `sbom import cyclonedx` over the existing verified CycloneDX 1.6 SDK and
+  explicitly selected config/manifest image identity. Require a local owned file,
+  exact source SHA-256, source metadata and read-consent descriptions. Retain
+  actual original product custody without scanner execution.
+- Reuse independent model/workspace revision and acknowledgement owners, exact
+  replay and relocated saved inventory views. Refuse SDK raw-only acquisitions,
+  substituted, corrupt or unsupported originals without a partial normalized import.
+
+### Patch 56 — v0.4.56 — 2026-11-25
+
+#### Digest
+
+- Export already retained models into one opt-in GitHub Actions artifact.
+
+#### Added
+
+- Provide a copyable composite action for existing saved workspaces and installed
+  runtimes, with one pinned artifact upload after successful offline JSON/JUnit
+  publication and original platform upload acknowledgements.
+
+#### Changed
+
+- Share the retained-report bundle owner with the standalone GitLab template;
+  preserve existing CLI entry points, report schemas and GitLab job selections.
+- Recheck both reports and original export receipts immediately before publishing
+  the complete bundle, refusing altered staged bytes without stale upload.
+
+
+
+### Patch 55 — v0.4.55 — 2026-11-25
+
+#### Digest
+
+- Remove repeated repository parsing from Python style validation.
+
+#### Changed
+
+- Check existing naming, documentation, comments, assertions and source-language
+  rules in one read and AST traversal per file. Exercise actual rejections with
+  inert source fixtures and observe changed/new files without a process cache.
+- Keep the independent compiler-backed naming and source-documentation audits
+  unchanged. Local focused timings do not establish a whole-CI speedup.
+- Select the complete repository audit with
+  `tests/unit/test_python_style.py::test_RepositoryPythonSourcesFollowCompleteStyleContract`.
+  Fixture-only matcher regressions use distinct names. Former separate repository
+  selectors are removed rather than running fixture checks: `-n0` reports
+  `NOT FOUND`; `-n2` exits nonzero with `no tests ran`.
+
 ### Patch 54 — v0.4.54 — 2026-11-25
 
 #### Digest

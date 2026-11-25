@@ -11,10 +11,6 @@
       python3 -I - <<'PY'
       """Publish existing offline CLI projections as one GitLab artifact bundle."""
 
-      import contextlib
-      import hashlib
-      import io
-      import json
       import os
       import re
       import sys
@@ -23,73 +19,25 @@
 
       try:
           project = Path(os.environ["CI_PROJECT_DIR"]).resolve(strict=True)
-          jobId = os.environ["CI_JOB_ID"]
+          namespace = os.environ["CI_JOB_ID"]
 
-          if not re.fullmatch(r"[1-9][0-9]{0,19}", jobId) or Path.cwd().resolve() != project:
+          if not re.fullmatch(r"[1-9][0-9]{0,19}", namespace) or Path.cwd().resolve() != project:
               raise ValueError("Run from CI_PROJECT_DIR with the actual numeric CI_JOB_ID.")
 
-          bundle = project / f"1337-retained-report-{jobId}"
-          # This job exclusively owns its numeric output namespace. Preserve old
-          # bytes outside the collector path, including on a failed repeated run.
+          # Retire before importing the package: even a missing wheel must not
+          # expose an older JUnit file to GitLab's unconditional report collector.
+          bundle = project / f"1337-retained-report-{namespace}"
+
           if bundle.exists() or bundle.is_symlink():
               retired = Path(tempfile.mkdtemp(prefix=".1337-retired-", dir=project))
               bundle.rename(retired / "bundle")
 
-          sourceInput = os.environ.get("F1337_SAVED_WORKSPACE", "")
-          source = (project / sourceInput).resolve() if sourceInput else None
+          from fuzzy1337.retained_report_ci import Main
 
-          if source is None or not source.is_relative_to(project):
-              raise ValueError("Select F1337_SAVED_WORKSPACE inside the project.")
-
-          if (source == project or source.is_relative_to(bundle)
-                  or bundle.is_relative_to(source)):
-              raise ValueError("The report output namespace cannot contain the saved workspace.")
-
-          from fuzzy1337.cli import Main
-
-          with tempfile.TemporaryDirectory(prefix=".1337-report-", dir=project) as temporary:
-              staging = Path(temporary) / "bundle"
-              staging.mkdir()
-              outcomes = []
-
-              for formatName, filename in (("json", "report.json"), ("junit", "report.junit.xml")):
-                  output = io.StringIO()
-                  destination = staging / filename
-
-                  with contextlib.redirect_stdout(output):
-                      status = Main(["report", "export", str(source), "--format", formatName,
-                                     "--output", str(destination), "--json"])
-
-                  receipt = output.getvalue()
-                  print(receipt, end="")
-
-                  if status != 0:
-                      raise SystemExit(status)
-
-                  outcome = json.loads(receipt)
-
-                  if (outcome["status"] != "completed" or not outcome["output_published"]
-                          or outcome["format"] != formatName
-                          or outcome["report_sha256"] != hashlib.sha256(
-                              destination.read_bytes()).hexdigest()):
-                      raise ValueError("The offline CLI did not acknowledge the selected report bytes.")
-
-                  (staging / f"{formatName}-export.json").write_text(receipt, encoding="utf-8")
-                  outcomes.append(outcome)
-
-              identity = ("model_revision", "snapshot_sha256", "verified_retained_acquisitions",
-                          "checked_model_evidence_references")
-
-              if any(outcomes[0][key] != outcomes[1][key] for key in identity):
-                  raise ValueError("The saved workspace changed between offline exports.")
-
-              if (staging / "report.junit.xml").stat().st_size >= 30_000_000:
-                  raise ValueError("The JUnit projection exceeds GitLab's individual report limit.")
-
-              staging.rename(bundle)
+          raise SystemExit(Main(project, namespace, os.environ.get("F1337_SAVED_WORKSPACE", "")))
 
       except (ImportError, KeyError, OSError, ValueError) as error:
-          print(f"Retained report bundle refused: {error}", file=sys.stderr)
+          print(f"Retained report bootstrap refused: {error}", file=sys.stderr)
           raise SystemExit(4) from error
       PY
   artifacts:

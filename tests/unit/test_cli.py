@@ -78,6 +78,12 @@ def test_HelpCommandUsesTheCommandRegistry(capsys):
     assert GetCommandRegistry().Resolve("help") is not None, (
         "help command uses the command registry invariant failed."
     )
+    assert "1337 sbom <image|import spdx-graph|import cyclonedx> <workspace>" in output.out, (
+        "Top-level help must expose both implemented SBOM import profiles"
+    )
+    assert "CycloneDX inventory" in output.out, (
+        "Top-level help must use the revised centralized SBOM descriptor summary"
+    )
 
 
 def test_ExplicitShellCommandStartsTheInteractiveWorkbench(monkeypatch):
@@ -119,6 +125,11 @@ def test_CliOptions(arguments, code, capsys):
     output = capsys.readouterr()
     if arguments == ["--version"]:
         assert output.out.strip() == f"1337 {version('1337')}", "cli options invariant failed."
+
+    elif arguments == ["--help"]:
+        assert "import cyclonedx" in output.out and "CycloneDX inventory" in output.out, (
+            "The argparse help flag must expose the same implemented SBOM profiles as help"
+        )
 
 
 def test_PythonModuleEntrypoint(monkeypatch, capsys):

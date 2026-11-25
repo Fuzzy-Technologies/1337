@@ -1,0 +1,18 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "container",
+      "name": "owned offline inventory",
+      "hashes": [{"alg": "SHA-256", "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]
+    }
+  },
+  "components": [
+    {"type": "library", "bom-ref": "owned-library", "name": "Owned_Lib", "version": "1.0",
+     "purl": "pkg:pypi/owned-lib@1.0", "licenses": [{"license": {"id": "MIT"}}]},
+    {"type": "framework", "bom-ref": "owned-framework", "name": "owned-framework", "version": "2.0",
+     "purl": "pkg:pypi/owned-framework@2.0"}
+  ]
+}
