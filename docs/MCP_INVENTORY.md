@@ -18,24 +18,24 @@ Each optional section uses `{"status": "...", "items": [...]}`. Status is the
 producer's assertion about this declaration set. It is neither verified server
 behavior nor proof of any permission to interact with a server.
 
-| Status        | Items                    | Meaning                                              |
-| ------------- | ------------------------ | ---------------------------------------------------- |
-| `complete`    | Empty or populated       | The selected inventory reports a complete section.   |
-| `incomplete`  | Empty or populated       | The source reports a partial enumeration.            |
-| `unsupported` | Empty                    | The source reports that enumeration is unsupported.  |
-| `unknown`     | Empty or section omitted | The source supplies no enumeration status or data.   |
+| Status        | Items                    | Meaning                                             |
+| ------------- | ------------------------ | --------------------------------------------------- |
+| `complete`    | Empty or populated       | The selected inventory reports a complete section.  |
+| `incomplete`  | Empty or populated       | The source reports a partial enumeration.           |
+| `unsupported` | Empty                    | The source reports that enumeration is unsupported. |
+| `unknown`     | Empty or section omitted | The source supplies no enumeration status or data.  |
 
 Only an explicit complete section with zero items declares an empty inventory
 for that section. A partial or unknown section leaves membership undecided.
 Status words written as JSON strings are required for every supplied section.
 
-| Section              | Item fields                                                                    | Identity                                         |
-| -------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ |
-| `capabilities`       | `name`, optional `declaration` object                                           | Name                                             |
-| `tools`              | `name`, required object-root `inputSchema`, optional `outputSchema` and `annotations` | Name                                             |
-| `resources`          | `name`, `uri`, optional `mimeType` and non-negative integer `size`               | Fingerprint of the normalized locator            |
-| `resource_templates` | `name`, `uriTemplate`, optional `mimeType` and non-negative integer `size`       | Fingerprint of the normalized template           |
-| `prompts`            | `name`, optional `arguments` with `name`, `description` and boolean `required`   | Name                                             |
+| Section              | Item fields                                                                           | Identity                               |
+| -------------------- | ------------------------------------------------------------------------------------- | -------------------------------------- |
+| `capabilities`       | `name`, optional `declaration` object                                                 | Name                                   |
+| `tools`              | `name`, required object-root `inputSchema`, optional `outputSchema` and `annotations` | Name                                   |
+| `resources`          | `name`, `uri`, optional `mimeType` and non-negative integer `size`                    | Fingerprint of the normalized locator  |
+| `resource_templates` | `name`, `uriTemplate`, optional `mimeType` and non-negative integer `size`            | Fingerprint of the normalized template |
+| `prompts`            | `name`, optional `arguments` with `name`, `description` and boolean `required`        | Name                                   |
 
 Tools, resources, templates, and prompts support optional string `title` and
 `description`. Known capability flags are `listChanged` on tool, resource, and
