@@ -17272,7 +17272,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.browser_page.ParseBrowserRecord"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/browser_page.py"
-sourceHash = "sha256:1b902890685a461642e0d981ac235a674f6a4bcd943039a7977277e88b33b321"
+sourceHash = "sha256:027421c64395a09bc951614d3ba6b378aac74814c0d97f5d178e26d8c76ad6e8"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
