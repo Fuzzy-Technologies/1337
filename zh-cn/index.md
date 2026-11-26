@@ -33,6 +33,31 @@ description: Fuzzy Technologies 打造的开源、本地优先安全工作台。
 </section>
 
 <section class="content-section">
+<h2 id="ai-agents">工程师、CI 和 AI 智能体共用一个模型</h2>
+<div class="model-panel">
+<div class="model-summary">
+<h3>安全对象模型</h3>
+<p>内置检查梳理资产、服务和端点。后续检查和接入的工具会把新的观测结果和发现项补充到模型中。1337 将发现项与受影响的对象及原始证据关联起来。</p>
+</div>
+<div class="grid model-roles">
+<article class="card">
+<h3>工程师</h3>
+<p>确定检查范围，批准执行计划，并根据证据复核结论。</p>
+</article>
+<article class="card">
+<h3>CI</h3>
+<p>运行已获批准的检查，按预设规则判断结果，并将工作空间保存为构建产物。</p>
+</article>
+<article class="card">
+<h3>AI 智能体</h3>
+<p>通过同一个命令行接口提出检查建议，协助解读已保存工作空间中的发现项。</p>
+</article>
+</div>
+<p class="model-handoff">如果 CI 检查阻止了发布，AI 智能体可以指出哪一项发现触发了规则。工程师可以离线打开同一个模型，核对原始证据后决定如何处理。</p>
+</div>
+</section>
+
+<section class="content-section">
 <h2 id="workflow">从安全检查到报告</h2>
 <div class="grid">
 <article class="card">
@@ -79,11 +104,6 @@ description: Fuzzy Technologies 打造的开源、本地优先安全工作台。
 <p>复核已保存的资料，将原始数据随工作空间一起交给其他分析人员。</p>
 </article>
 </div>
-</section>
-
-<section class="content-section">
-<h2 id="ai-agents">面向工程师、CI 和 AI 智能体</h2>
-<p>工程师、CI 流水线和能使用终端的 AI 智能体可以使用同一套工作空间。智能体可以提出计划并解释结果。1337 根据范围和审批规则管控执行，并保留操作记录。本地流程无需开通模型服务账号。</p>
 </section>
 
 <section class="content-section">
