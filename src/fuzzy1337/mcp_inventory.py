@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Import versioned local MCP metadata into the shared model and redacted evidence store."""
+"""Retain versioned MCP inventories in the shared model and redacted evidence store."""
 
 from __future__ import annotations
 
@@ -9,14 +9,17 @@ import hashlib
 import json
 import math
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fuzzy1337.adapters.contracts import EvidenceReference, RequireIdentifier
+from fuzzy1337.adapters.native_http import Endpoint
 from fuzzy1337.artifact_inputs import ArtifactReadConsent, ReadArtifactFile
 from fuzzy1337.evidence import EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
+from fuzzy1337.executors.contracts import RequireReference
 from fuzzy1337.model import (
     CanonicalModelJson,
     LocalModelStore,
@@ -31,7 +34,8 @@ from fuzzy1337.model import (
     RelationKind,
     SecurityObject,
 )
-from fuzzy1337.scope import LocalScopeStore
+from fuzzy1337.policy import ImpactPolicy, UtcNow
+from fuzzy1337.scope import LocalScopeStore, Target, TargetKind
 from fuzzy1337.workspace import (
     RejectWorkspaceConstant,
     RequireWorkspaceInteger,
@@ -39,7 +43,12 @@ from fuzzy1337.workspace import (
     WorkspaceConflictError,
 )
 
-__all__ = ("ImportMcpInventory", "McpInventoryImport", "ParseMcpInventory")
+if TYPE_CHECKING:
+    from fuzzy1337.mcp_metadata import McpMetadataLimits, McpMetadataResult
+
+__all__ = (
+    "CollectAndImportMcpMetadata", "ImportMcpInventory", "McpInventoryImport", "ParseMcpInventory",
+)
 
 _MCP_VERSION = 1
 _MAX_BYTES = 256 * 1024
@@ -49,7 +58,20 @@ _MAX_ITEMS = 128
 _MAX_TEXT_BYTES = 8192
 _SOURCE_ID = "mcp-inventory-local"
 _SOURCE_VERSION = "offline-v1"
+METADATA_SOURCE_ID = "mcp-inventory-http"
+METADATA_SOURCE_VERSION = "metadata-http-v1"
 _EVIDENCE_ROLE = "mcp-inventory-redacted"
+_METADATA_ACQUISITION_FIELDS = {
+    "source_reference", "scope_reference", "scope_revision", "protocol_version", "issues",
+    "actor_ref", "operator_receipt_reference",
+}
+_METADATA_REASONS = {
+    "capability-not-advertised", "event-stream-ended", "http-status", "invalid-cursor",
+    "invalid-declaration", "invalid-notification-ack", "malformed", "malformed-page",
+    "malformed-session", "page-limit", "redirect", "rpc-error", "session-material", "size-limit",
+    "timeout", "transport-failure", "transport-unavailable", "unsupported-transport",
+    "unsupported-version",
+}
 _SECTIONS = {
     "capabilities": "capability", "tools": "tool", "resources": "resource",
     "resource_templates": "resource-template", "prompts": "prompt",
@@ -702,7 +724,7 @@ class McpInventoryImport:
 
 def ProjectInventory(
     state: ModelState, serverIdentity: ObjectIdentity, inventory: dict[str, object],
-    digest: str, provenance: ModelProvenance,
+    digest: str, provenance: ModelProvenance, *, acquisition: dict[str, object] | None = None,
 ) -> tuple[ModelState, ModelDelta, str]:
     """Prepare one canonical patch plus an immutable snapshot-membership observation.
 
@@ -712,6 +734,7 @@ def ProjectInventory(
         inventory: Validated redacted inventory.
         digest: Digest of the normalized inventory.
         provenance: Attribution bound to the redacted evidence record.
+        acquisition: Validated HTTP provenance retained with the declaration when present.
 
     Returns:
         The proposed model, its delta, and the immutable observation reference.
@@ -750,6 +773,10 @@ def ProjectInventory(
         "instructions_fingerprint": inventory["instructions_fingerprint"],
         "snapshot_digest": digest,
     }
+
+    if acquisition is not None:
+        server["acquisition"] = acquisition
+
     objects.append(SecurityObject(
         serverIdentity, {"mcp_inventory": {**server, "section_status": statuses}}, (provenance,),
     ))
@@ -766,6 +793,85 @@ def ProjectInventory(
     )
 
     return updated, delta, snapshotReference
+
+
+def CommitInventory(
+    model: LocalModelStore, state: ModelState, serverKey: str, inventory: dict[str, object],
+    collection: EvidenceProvenance, *, offlineConsent: ArtifactReadConsent | None = None,
+    acquisition: dict[str, object] | None = None, verifyScope: Callable[[], None] | None = None,
+) -> McpInventoryImport:
+    """Publish the fresh normalized output of an admitted source through both existing owners.
+
+    Only the offline parser and approved HTTP collector feed this internal owner path.
+
+    Args:
+        model: Existing local model owner.
+        state: Immutable CAS basis selected before reading or collecting metadata.
+        serverKey: Approved stable model key in this workspace.
+        inventory: Fresh redacted declaration from the selected source path.
+        collection: Evidence attribution for that source.
+        offlineConsent: Operator's selected-file read references for an offline receipt.
+        acquisition: Validated HTTP-only attribution copied into immutable model history.
+        verifyScope: Recheck exact HTTP scope beside each independent publication boundary.
+
+    Returns:
+        Acknowledged model and evidence transition.
+    """
+
+    receiptFields: dict[str, object]
+
+    if offlineConsent is not None and acquisition is None and verifyScope is None:
+        receiptFields = {"actor_ref": offlineConsent.actor_ref,
+                         "read_consent_reference": offlineConsent.record_ref}
+
+    elif offlineConsent is None and acquisition is not None and verifyScope is not None:
+        receiptFields = {"acquisition": acquisition}
+
+    else:
+        raise ValueError("MCP inventory publication requires exactly one admitted source")
+
+    digest = "sha256:" + hashlib.sha256(CanonicalModelJson(inventory)).hexdigest()
+    content = CanonicalModelJson({
+        **receiptFields, "schema_version": _MCP_VERSION, "profile": collection.source_version,
+        "server_key": serverKey, "snapshot_digest": digest, "inventory": inventory,
+    })
+
+    if len(content) > _MAX_BYTES:
+        raise Invalid("#", "redacted evidence exceeds its byte limit")
+
+    evidenceHash = hashlib.sha256(content).hexdigest()
+    evidence = EvidenceRecord(EvidenceReference(
+        _EVIDENCE_ROLE, f"blobs/sha256/{evidenceHash}", evidenceHash,
+        "application/json", len(content),
+    ), collection)
+    serverIdentity = ObjectIdentity(state.workspace_id, ObjectKind.SERVICE, "mcp:v1:" + serverKey)
+    provenance = ModelProvenance(
+        collection.source_id, evidence.evidence_id, collection.finished_at,
+        collection.scope_reference, serverIdentity.Reference(), collection.source_version,
+        (evidence.reference,),
+    )
+    proposal, delta, snapshotReference = ProjectInventory(
+        state, serverIdentity, inventory, digest, provenance, acquisition=acquisition,
+    )
+    PrepareModelState(proposal)
+    evidenceStore = LocalEvidenceStore(model.root / "evidence")
+
+    if verifyScope is not None:
+        verifyScope()
+
+    committed = evidenceStore.Put(content, _EVIDENCE_ROLE, "application/json", collection)
+
+    if committed != evidence:
+        raise ValueError("MCP inventory evidence publication returned an unexpected record")
+
+    if verifyScope is not None:
+        verifyScope()
+
+    saved = model.Save(proposal, expected_revision=state.revision)
+
+    return McpInventoryImport(
+        saved, delta, committed, serverIdentity.Reference(), snapshotReference,
+    )
 
 
 def ImportMcpInventory(
@@ -824,38 +930,216 @@ def ImportMcpInventory(
     buffer = BytesIO()
     ReadArtifactFile(path.absolute(), "mcp-inventory.json", buffer, max_bytes=_MAX_BYTES)
     inventory = ParseMcpInventory(buffer.getvalue())
-    digest = "sha256:" + hashlib.sha256(CanonicalModelJson(inventory)).hexdigest()
-    content = CanonicalModelJson({
-        "schema_version": _MCP_VERSION, "profile": _SOURCE_VERSION, "server_key": serverKey,
-        "snapshot_digest": digest, "inventory": inventory,
-        "actor_ref": consent.actor_ref, "read_consent_reference": consent.record_ref,
-    })
 
-    if len(content) > _MAX_BYTES:
-        raise Invalid("#", "redacted evidence exceeds its byte limit")
+    return CommitInventory(model, state, serverKey, inventory, collection, offlineConsent=consent)
 
-    evidenceHash = hashlib.sha256(content).hexdigest()
-    evidence = EvidenceRecord(EvidenceReference(
-        _EVIDENCE_ROLE, f"blobs/sha256/{evidenceHash}", evidenceHash,
-        "application/json", len(content),
-    ), collection)
-    serverIdentity = ObjectIdentity(state.workspace_id, ObjectKind.SERVICE, "mcp:v1:" + serverKey)
-    provenance = ModelProvenance(
-        _SOURCE_ID, evidence.evidence_id, collection.finished_at, collection.scope_reference,
-        serverIdentity.Reference(), _SOURCE_VERSION, (evidence.reference,),
+
+def OperatorReceipt(actor: object, receipt: object) -> tuple[str, str]:
+    """Validate bounded, non-secret references from the scope's granted authorization.
+
+    Args:
+        actor: Recorded scope authority reference.
+        receipt: Recorded operator consent reference at the pinned scope revision.
+
+    Returns:
+        Exact safe references ready for retention.
+    """
+
+    references = (ReadText(actor, "#/acquisition/actor_ref"),
+                  ReadText(receipt, "#/acquisition/operator_receipt_reference"))
+
+    for reference in references:
+        RequireReference(reference, "MCP operator receipt")
+
+        if len(reference) > 4096 or RedactedText(reference) != reference:
+            raise ValueError("MCP operator receipt must use bounded non-secret references")
+
+    return references
+
+
+def ValidateMetadataAcquisition(
+    value: object, inventory: dict[str, object], scopeReference: str,
+) -> dict[str, object]:
+    """Verify the closed HTTP attribution shared by publication and historical review.
+
+    Args:
+        value: Candidate acquisition fields from collection or stored redacted evidence.
+        inventory: Exact redacted declaration carried by the same receipt.
+        scopeReference: Scope bound to the owning evidence manifest.
+
+    Returns:
+        The validated acquisition fields without reinterpretation.
+    """
+
+    from fuzzy1337.mcp_metadata import MCP_PROTOCOL_VERSION
+
+    location = "#/acquisition"
+    record = ReadObject(value, location, _METADATA_ACQUISITION_FIELDS, set())
+    source = ReadText(record["source_reference"], location + "/source_reference")
+    server = inventory.get("server") if isinstance(inventory, dict) else None
+
+    if (not re.fullmatch(r"target:[0-9a-f]{64}", source)
+            or record["scope_reference"] != scopeReference
+            or not scopeReference.startswith("scope:")
+            or RedactedText(scopeReference) != scopeReference
+            or record["protocol_version"] != MCP_PROTOCOL_VERSION
+            or not isinstance(server, dict)
+            or server.get("protocol_version") != MCP_PROTOCOL_VERSION):
+        raise Invalid(location, "HTTP source, scope or negotiated protocol disagrees")
+
+    RequireIdentifier(scopeReference.removeprefix("scope:"), "scope_id")
+    RequireWorkspaceInteger(record["scope_revision"], "MCP collection scope revision")
+    OperatorReceipt(record["actor_ref"], record["operator_receipt_reference"])
+    stages: set[str] = set()
+
+    for item in ReadArray(record["issues"], location + "/issues"):
+        issue = ReadObject(item, location + "/issues", {"stage", "reason"}, set())
+        stage = ReadText(issue["stage"], location + "/issues/stage")
+        reason = ReadText(issue["reason"], location + "/issues/reason")
+
+        if (stage not in {"initialized", "tools", "resources", "resource_templates", "prompts"}
+                or stage in stages or reason not in _METADATA_REASONS):
+            raise Invalid(location + "/issues", "expected fixed unique collection diagnostics")
+
+        stages.add(stage)
+
+    return record
+
+
+def CheckMetadataServerBinding(
+    state: ModelState, serverKey: str, scopeReference: str, sourceReference: str,
+) -> None:
+    """Keep a previously collected logical server bound to one exact endpoint and scope.
+
+    Args:
+        state: Authoritative model before the first exchange.
+        serverKey: Selected stable identifier for this server.
+        scopeReference: Exact selected scope identity, independent of revision.
+        sourceReference: Exact canonical endpoint reference.
+    """
+
+    server = ObjectIdentity(state.workspace_id, ObjectKind.SERVICE, "mcp:v1:" + serverKey)
+    serverReference = server.Reference()
+
+    for item in state.observations:
+        if item.kind != "mcp-inventory-snapshot" or item.subject_reference != serverReference:
+            continue
+
+        if item.provenance.source_id != METADATA_SOURCE_ID:
+            continue
+
+        acquisition = item.attributes.get("acquisition")
+
+        if (not isinstance(acquisition, Mapping)
+                or acquisition.get("source_reference") != sourceReference
+                or acquisition.get("scope_reference") != scopeReference):
+            raise ValueError("MCP server key is already bound to a different scope or endpoint")
+
+
+def CollectAndImportMcpMetadata(
+    model: LocalModelStore, endpoint: str, *, serverKey: str, scopeId: str, approved: bool,
+    policyProvider: Callable[[], ImpactPolicy], expectedRevision: int,
+    credentialProvider: Callable[[], str | None] | None = None,
+    limits: McpMetadataLimits | None = None,
+) -> tuple[McpMetadataResult, McpInventoryImport | None]:
+    """Collect approved MCP declarations and retain their fresh redacted acquisition.
+
+    Args:
+        model: Existing shared model owner for the scope's workspace.
+        endpoint: Exact permitted literal HTTP(S) endpoint.
+        serverKey: Stable non-secret model key chosen for this server.
+        scopeId: Current scope registering the endpoint and its destination address.
+        approved: Explicit opt-in for this collection.
+        policyProvider: Current Workbench impact policy for the reviewed HTTP provider.
+        expectedRevision: Exact model revision to check before collection and saving.
+        credentialProvider: Optional provider of in-memory HTTP authorization material.
+        limits: Typed collection ceilings, or the HTTP profile defaults.
+
+    Returns:
+        The redacted collection outcome and its acknowledged import, if initialization succeeded.
+
+    Raises:
+        McpMetadataDenied: Explicit permission or current scope binding cannot be verified.
+        WorkspaceConflictError: The selected model basis changed.
+        ValueError: Endpoint, attribution or collected declaration is inconsistent.
+    """
+
+    from fuzzy1337.mcp_metadata import McpMetadataDenied, McpMetadataLimits, ReadScope
+    from fuzzy1337.mcp_metadata_http import CollectMcpMetadataHttp
+
+    if approved is not True:
+        raise McpMetadataDenied("MCP metadata collection requires explicit approval")
+
+    RequireIdentifier(serverKey, "MCP server key")
+    RequireIdentifier(scopeId, "scope_id")
+    RequireWorkspaceInteger(expectedRevision, "expected model revision")
+
+    if RedactedText(serverKey) != serverKey or RedactedText(scopeId) != scopeId:
+        raise ValueError("MCP server and scope selections must be non-secret references")
+
+    state = model.Open()
+
+    if state.revision != expectedRevision:
+        raise WorkspaceConflictError("model revision changed; reopen before collecting metadata")
+
+    try:
+        source, address, _, _ = Endpoint(endpoint)
+
+    except ValueError:
+        del endpoint
+        raise ValueError("MCP metadata endpoint selection is invalid") from None
+
+    del endpoint
+    destination = Target(TargetKind.IP, address)
+    scope = ReadScope(model.root, scopeId, source, destination)
+
+    if scope.workspace_id != state.workspace_id or scope.scope_id != scopeId:
+        raise McpMetadataDenied("MCP metadata scope does not belong to the selected model")
+
+    actor, receipt = OperatorReceipt(
+        scope.authorization.authority_reference, scope.authorization.record_reference,
     )
-    proposal, delta, snapshotReference = ProjectInventory(
-        state, serverIdentity, inventory, digest, provenance,
+    scopeReference = scope.Reference()
+    sourceReference = source.Reference()
+    CheckMetadataServerBinding(state, serverKey, scopeReference, sourceReference)
+    selectedLimits = McpMetadataLimits() if limits is None else limits
+    result = CollectMcpMetadataHttp(
+        model.root, scopeId, source.value, approved=approved, policyProvider=policyProvider,
+        credentialProvider=credentialProvider, limits=selectedLimits,
     )
-    PrepareModelState(proposal)
-    evidenceStore = LocalEvidenceStore(model.root / "evidence")
-    committed = evidenceStore.Put(content, _EVIDENCE_ROLE, "application/json", collection)
 
-    if committed != evidence:
-        raise ValueError("MCP inventory evidence publication returned an unexpected record")
+    def VerifyScope() -> None:
+        """Require the exact admitted scope and current consent at publication."""
 
-    saved = model.Save(proposal, expected_revision=expectedRevision)
+        if ReadScope(model.root, scopeId, source, destination) != scope:
+            raise McpMetadataDenied("MCP metadata collection no longer matches its exact scope")
 
-    return McpInventoryImport(
-        saved, delta, committed, serverIdentity.Reference(), snapshotReference,
+    if (result.scopeReference != scopeReference or result.scopeRevision != scope.revision
+            or result.sourceReference != sourceReference):
+        raise McpMetadataDenied("MCP metadata collection no longer matches its exact scope")
+
+    VerifyScope()
+
+    if result.inventory is None:
+        return result, None
+
+    if model.Open() != state:
+        raise WorkspaceConflictError("model changed during MCP metadata collection")
+
+    acquisition = ValidateMetadataAcquisition({
+        "source_reference": sourceReference, "scope_reference": scopeReference,
+        "scope_revision": scope.revision, "protocol_version": result.protocolVersion,
+        "issues": [{"stage": item.stage, "reason": item.reason} for item in result.issues],
+        "actor_ref": actor, "operator_receipt_reference": receipt,
+    }, result.inventory, scopeReference)
+    observedAt = UtcNow().isoformat()
+    collection = EvidenceProvenance(
+        state.workspace_id, scopeReference, METADATA_SOURCE_ID, METADATA_SOURCE_VERSION, None,
+        observedAt, observedAt,
     )
+    committed = CommitInventory(
+        model, state, serverKey, result.inventory, collection,
+        acquisition=acquisition, verifyScope=VerifyScope,
+    )
+
+    return result, committed

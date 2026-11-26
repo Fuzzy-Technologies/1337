@@ -87,12 +87,14 @@ structural and YAML defaults are unchanged. `fuzzy1337.openapi_commands` and the
 shared product admission helpers remain Internal and confer no supported SDK,
 network, authentication, target-registration or execution contract.
 
-`fuzzy1337.mcp_inventory` is an Experimental offline SDK for bounded
+`fuzzy1337.mcp_inventory` is an Experimental SDK for bounded
 version-one MCP declarations. [ADR 0158](adr/0158-owned-offline-mcp-inventory.md)
 and [MCP inventory](MCP_INVENTORY.md) define declared section states, canonical
 shared model identities, historical snapshots and redacted evidence. The
-public Python entry points are `ParseMcpInventory` and `ImportMcpInventory`,
-with `McpInventoryImport` as the import result.
+public offline entry points are `ParseMcpInventory` and `ImportMcpInventory`.
+`CollectAndImportMcpMetadata` retains the freshly normalized result of an
+approved HTTP collection through the same owners. `McpInventoryImport` is
+the acknowledged import result for either receipt profile.
 
 `fuzzy1337.api_request_generation` is an Experimental offline Python producer at
 generation profile version `1`. ADR 0042 and `docs/API_REQUEST_GENERATION.md` define

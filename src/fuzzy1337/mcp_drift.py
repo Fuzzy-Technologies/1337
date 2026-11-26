@@ -23,7 +23,13 @@ from fuzzy1337.evidence import (
     RequireEvidenceDigest,
 )
 from fuzzy1337.findings import ApplyFindings, Finding, FindingSeverity, Remediation
-from fuzzy1337.mcp_inventory import ProjectInventory, RedactedText
+from fuzzy1337.mcp_inventory import (
+    METADATA_SOURCE_ID,
+    METADATA_SOURCE_VERSION,
+    ProjectInventory,
+    RedactedText,
+    ValidateMetadataAcquisition,
+)
 from fuzzy1337.model import (
     CanonicalModelJson,
     LocalModelStore,
@@ -307,8 +313,8 @@ def LoadDriftSnapshot(
     evidence = ReadDriftManifest(store, snapshot.provenance.run_reference)
     acquired = evidence.provenance
     expectedProvenance = ModelProvenance(
-        _SNAPSHOT_SOURCE, evidence.evidence_id, acquired.finished_at, acquired.scope_reference,
-        serverReference, _PROFILE, (evidence.reference,),
+        acquired.source_id, evidence.evidence_id, acquired.finished_at, acquired.scope_reference,
+        serverReference, acquired.source_version, (evidence.reference,),
     )
 
     if not 1 <= evidence.reference.size_bytes <= _MAX_INVENTORY_BYTES:
@@ -316,7 +322,9 @@ def LoadDriftSnapshot(
 
     if (
         acquired.workspace_id != state.workspace_id
-        or acquired.source_id != _SNAPSHOT_SOURCE or acquired.source_version != _PROFILE
+        or (acquired.source_id, acquired.source_version) not in {
+            (_SNAPSHOT_SOURCE, _PROFILE), (METADATA_SOURCE_ID, METADATA_SOURCE_VERSION),
+        }
         or acquired.execution is not None or acquired.invocation_sha256 is not None
         or acquired.tool_version is not None or acquired.started_at != acquired.finished_at
         or evidence.reference.role != _SNAPSHOT_EVIDENCE_ROLE
@@ -331,20 +339,25 @@ def LoadDriftSnapshot(
         receipt = json.loads(payload)
         inventory = receipt["inventory"]
         digest = Digest(inventory)
+        metadata = acquired.source_id == METADATA_SOURCE_ID
+        attributionFields = {"acquisition"} if metadata else {"actor_ref", "read_consent_reference"}
 
         if (
             set(receipt) != {"schema_version", "profile", "server_key", "snapshot_digest",
-                             "inventory", "actor_ref", "read_consent_reference"}
+                             "inventory", *attributionFields}
             or type(receipt["schema_version"]) is not int or receipt["schema_version"] != 1
-            or receipt["profile"] != _PROFILE
+            or receipt["profile"] != acquired.source_version
             or receipt["server_key"] != server.key.removeprefix(_SERVER_KEY_PREFIX)
             or receipt["snapshot_digest"] != digest or CanonicalModelJson(receipt) != payload
             or snapshot.attributes["snapshot_digest"] != digest
         ):
             raise ValueError("MCP snapshot receipt does not match its observation")
 
+        acquisition = ValidateMetadataAcquisition(
+            receipt["acquisition"], inventory, acquired.scope_reference,
+        ) if metadata else None
         reconstructed, _, reconstructedReference = ProjectInventory(
-            state, server, inventory, digest, expectedProvenance,
+            state, server, inventory, digest, expectedProvenance, acquisition=acquisition,
         )
 
     except (IndexError, KeyError, TypeError, ValueError, RecursionError) as error:
@@ -711,7 +724,7 @@ def ReviewMcpDrift(
     model: LocalModelStore, *, serverReference: str, snapshotReference: str,
     expectedRevision: int,
 ) -> McpDriftReview:
-    """Review one exact offline inventory against the active explicitly approved baseline.
+    """Review one exact retained inventory against the active explicitly approved baseline.
 
     Repeated review of the same approval and snapshot verifies the stored
     evidence and returns the existing review. This operation never approves a
