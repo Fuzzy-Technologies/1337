@@ -63,6 +63,7 @@ def test_NoArgumentsDescribeBootstrap(capsys):
     assert "1337 bridge sarif <import|inspect>" in output.out, (
         "Help must expose the actual saved external-report command"
     )
+    assert "1337 bridge mcp" in output.out, "Help must expose offline MCP declaration review"
     assert "1337 runtime import <docker-inspect|kubernetes-list>" in output.out, (
         "Help must expose explicit owned import profiles"
     )

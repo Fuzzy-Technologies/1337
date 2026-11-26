@@ -131,8 +131,8 @@ def test_BridgeDiscoveryDescribesSavedSarifAndOfflineMcpReview():
 
     bridge = COMMAND_REGISTRY.Resolve("bridge")
     assert bridge is not None and bridge.usage == (
-        "1337 bridge <sarif|mcp> ..."
-    ), "Discovery must name both available offline bridge profiles"
+        "1337 bridge sarif <import|inspect> <workspace>"
+    ), "Discovery must preserve the saved SARIF command"
     assert all(bridge in COMMAND_REGISTRY.Search(name) for name in ("sarif", "mcp")), (
         "The operator can discover saved report intake and offline MCP review"
     )
