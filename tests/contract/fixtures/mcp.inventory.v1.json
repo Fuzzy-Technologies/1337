@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "server": {
+    "name": "Workbench sample library",
+    "version": "1.0.0",
+    "protocolVersion": "2025-11-25"
+  },
+  "instructions": "The sample server lists public catalog entries.",
+  "capabilities": {
+    "status": "complete",
+    "items": [
+      {"name": "tools", "declaration": {"listChanged": true}},
+      {"name": "resources", "declaration": {"subscribe": false}},
+      {"name": "prompts", "declaration": {}}
+    ]
+  },
+  "tools": {
+    "status": "complete",
+    "items": [
+      {
+        "name": "catalog_list",
+        "description": "List local sample catalog entries.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "category": {"type": "string"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 10}
+          },
+          "required": ["category"],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "entries": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "annotations": {"readOnlyHint": true, "destructiveHint": false}
+      },
+      {
+        "name": "catalog_count",
+        "inputSchema": {"type": "object"}
+      }
+    ]
+  },
+  "resources": {
+    "status": "complete",
+    "items": [
+      {"name": "Catalog", "uri": "catalog://documents/index", "mimeType": "text/plain", "size": 12}
+    ]
+  },
+  "resource_templates": {
+    "status": "complete",
+    "items": [
+      {"name": "Entry", "uriTemplate": "catalog://documents/{id}"}
+    ]
+  },
+  "prompts": {
+    "status": "complete",
+    "items": [
+      {
+        "name": "catalog_summary",
+        "arguments": [{"name": "section", "required": true}]
+      }
+    ]
+  }
+}
