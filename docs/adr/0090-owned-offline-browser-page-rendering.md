@@ -26,8 +26,10 @@ or browser launch; the existing native backend remains portable.
 
 Reuse the unchanged `page_capture_worker.Probe` before importing or launching
 the renderer. Only its fully verified closed catalog body reaches Playwright.
-The optional dependency is pinned to Playwright 1.64.1 and its Chromium
-156.0.8078.4; normal package startup must not require the optional dependency.
+The original optional dependency was pinned to Playwright 1.64.1 and Chromium
+156.0.8078.4. The current pair is Playwright 1.65.2 and Chromium 159.0.8154.6.
+New acquisitions require that exact pair. The v1 retained-report grammar also
+accepts the original exact pair. Normal package startup requires neither engine.
 
 Render the known body using `set_content` on `about:blank`, with offline context,
 page JavaScript disabled, service workers blocked and downloads refused. Abort

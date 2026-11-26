@@ -73,14 +73,14 @@ async def Run(root: Path) -> None:
 
     installed = metadata.version("playwright")
 
-    if installed != "1.64.1":
-        raise RuntimeError("Owned browser acceptance requires pinned Playwright 1.64.1")
+    if installed != "1.65.2":
+        raise RuntimeError("Owned browser acceptance requires pinned Playwright 1.65.2")
 
     async with async_playwright() as driver:
         browser = await driver.chromium.launch(headless=True, timeout=5000)
 
         try:
-            if browser.version != "156.0.8078.4":
+            if browser.version != "159.0.8154.6":
                 raise RuntimeError("Owned browser acceptance requires pinned Chromium")
 
             context = await browser.new_context(offline=True, java_script_enabled=False,

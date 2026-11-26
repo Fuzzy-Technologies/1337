@@ -67,6 +67,8 @@ from tests.unit.test_page_capture import Result, RunJob
 URL = "http://127.0.0.1:32123/docs/index"
 BODY = (Path(__file__).parents[1] / "contract/fixtures/browser-dom.owned.v1.html").read_bytes()
 BODY_SHA256 = "75d60b34385f3c65068edcde7a37da78db796290b95be0ab9beb2cdc03fe3e71"
+RELEASED_PLAYWRIGHT = "1.64.1"
+RELEASED_CHROMIUM = "156.0.8078.4"
 
 
 @pytest.fixture(scope="module")
@@ -117,7 +119,10 @@ def test_BrowserGrammarPreservesCompleteNativeInputAndHandwrittenMetrics():
         KnownSyntheticHtmlBody(BROWSER_FIXTURE_ID), 16384) == record, "Browser record changed."
 
 
-@pytest.mark.parametrize("variant", ["success", "error-only", "source-error", "partial", "extra"])
+@pytest.mark.parametrize("variant", [
+    "success", "released", "other-playwright", "other-chromium",
+    "error-only", "source-error", "partial", "extra",
+])
 def test_OfflineJsonSchemaRetainsTheSameClosedSuccessAndCompleteSourceFailureProfiles(variant):
     """Resolve only checked-in schemas locally; no remote schema lookup or renderer is involved."""
 
@@ -142,7 +147,15 @@ def test_OfflineJsonSchemaRetainsTheSameClosedSuccessAndCompleteSourceFailurePro
     elif variant == "extra":
         record["unknown"] = "PRIVATE_REPORT_MARKER"
 
-    assert validator.is_valid(record) is (variant not in ("partial", "extra")), (
+    if variant in ("released", "other-playwright"):
+        record["playwright_version"] = RELEASED_PLAYWRIGHT
+
+    if variant in ("released", "other-chromium"):
+        record["chromium_version"] = RELEASED_CHROMIUM
+
+    assert validator.is_valid(record) is (
+        variant in ("success", "released", "error-only", "source-error")
+    ), (
         "Browser JSON grammar admitted partial source/extra fields or lost a profile."
     )
     jsonschema.Draft202012Validator(native).validate(NativeRecord())
@@ -232,6 +245,44 @@ def test_SelectedAdapterSeparatesNativeAndBrowserCapabilitiesArgvAndRecordGramma
     assert not result.findings and result.observations[0].kind == "http.synthetic-page-browser", (
         "Browser metrics became invented vulnerability findings or a native assessment."
     )
+
+
+@pytest.mark.parametrize(("playwrightVersion", "chromiumVersion", "retained"), [
+    (RELEASED_PLAYWRIGHT, RELEASED_CHROMIUM, True),
+    (RELEASED_PLAYWRIGHT, CHROMIUM_VERSION, False),
+    (PLAYWRIGHT_VERSION, RELEASED_CHROMIUM, False),
+])
+def test_OnlyRetainedNormalizationAcceptsTheExactReleasedEnginePair(
+    playwrightVersion, chromiumVersion, retained,
+):
+    """Keep original v1 evidence readable without allowing its engine for a new acquisition."""
+
+    record = BrowserRecord(playwright_version=playwrightVersion, chromium_version=chromiumVersion)
+    raw = CanonicalRecord(record)
+
+    with pytest.raises(PageCaptureRecordError):
+        ParseBrowserRecord(raw, URL, KnownSyntheticHtmlBody(BROWSER_FIXTURE_ID), 16384)
+
+    browser = NativeLoopbackPageAdapter(lambda reference: raw,
+        renderer=PageRenderer.PLAYWRIGHT_OFFLINE)
+    digest = hashlib.sha256(raw).hexdigest()
+    report = AdapterReport(browser.PrepareInvocation(Request()),
+        AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.1),
+        (EvidenceReference("stdout", "blobs/sha256/" + digest, digest,
+                           "application/json", len(raw)),))
+
+    if retained:
+        observation = browser.NormalizeReport(report).observations[0]
+        assert observation.attributes["playwright_version"] == playwrightVersion, (
+            "Retained reports must preserve the actual Playwright identity."
+        )
+        assert observation.attributes["chromium_version"] == chromiumVersion, (
+            "Retained reports must preserve the actual Chromium identity."
+        )
+
+    else:
+        with pytest.raises(PageCaptureRecordError):
+            browser.NormalizeReport(report)
 
 
 @pytest.mark.parametrize("limit", [15, 15.999, 31, True, float("inf")])
@@ -515,8 +566,10 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
 
         return context
 
-    browser = SimpleNamespace(version="unknown" if mode == "chromium-version" else CHROMIUM_VERSION,
-                              new_context=NewContext, close=Close)
+    browser = SimpleNamespace(
+        version=RELEASED_CHROMIUM if mode == "chromium-version" else CHROMIUM_VERSION,
+        new_context=NewContext, close=Close,
+    )
 
     async def Launch(**options):
         """Admit fixed headless launch and one shared timeout, without arbitrary launch options."""
@@ -549,7 +602,7 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
         if mode == "missing-package":
             raise worker.metadata.PackageNotFoundError("PRIVATE_PACKAGE_DIAGNOSTIC")
 
-        return "unknown" if mode == "version" else PLAYWRIGHT_VERSION
+        return RELEASED_PLAYWRIGHT if mode == "version" else PLAYWRIGHT_VERSION
 
     def Import(module):
         """Refuse or supply only the pinned Playwright API after native source verification."""
@@ -582,6 +635,11 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
     assert record["body_sha256"] == BODY_SHA256 and b"PRIVATE_" not in output.getvalue(), (
         "Failure lost original source custody or exposed engine diagnostics."
     )
+
+    if mode in ("version", "chromium-version"):
+        assert status == 78 and record["error"] == "renderer-version", (
+            "A new render must refuse a released Playwright or Chromium version."
+        )
 
     if mode == "websocket":
         assert facts["socket_closed"] == 1, "Unexpected WebSocket was not closed."
