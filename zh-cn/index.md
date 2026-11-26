@@ -2,8 +2,7 @@
 layout: default
 lang: zh-CN
 title: 1337 Security Workbench
-description: Fuzzy Technologies 的 1337 Security Workbench——面向渗透测试、安全调查与安全工程分析的本地优先工作台，以动态安全对象模型（Security Object Model）和可插拔安全工具为核心。
-keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网络安全 AI 智能体, 渗透测试, 安全自动化, 攻击图, 攻击路径, 可达性分析, 证据来源追踪, Fuzzy Technologies
+description: Fuzzy Technologies 打造的开源、本地优先安全工作台。执行经过授权的检查，保留原始证据，并离线复核结果。
 ---
 
 <header class="site-header">
@@ -14,214 +13,121 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <a class="lang-button" href="{{ '/ru/' | relative_url }}">RU</a>
 <a class="lang-button active" href="{{ '/zh-cn/' | relative_url }}" aria-current="page">简中</a>
 </div>
-<a class="brand-button" href="https://fuzzy-technologies.github.io/" aria-label="Fuzzy Technologies">Fuzzy Technologies ↗</a>
+<a class="brand-button" href="https://fuzzy-technologies.com/zh-cn/">Fuzzy Technologies ↗</a>
 </nav>
 </header>
 
-<section class="hero hero-grid">
-<figure class="hero-primary">
-<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="Maria 与 1337 安全工作台项目展示图" width="1774" height="887" decoding="async" fetchpriority="high" />
-<figcaption class="hero-caption">
-<p class="eyebrow">开放式安全工作台 · 动态安全对象模型 · 可插拔安全工具</p>
-<p class="hero-hook">分析目标系统。<br><strong>模型随工作过程持续更新</strong></p>
-<span class="status">早期 Community 产品 · Apache-2.0 · v0.3.0</span>
-</figcaption>
-</figure>
-
+<section class="hero hero-grid" aria-labelledby="intro">
 <div class="hero-secondary">
-<p class="quiet"><strong>v0.3.0 翻译更新草稿：尚未确认完成编辑和技术审核。</strong>当前能力及边界以<a href="{{ '/' | relative_url }}">英文页面</a>为规范来源。实际操作请使用<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">英文 v0.3.0 快速入门</a>；其他已翻译的架构章节不代表已实现的能力承诺。</p>
-<p>1337 是一套快速、本地优先的安全工作台，面向渗透测试、安全调查和安全工程分析。内置扫描与发现能力先建立目标系统的初始模型，随后由内置工具和外部工具持续补充观察结果、证据、发现项、关联关系、网络可达性和攻击路径。</p>
-<blockquote class="hero-quote"><strong>模型负责推理；1337 负责保存状态、约束执行并留存证据</strong></blockquote>
+<p class="eyebrow">开源安全工作台</p>
+<h2 class="hero-hook" id="intro">执行安全检查。<br><strong>保留原始证据。</strong></h2>
+<p>1337 将经过授权的检查、发现项和原始证据保存在同一个本地工作空间。即使目标系统已离线，你也可以重新打开结果、核对每项发现的依据，并与同事分享报告。</p>
 <div class="links hero-actions">
-<a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">发布版 v0.3.0</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/milestones">开发路线图</a>
+<a class="primary-action" href="#get-started">试用本地演示</a>
+<a href="#roadmap">查看路线图</a>
 </div>
 </div>
+<figure class="hero-primary">
+<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="插画中的 Maria 坐在 1337 安全工作台前" width="1774" height="887" decoding="async" fetchpriority="high" />
+</figure>
 </section>
 
 <section class="content-section">
-<h2>一个动态模型，而不是一堆互不关联的扫描结果</h2>
-<div class="grid problem-grid">
-<section class="card">
-<span class="card-label">内置扫描与发现</span>
-<h3>无需依赖外部扫描器也能先建立基础模型</h3>
-<p>1337 可先发现目标、主机、服务、端点、技术栈及其关联关系；接入更多工具和数据源后，再持续补充和校验模型。</p>
-</section>
-
-<section class="card">
-<span class="card-label">统一状态</span>
-<h3>所有工具都补充同一份模型</h3>
-<p>Nmap、Nuclei、浏览器、Kali 工具集、导入的取证材料和外部系统都向同一模型写入可追溯的观察结果，而不是各自留下孤立报告。</p>
-</section>
-
-<section class="card">
-<span class="card-label">实时工作台</span>
-<h3>耗时任务不阻塞操作</h3>
-<p>左侧执行命令，右侧实时更新当前工作视图中的对象、证据、发现项、攻击路径或时间线。</p>
-</section>
-</div>
-</section>
-
-<section class="content-section">
-<h2>从初始扫描到安全对象模型（Security Object Model）</h2>
-<div class="workbench-grid">
-<div class="flow-panel" aria-label="1337 数据流">
-<pre><code>内置扫描器
-      ↓
-   安全对象
-      ↑
-工具 / 数据源
-      ↓
-观察结果 + 证据
-      ↓
-发现项 + 关联关系
-      ↓
-可达性 / 攻击路径</code></pre>
-</div>
-
-<div class="workbench-copy">
-<p class="section-hook"><strong>内置扫描器建立初始模型，现有工具继续补充和验证</strong></p>
-<p>工具直接融入工作台：内置检查、常用命令行工具、浏览器、负载生成器、外部扫描器和集成都把结果汇入同一工作空间，而不是形成多套彼此割裂的数据。</p>
-<p class="workbench-note">1337 核心可在本地运行，默认不要求部署端点代理。大型扫描器、Kali 工具集、浏览器运行时、搜索索引和厂商连接器均按需启用。</p>
-</div>
-</div>
-</section>
-
-<section class="content-section">
-<h2>同一模型，四种专业工作视图（lenses）</h2>
+<h2 id="workflow">从安全检查到报告</h2>
 <div class="grid">
-<section class="card">
-<span class="card-label">Pentest</span>
-<h3>攻击面与攻击路径</h3>
-<p>聚焦侦察、发现项、凭据、横向移动、网络可达性、攻击路径和受控验证，同时保留对常用工具的直接访问。</p>
-</section>
-
-<section class="card">
-<span class="card-label">DFIR</span>
-<h3>证据与攻击过程重建</h3>
-<p>聚焦证据来源、取证材料、IOC、时间线、实体关联、置信度和基于证据的事件重建；每个关键结论都能回溯到原始证据。</p>
-</section>
-
-<section class="card">
-<span class="card-label">DevSecOps</span>
-<h3>从源代码到运行环境</h3>
-<p>将源代码、依赖、SBOM、镜像、部署、API、运行时关联和安全发现统一到同一模型，并支持可复现的安全门禁。</p>
-</section>
-
-<section class="card">
-<span class="card-label">Purple Team</span>
-<h3>攻击、检测、防护、复测</h3>
-<p>把授权的攻击动作与遥测数据、检测告警、防护控制和复测结果关联在同一模型中。</p>
-</section>
+<article class="card">
+<h3>设定检查范围</h3>
+<p>选择已获授权的系统和检查项。执行策略规定哪些操作可以执行、哪些需要确认。</p>
+</article>
+<article class="card">
+<h3>构建系统模型</h3>
+<p>安全对象模型将资产、服务、端点和发现项与对应的原始观测结果及证据关联起来。</p>
+</article>
+<article class="card">
+<h3>离线复核</h3>
+<p>打开保存的工作空间，追溯发现项的原始依据，并导出报告，无需再次访问目标系统。</p>
+</article>
 </div>
 </section>
 
 <section class="content-section">
-<h2>核心架构</h2>
+<h2 id="community">Community v0.3.0 已发布</h2>
+<p>你可以先运行完全在本机执行的演示。社区版提供交互式命令行、基础 HTTP 检查和内置 Web 检查，也支持选用 Nmap、Nuclei 和 Trivy 的工作流程。保存工作空间后可导出 HTML、JSON、SARIF 或 JUnit 报告。CI 可以执行经过授权的检查，并按预设规则判断结果。</p>
+<p><a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">查看社区版发布说明 →</a></p>
+</section>
+
+<section class="content-section">
+<h2 id="development">开发分支已实现的功能</h2>
+<p>0.4 开发分支加入了分步评估流程和更易阅读的离线 HTML 报告。指定的 CVE、CWE 和 EPSS 记录可为发现项补充背景信息。FuzzyRoutines 提供 CVSS 分数的五级解读，报告同时保留原始分数。</p>
+<p>开发分支扩展了内置 Web 检查，能够离线导入 CycloneDX 软件物料清单（SBOM）、SARIF 报告和 syslog 日志，并可基于已保存的工作空间分析选定路径、比较其状态。</p>
+<p><a href="https://github.com/Fuzzy-Technologies/1337/blob/develop/CHANGELOG.md">查看 develop 分支更新记录 →</a></p>
+</section>
+
+<section class="content-section">
+<h2 id="use-cases">适用场景</h2>
+<div class="grid">
+<article class="card">
+<h3>应用安全与渗透测试</h3>
+<p>评估获准测试的服务，将开发人员复核问题所需的证据交给他们。</p>
+</article>
+<article class="card">
+<h3>DevSecOps</h3>
+<p>保留 CI 报告，随时查阅作出发布决策时依据的检查结果。</p>
+</article>
+<article class="card">
+<h3>事件调查</h3>
+<p>复核已保存的资料，将原始数据随工作空间一起交给其他分析人员。</p>
+</article>
+</div>
+</section>
+
+<section class="content-section">
+<h2 id="ai-agents">面向工程师、CI 和 AI 智能体</h2>
+<p>工程师、CI 流水线和能使用终端的 AI 智能体可以使用同一套工作空间。智能体可以提出计划并解释结果。1337 根据范围和审批规则管控执行，并保留操作记录。本地流程无需开通模型服务账号。</p>
+</section>
+
+<section class="content-section">
+<h2 id="roadmap">接下来的开发方向</h2>
 <div class="architecture-grid">
-<section class="architecture-card"><h3>安全对象模型（Security Object Model）</h3><p>统一描述目标、资产、服务、端点、身份、证据、发现项、关联关系、网络可达性和攻击路径。</p></section>
-<section class="architecture-card"><h3>内置发现（Native Discovery）</h3><p>无需强制安装外部扫描器或集成，即可先建立目标系统的初始黑盒模型。</p></section>
-<section class="architecture-card"><h3>模块化工具（Modular Tooling）</h3><p>内置引擎与可替换的外部工具通过统一能力接口接入，不把工作台绑定到某个扫描器或发行版。</p></section>
-<section class="architecture-card"><h3>证据与来源追踪（Evidence &amp; Provenance）</h3><p>观察结果与结论始终保留来源、授权范围、时间、工具、执行器和相关支撑材料。</p></section>
-<section class="architecture-card"><h3>授权范围与执行策略（Scope &amp; Policy）</h3><p>明确约束授权范围和影响级别，负责限制执行边界，但不取代工作台本身。</p></section>
-<section class="architecture-card"><h3>工作视图与接口（Lenses &amp; Interfaces）</h3><p>TUI、Web、API、SDK、MCP、CI 和 AI 都基于同一底层状态，通过不同工作视图访问。</p></section>
+<article class="architecture-card">
+<h3>Web Scanner NG 与可达性分析</h3>
+<p>扩展内置的 Web 应用和 API 检查，用图谱展示资产之间的可达性与潜在攻击路径，并追溯对应证据。</p>
+</article>
+<article class="architecture-card">
+<h3>交互式分析</h3>
+<p>提供多面板终端和 Web 界面，方便查看发现项、比较评估结果，并理解风险排序的依据。</p>
+</article>
+<article class="architecture-card">
+<h3>事件调查与紫队协作</h3>
+<p>在同一个工作空间中梳理事件时间线，并为分析人员和防御团队提供关联观测、检测结果与证据的视图。</p>
+</article>
+<article class="architecture-card">
+<h3>工具集成与 AI</h3>
+<p>提供 API、SDK、CI 集成和受策略约束的 MCP 接入，支持自主选择 AI 模型及服务提供商。</p>
+</article>
 </div>
-<p class="invariant"><strong>一个安全对象模型 · 多种工作视图 · 任意合适的工具</strong></p>
+<p><a href="https://github.com/Fuzzy-Technologies/1337/milestones">查看公开开发路线图 →</a></p>
 </section>
 
 <section class="content-section">
-<h2>M4 展示：可复现的攻击路径</h2>
-<div class="roadmap-panel">
-<div class="roadmap-heading">
-<span class="status roadmap-status">M4 路线图 · 可复现实验环境</span>
-<a href="https://github.com/Fuzzy-Technologies/1337/issues/115">展示规范 #115 →</a>
-</div>
-
-<p>M4 计划提供一个由项目仓库维护的 Docker Compose 实验环境，在同一份 1337 模型上复现三类攻击路径。用户可以在本地启动实验环境，使用已授权工具进行评估，查看证据，验证攻击路径，应用防护控制，并重新计算攻击图。</p>
-
-<div class="case-grid">
-<section class="case-card">
-<span class="card-label">业务关键路径</span>
-<p><strong>Internet → 客户门户 → 用户身份 → Billing API → 关键业务操作</strong></p>
-</section>
-
-<section class="case-card">
-<span class="card-label">身份与权限</span>
-<p><strong>Internet → 支持门户 → 用户身份 → SSO/IAM → 管理控制台</strong></p>
-</section>
-
-<section class="case-card">
-<span class="card-label">软件供应链</span>
-<p><strong>代码仓库 → CI Job → Runner → 制品仓库 → Deployment → Production</strong></p>
-</section>
-</div>
-
-<blockquote><strong>哪些通往关键资产的攻击路径确实可达？哪些证据能够证明？哪项安全控制能够切断这条链路？</strong></blockquote>
-<p class="quiet">完整的 M4 展示仍属于 v0.3.0 之后的路线图。仓库已提供隔离的攻击路径迷你实验环境。</p>
-<p class="showcase-hook"><strong>启动实验环境 · 复现问题 · 验证攻击路径 · 确认修复效果</strong></p>
-</div>
-</section>
-
-<section class="content-section">
-<h2>当前已经可用的内容</h2>
-<div class="proof-grid">
-<section class="proof-card proof-now">
-<span class="card-label">当前版本 v0.3.0 · EN canonical</span>
-<p lang="en">English canonical summary: install 1337==0.3.0, preview the owned local demo, obtain explicit approval, then retain its evidence and reopen/export the saved model offline. The complete <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/OWNED_GIT_HEAD_RECIPE.md">owned Git HEAD recipe</a> creates one LOW Finding and checks its separately approved fixed control using only the installed core. Optional Nmap/Nuclei/Trivy workflows have their own prerequisites and authority; no configuration renderer, license-compliance verdict or live runtime reachability is implied.</p>
-<h3>沿用自 v0.2.1 的工程基础（历史列表）</h3>
-<ul>
-<li>Apache-2.0 开源核心</li>
-<li>可安装的 1337 与 1337-dev 命令</li>
-<li>交互式 shell、模糊补全、命令面板和历史搜索</li>
-<li>本地 doctor 诊断和只读组件检查</li>
-<li>可移植 workspace、配置和离线 scope API</li>
-<li>实验性模型、证据、executor 和可选 Nmap API</li>
-<li>项目仓库自带的隔离测试环境</li>
-<li>基于 pytest 的功能测试基础</li>
-<li>公开、版本化的接口契约和架构文档</li>
-<li>可重复的跨平台质量检查</li>
-</ul>
-</section>
-
-<section class="proof-card">
-<span class="card-label">后续里程碑</span>
-<h3>正在开发</h3>
-<ul>
-<li>实时双栏终端工作台</li>
-<li>更广泛的认证应用检查和更多提供程序</li>
-<li>更完整的 SBOM 语义、许可证策略和运行时关联</li>
-<li>Pentest、DFIR、DevSecOps 与 Purple Team 工作视图</li>
-<li>有证据支持的实时可达性分析及完整 M4 攻击路径展示</li>
-<li>通用 MCP 服务与厂商系统集成</li>
-</ul>
-</section>
-</div>
-<p class="section-hook">只有经过代码、测试和公开接口契约验证的能力才视为已实现；其余内容均明确标注为路线图</p>
-</section>
-
-<section class="content-section">
-<h2>项目资源</h2>
+<h2 id="get-started">在本机试用 1337</h2>
+<p>社区版快速入门会带你运行独立的本地演示、保存证据，再离线打开报告。以下指南为英文。</p>
 <div class="links">
-<a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">试用 v0.3.0 · EN</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">AI 代理快速入门 · EN</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">CI 快速入门 · EN</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">v0.2.1 历史指南</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">架构愿景</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI 智能体集成</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010：工作台架构</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/SECURITY.md">安全策略</a>
+<a class="primary-action" href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">快速入门</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">AI 智能体指南</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">CI 指南</a>
 </div>
 </section>
 
 <section class="content-section">
-<h2>负责任地使用</h2>
-<p>1337 用于防御性安全工程、经授权的渗透测试与调查、培训、研究、CTF / 实验环境，以及你拥有或已获得明确授权进行测试的系统。</p>
-<p>未经授权，不得使用本项目扫描、探测、利用或干扰第三方系统。</p>
+<h2 id="project">开源社区核心</h2>
+<p>Fuzzy Technologies 公开开发 1337。社区版核心采用 Apache 2.0 许可。</p>
+<div class="links">
+<a href="https://github.com/Fuzzy-Technologies/1337">GitHub 源代码</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/VISION.md">项目愿景</a>
+</div>
 </section>
 
 <footer class="site-footer">
 <strong>1337 Security Workbench by Fuzzy Technologies</strong>
-<span class="footer-motto">技术 · 知识 · 科学</span>
 </footer>
