@@ -1935,8 +1935,6 @@
   ["tests/unit/test_release_recovery.py", "callable", "", "owned"],
   ["tests/unit/test_release_recovery.py", "parameter", "top.owned", "tmp_path"],
   ["tests/unit/test_report_commands.py", "parameter", "top.test_SecondReportVerifierPathRejectsBlobGrowthBeforeOpeningRawBytes.GrowBeforeVerification", "workspace_root"],
-  ["tests/unit/test_reporting.py", "callable", "Dom", "handle_endtag"],
-  ["tests/unit/test_reporting.py", "callable", "Dom", "handle_starttag"],
   ["tests/unit/test_response_commands.py", "callable", "", "response_cli"],
   ["tests/unit/test_response_header_commands.py", "callable", "", "boundary"],
   ["tests/unit/test_response_header_commands.py", "callable", "", "header_runner"],

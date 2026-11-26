@@ -4,6 +4,7 @@
 """Deterministic synthetic canonical snapshot for report contracts and golden outputs."""
 
 from dataclasses import replace
+from html.parser import HTMLParser
 
 from fuzzy1337.adapters.contracts import AdapterExecution, EvidenceReference, ExecutionState
 from fuzzy1337.findings import (
@@ -24,6 +25,76 @@ from fuzzy1337.model import (
     SecurityObject,
 )
 from fuzzy1337.reporting import FindingReferences, ReportReference, ReportSnapshot
+
+
+class Dom(HTMLParser):
+    """Collect exact inert HTML tags, attributes, IDs, and text without executing a browser."""
+
+    def __init__(self):
+        """Initialize independent parser collections for one report."""
+
+        super().__init__()
+        self.tags = []
+        self.attributes = []
+        self.ids = []
+        self.links = []
+        self.text = []
+        self.primary_text = []
+        self.headingIds = set()
+        self.tableLabels = []
+        self.tableRegions = []
+        self.disclosure_depth = 0
+        self.style_depth = 0
+
+    def HandleStartTag(self, tag, attrs):
+        """Record parsed attributes and targets, including decoded HTML entities."""
+
+        self.tags.append(tag)
+
+        if tag == "details":
+            self.disclosure_depth += 1
+
+        if tag == "style":
+            self.style_depth += 1
+
+        self.attributes.extend(attrs)
+        fields = dict(attrs)
+
+        if "id" in fields:
+            self.ids.append(fields["id"])
+
+            if tag in ("h2", "h3"):
+                self.headingIds.add(fields["id"])
+
+        if tag == "div" and fields.get("class") == "table":
+            self.tableRegions.append(fields)
+
+        if tag == "table":
+            self.tableLabels.append(fields.get("aria-labelledby"))
+
+        if tag == "a":
+            self.links.append(fields["href"])
+
+    def HandleData(self, data):
+        """Record visible text for independent escaped-payload assertions."""
+
+        self.text.append(data)
+
+        if not self.disclosure_depth and not self.style_depth:
+            self.primary_text.append(data)
+
+    def HandleEndTag(self, tag):
+        """Track closed disclosures independently of their preserved technical content."""
+
+        if tag == "details":
+            self.disclosure_depth -= 1
+
+        if tag == "style":
+            self.style_depth -= 1
+
+    handle_starttag = HandleStartTag
+    handle_data = HandleData
+    handle_endtag = HandleEndTag
 
 
 def Fixture(summary="Synthetic check interpretation", key="build:synthetic") -> ReportSnapshot:

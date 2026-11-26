@@ -34,6 +34,7 @@ from fuzzy1337.native_web import NATIVE_WEB_CAPABILITY, NATIVE_WEB_PROVIDER_ID
 from fuzzy1337.policy import CapabilityPermission, ImpactPolicy
 from fuzzy1337.scan_commands import RunCommands
 from fuzzy1337.shell import InteractiveShell
+from tests.contract.reporting_fixture import Dom
 from tests.web_file_access_helpers import OwnedWebFileAccessTarget
 from tests.web_vulnerability_helpers import Oracle, OwnedWebVulnerabilityTarget
 
@@ -99,8 +100,12 @@ def AssertNativeResponseHtml(root: Path, expected: str, capsys) -> None:
     assert receipt["verified_retained_acquisitions"] == 2, (
         "Report export must verify both retained worker streams."
     )
-    rendered = destination.read_text(encoding="utf-8")
-    assert "<h3>Selected native response observations</h3>" in rendered and expected in rendered, (
+    report = Dom()
+    report.feed(destination.read_text(encoding="utf-8"))
+    visibleText = " ".join(" ".join(report.primary_text).split())
+    assert (
+        "Selected native response observations" in visibleText and expected in visibleText
+    ), (
         "The offline report must expose the exact supported observation in the default view."
     )
 

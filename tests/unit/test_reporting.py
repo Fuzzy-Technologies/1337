@@ -5,7 +5,6 @@
 
 import json
 from dataclasses import FrozenInstanceError, replace
-from html.parser import HTMLParser
 from xml.etree import ElementTree
 
 import pytest
@@ -28,77 +27,9 @@ from fuzzy1337.model import (
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
 from fuzzy1337.reporting import ReportReference, ReportSnapshot
 from tests.contract.report_export_fixture import Context as ReportExportContext
-from tests.contract.reporting_fixture import Fixture
+from tests.contract.reporting_fixture import Dom, Fixture
 
 EXPORTERS = (RenderHtml, SerializeJson, SerializeSarif, SerializeJunit)
-
-
-class Dom(HTMLParser):
-    """Collect exact inert HTML tags, attributes, IDs, and text without executing a browser."""
-
-    def __init__(self):
-        """Initialize independent parser collections for one report."""
-
-        super().__init__()
-        self.tags = []
-        self.attributes = []
-        self.ids = []
-        self.links = []
-        self.text = []
-        self.primary_text = []
-        self.headingIds = set()
-        self.tableLabels = []
-        self.tableRegions = []
-        self.disclosure_depth = 0
-        self.style_depth = 0
-
-    def handle_starttag(self, tag, attrs):
-        """Record parsed attributes and targets, including decoded HTML entities."""
-
-        self.tags.append(tag)
-
-        if tag == "details":
-            self.disclosure_depth += 1
-
-        if tag == "style":
-            self.style_depth += 1
-
-        self.attributes.extend(attrs)
-        fields = dict(attrs)
-
-        if "id" in fields:
-            self.ids.append(fields["id"])
-
-            if tag in ("h2", "h3"):
-                self.headingIds.add(fields["id"])
-
-        if tag == "div" and fields.get("class") == "table":
-            self.tableRegions.append(fields)
-
-        if tag == "table":
-            self.tableLabels.append(fields.get("aria-labelledby"))
-
-        if tag == "a":
-            self.links.append(fields["href"])
-
-    def HandleData(self, data):
-        """Record visible text for independent escaped-payload assertions."""
-
-        self.text.append(data)
-
-        if not self.disclosure_depth and not self.style_depth:
-            self.primary_text.append(data)
-
-    def handle_endtag(self, tag):
-        """Track closed disclosures independently of their preserved technical content."""
-
-        if tag == "details":
-            self.disclosure_depth -= 1
-
-        if tag == "style":
-            self.style_depth -= 1
-
-    handle_data = HandleData
 
 
 def test_ProjectionRetainsExactCanonicalStateAndHonestInterpretations():
