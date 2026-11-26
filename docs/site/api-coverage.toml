@@ -1132,3 +1132,79 @@ module = "fuzzy1337.mcp_inventory"
 source = "src/fuzzy1337/mcp_inventory.py"
 mode = "authored"
 page = "api/fuzzy1337.mcp_inventory.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Capability"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.DecodeInventory"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Flag"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Invalid"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.OpaqueFields"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ProjectInventory"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ProjectSchema"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Prompt"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ReadArray"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ReadLabel"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ReadObject"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ReadText"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.RedactedText"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Resource"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.SchemaName"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.SchemaType"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Section"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.TextFingerprint"
+reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.Tool"
+reason = "Internal inventory implementation excluded from module __all__."
