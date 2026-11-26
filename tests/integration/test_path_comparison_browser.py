@@ -28,7 +28,7 @@ def test_RequiredActualChromiumRendersStaticPairProofDownloadsAndNoScript(tmp_pa
     if os.environ.get("FUZZY1337_RUN_PLAYWRIGHT_ACCEPTANCE") != "1":
         pytest.skip("Optional genuine comparison Chromium acceptance disabled; not acceptance")
 
-    assert metadata.version("playwright") == "1.64.1", "Browser package differs from explicit pin."
+    assert metadata.version("playwright") == "1.65.2", "Browser package differs from explicit pin."
     from playwright.sync_api import sync_playwright
 
     fixture = Fixture.Create(tmp_path / "workspace")

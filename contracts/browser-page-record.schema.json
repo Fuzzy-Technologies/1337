@@ -64,8 +64,8 @@
       "required": ["renderer_profile", "playwright_version", "chromium_version", "input_body_sha256", "dom_sha256", "dom_size_bytes", "element_count", "anchor_count", "form_count", "input_count", "blocked_request_count"],
       "properties": {
         "renderer_profile": {"const": "playwright-chromium-offline.v1"},
-        "playwright_version": {"const": "1.64.1"},
-        "chromium_version": {"const": "156.0.8078.4"},
+        "playwright_version": {"type": "string"},
+        "chromium_version": {"type": "string"},
         "input_body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "dom_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "dom_size_bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
@@ -74,7 +74,17 @@
         "form_count": {"type": "integer", "minimum": 0, "maximum": 8192},
         "input_count": {"type": "integer", "minimum": 0, "maximum": 8192},
         "blocked_request_count": {"type": "integer", "minimum": 0, "maximum": 64}
-      }
+      },
+      "oneOf": [
+        {"properties": {
+          "playwright_version": {"const": "1.64.1"},
+          "chromium_version": {"const": "156.0.8078.4"}
+        }},
+        {"properties": {
+          "playwright_version": {"const": "1.65.2"},
+          "chromium_version": {"const": "159.0.8154.6"}
+        }}
+      ]
     }
   }
 }

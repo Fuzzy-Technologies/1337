@@ -31,10 +31,12 @@ _RENDER_FIELDS = frozenset({"renderer_profile", "playwright_version", "chromium_
     "input_body_sha256", "dom_sha256", "dom_size_bytes", "element_count", "anchor_count",
     "form_count", "input_count", "blocked_request_count"})
 _FAILURE_FIELDS = frozenset({"schema_version", "renderer_profile", "error"})
+_RELEASED_V1_ENGINE = ("1.64.1", "156.0.8078.4")
 
 
 def ParseBrowserRecord(raw: bytes, url: str, expected_body: KnownSyntheticHtmlBody,
-                       max_body_bytes: int) -> dict[str, object]:
+                       max_body_bytes: int, *,
+                       allowHistoricalEngine: bool = False) -> dict[str, object]:
     """Validate original canonical browser bytes before separating complete native custody.
 
     Args:
@@ -42,6 +44,7 @@ def ParseBrowserRecord(raw: bytes, url: str, expected_body: KnownSyntheticHtmlBo
         url: Exact approved native acquisition destination; the browser never navigates it.
         expected_body: Explicit unchanged closed catalog body selection.
         max_body_bytes: Exact selected native acquisition body quota.
+        allowHistoricalEngine: Also recognize the released v1 pair during retained normalization.
 
     Returns:
         Complete original flat success or fixed failure record. A renderer failure carries
@@ -88,10 +91,13 @@ def ParseBrowserRecord(raw: bytes, url: str, expected_body: KnownSyntheticHtmlBo
         native = {key: value for key, value in record.items() if key not in _RENDER_FIELDS}
         admitted = ParseRecord(CanonicalRecord(native), url, expected, max_body_bytes)
 
+        engine = record["playwright_version"], record["chromium_version"]
+        approvedEngine = engine == (PLAYWRIGHT_VERSION, CHROMIUM_VERSION) or (
+            allowHistoricalEngine and engine == _RELEASED_V1_ENGINE
+        )
+
         if "error" in admitted or record["input_body_sha256"] != expected.sha256 or (
-            record["playwright_version"] != PLAYWRIGHT_VERSION
-            or record["chromium_version"] != CHROMIUM_VERSION
-            or type(record["dom_sha256"]) is not str
+            not approvedEngine or type(record["dom_sha256"]) is not str
             or re.fullmatch(r"[a-f0-9]{64}", record["dom_sha256"]) is None
         ):
             raise ValueError("browser engine or original input binding differs")

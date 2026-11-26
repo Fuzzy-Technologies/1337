@@ -23,8 +23,8 @@ HTTP permission supplies no browser authority. Both the exact source URL and its
 literal loopback IP must remain registered and allowed under current consent.
 Discovered lexical links grant no fetch authority.
 
-The optional package extra is `browser`, with Playwright pinned to `1.64.1` and
-its Chromium pinned to `156.0.8078.4`. A trusted deployment provisions the matching
+The optional package extra is `browser`, with Playwright pinned to `1.65.2` and
+its Chromium pinned to `159.0.8154.6`. A trusted deployment provisions the matching
 engine separately. Package startup and the native renderer do not import or
 require that dependency. Callers cannot supply browser paths, launch flags,
 environment overlays, profiles, sessions or arbitrary page content.
@@ -73,6 +73,10 @@ network, memory or same-UID sandbox.
 
 The separate flat browser grammar binds the exact profile, admitted input digest,
 actual engine versions, DOM digest/size, four counts and blocked request count.
+The v1 report reader also accepts the original Playwright `1.64.1` and Chromium
+`156.0.8078.4` pair when normalizing retained evidence. Current acquisition
+requires the installed pair above. Reports that mix versions from different
+pairs are refused.
 Successful normalized observations use `http.synthetic-page-browser`; provenance
 keeps source version `1` and the actual Chromium version as the tool version.
 One successful page creates the existing source response and lexical frontier
@@ -81,8 +85,8 @@ through shared evidence/model owners. It creates no Finding or fetched-link clai
 A renderer failure retains an available complete verified native body group and
 original stdout, with a fixed failure category. It has no completed page, frontier
 or model transition and no successful DOM metrics. Partial report groups, unknown
-fields, changed pins and inconsistent original evidence are refused. Timeout or
-cancellation cannot complete until the Linux owner has verified descendant cleanup;
+fields, unsupported engine pairs and inconsistent original evidence are refused.
+Timeout or cancellation cannot complete until the Linux owner has verified descendant cleanup;
 unknown cleanup remains an executor failure.
 
 ## Genuine acceptance
