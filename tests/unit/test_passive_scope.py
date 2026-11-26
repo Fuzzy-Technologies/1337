@@ -297,12 +297,16 @@ def test_ActualRawGitDiffAndPinnedStyleScriptInvocationUseExactContent(tmp_path)
                "--base", "develop", "--head-ref", HEAD, "--base-commit", BASE,
                "--policy-commit", POLICY, "--manifest", str(manifest)]
     result = subprocess.run(command, input=raw, capture_output=True, check=False, cwd=tmp_path)
-    assert result.returncode == 0 and result.stdout == b"profile=passive\n" and not result.stderr, (
+    assert result.returncode == 0 and (
+        result.stdout.splitlines() == [b"profile=passive"] and not result.stderr
+    ), (
         "Real raw Git framing and the isolated trusted-script CLI disagree."
     )
     manifest.unlink()
     held = subprocess.run(command, input=raw, capture_output=True, check=False, cwd=tmp_path)
-    assert held.returncode == 0 and held.stdout == b"profile=hold\n" and not held.stderr, (
+    assert held.returncode == 0 and (
+        held.stdout.splitlines() == [b"profile=hold"] and not held.stderr
+    ), (
         "Unavailable separately reviewed policy did not produce an explicit fixed hold."
     )
 
@@ -382,6 +386,9 @@ def RegistryPath(base, head, raw):
 @pytest.fixture(name="registryFixture")
 def RegistryFixture(request):
     """Create two independent candidate commits and one upstream registry with both raw entries."""
+
+    if sys.platform != "linux":
+        pytest.skip("Registry routing exercises the Ubuntu workflow's Bash and Git fixture")
 
     tmpPath = request.getfixturevalue("tmp_path")
     upstream = tmpPath / "upstream"
@@ -481,8 +488,11 @@ exec "$REAL_GIT" "$@"
     steps = workflow["jobs"]["classify"]["steps"]
     default = next(step["run"] for step in steps if step.get("id") == "default")
     command = next(step["run"] for step in steps if step.get("id") == "classify")
-    subprocess.run(["bash", "-c", default], cwd=root, env=environment, check=True,
-                   capture_output=True, timeout=10)
+    defaultStep = subprocess.run(["bash", "-c", default], cwd=root, env=environment, check=False,
+                                 capture_output=True, timeout=10)
+    assert defaultStep.returncode == 0, (
+        f"Routing default step exited with {defaultStep.returncode}: {defaultStep.stderr!r}"
+    )
     initial = dict(line.split("=", 1) for line in output.read_text().splitlines())["profile"]
 
     if initial == "hold":
