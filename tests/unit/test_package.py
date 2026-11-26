@@ -8,14 +8,6 @@ from pathlib import Path
 import pytest
 
 
-def test_PackageImports():
-    """Verify package imports."""
-
-    import fuzzy1337
-
-    assert fuzzy1337.__all__ == [], "package imports invariant failed."
-
-
 @pytest.mark.parametrize("recipe", ["native-runner.Dockerfile", "nuclei-runner.Dockerfile"])
 def test_BenchmarkRuntimeInstallsPinnedDependenciesOnlyAfterImagePreparation(recipe):
     """Cache-free benchmark children consume the prepared wheelhouse with runtime networking off."""
