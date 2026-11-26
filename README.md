@@ -107,7 +107,12 @@ Every output must be new: an existing destination is refused, preserving its byt
 - **AI agent:** [Agent quickstart](docs/AGENT_QUICKSTART.md) — copyable EN prompt, RU/zh-cn draft prompts, explicit operator approval and evidence-linked JSON.
 - **CI:** [CI quickstart](docs/CI_QUICKSTART.md) — Docker wheel install, GitHub Actions/GitLab templates, predeclared local-demo approval and retained diagnostics.
 
-All three use the same scope/policy, jobs, evidence and persisted model owners.
+Built-in checks and connected tools enrich the same Security Object Model with
+observations and findings linked to their original evidence. CI can retain a
+workspace as a build artifact. An AI agent can help explain those results, and
+an engineer can reopen the same model offline to review the evidence.
+
+All three follow the same scope and approval policy.
 No mandatory check calls a paid LLM or grades model output.
 
 ## Produce a real Finding with the core
