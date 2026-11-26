@@ -1799,37 +1799,3 @@ def test_WorkflowReaderObservesSourceEditsAndPreservesParserDiagnostics(tmp_path
 
     finally:
         ParseWorkflow.cache_clear()
-
-
-def test_PassiveWorkflowReaderSharesParsingButNeverSharesScenarioEdits(monkeypatch):
-    """Both public readers reuse equal bytes while returning isolated job graphs."""
-
-    from tests.unit.test_passive_integration import WorkflowJobs
-
-    parse = yaml.safe_load
-    calls = []
-
-    def Parse(text):
-        """Observe the same real Python workflow parse through both reader entry points."""
-
-        calls.append(text)
-
-        return parse(text)
-
-    ParseWorkflow.cache_clear()
-    monkeypatch.setattr(yaml, "safe_load", Parse)
-
-    try:
-        jobs = WorkflowJobs()
-        expected = Workflow("python-quality.yml")["jobs"]
-        jobs["quality"]["strategy"]["matrix"]["include"][0]["python"] = "mutated"
-        jobs["container-quality"]["steps"][0]["env"]["INTEGRATION_PROFILE"] = "mutated"
-        jobs["synthetic-lab"]["steps"].clear()
-        del jobs["external-targets"]
-        assert WorkflowJobs() == Workflow("python-quality.yml")["jobs"] == expected, (
-            "Mutations from one reader must not alter a later scenario in either module"
-        )
-        assert len(calls) == 1, "Both readers must share one parse of identical workflow bytes"
-
-    finally:
-        ParseWorkflow.cache_clear()

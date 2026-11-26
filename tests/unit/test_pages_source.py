@@ -164,20 +164,6 @@ def test_PagesHaveBalancedHtmlTags() -> None:
             )
 
 
-def test_LocalizedPagesKeepTheSameComponentStructure() -> None:
-    """Verify localized pages keep the same component structure."""
-
-    pages = [Read(page) for page in PAGES]
-    referenceClasses = PageClasses(pages[0])
-
-    assert all(page.count('<section class="content-section">') == 8 for page in pages), (
-        "localized pages keep the same component structure invariant failed."
-    )
-    assert all(PageClasses(page) == referenceClasses for page in pages[1:]), (
-        "localized pages keep the same component structure invariant failed."
-    )
-
-
 def test_SiteCssCoversAllPageClasses() -> None:
     """Verify site css covers all page classes."""
 

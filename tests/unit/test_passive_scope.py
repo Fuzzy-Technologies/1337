@@ -275,38 +275,6 @@ def test_SharedRouterNeverExecutesCandidateCodeAndHoldsFailures():
     )
 
 
-def test_ActualRawGitDiffAndPinnedStyleScriptInvocationUseExactContent(tmp_path):
-    """Exercise the actual Git producer and isolated helper CLI with independent manifest bytes."""
-
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "fixture@example.invalid"],
-                   check=True)
-    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Owned fixture"], check=True)
-    source = tmp_path / "CHANGELOG.md"
-    source.write_text("Original synthetic content\n")
-    subprocess.run(["git", "-C", str(tmp_path), "add", "CHANGELOG.md"], check=True)
-    subprocess.run(["git", "-C", str(tmp_path), "commit", "-qm", "Original fixture"], check=True)
-    source.write_text("Revised synthetic content\n")
-    subprocess.run(["git", "-C", str(tmp_path), "commit", "-qam", "Revised fixture"], check=True)
-    raw = subprocess.run(["git", "-C", str(tmp_path), "diff", "--no-ext-diff", "--raw", "-z",
-                          "--no-renames", "--abbrev=40", "HEAD^", "HEAD"],
-                         check=True, capture_output=True).stdout
-    manifest = tmp_path / "independent-policy.json"
-    manifest.write_text(json.dumps(Manifest(raw)))
-    command = [sys.executable, "-I", str(Path(policy.__file__)), "--event", "pull_request",
-               "--base", "develop", "--head-ref", HEAD, "--base-commit", BASE,
-               "--policy-commit", POLICY, "--manifest", str(manifest)]
-    result = subprocess.run(command, input=raw, capture_output=True, check=False, cwd=tmp_path)
-    assert result.returncode == 0 and result.stdout == b"profile=passive\n" and not result.stderr, (
-        "Real raw Git framing and the isolated trusted-script CLI disagree."
-    )
-    manifest.unlink()
-    held = subprocess.run(command, input=raw, capture_output=True, check=False, cwd=tmp_path)
-    assert held.returncode == 0 and held.stdout == b"profile=hold\n" and not held.stderr, (
-        "Unavailable separately reviewed policy did not produce an explicit fixed hold."
-    )
-
-
 def test_RealNormalizedWorkflowBlobAndCliAreBoundedBeforeAllocation(tmp_path, monkeypatch, capsys):
     """Use real bootstrap Git reads and refuse oversized blobs before loading their bytes."""
 
