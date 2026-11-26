@@ -1208,3 +1208,46 @@ reason = "Internal inventory implementation excluded from module __all__."
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.Tool"
 reason = "Internal inventory implementation excluded from module __all__."
+
+[[surfaces]]
+# Experimental MCP metadata protocol. No registered live transport or operator surface.
+module = "fuzzy1337.mcp_metadata"
+source = "src/fuzzy1337/mcp_metadata.py"
+mode = "authored"
+page = "api/fuzzy1337.mcp_metadata.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.EventStreamResult"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.InitialInventory"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.McpMetadataFailure"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.NormalizeDeclaration"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.ParseReply"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.ReadScope"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.RpcObject"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.RpcResult"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.CollectScopedMetadata"
+reason = "Internal session-owning implementation excluded from module __all__."
