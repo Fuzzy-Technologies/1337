@@ -29234,3 +29234,80 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.mcp-drift"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.mcp_drift.md"
+sourceHash = "sha256:184a8d6200c2c695c43b3cf6d6a59b5795be18de990f81108841c689ed744196"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_drift.ApproveMcpBaseline"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_drift.py"
+sourceHash = "sha256:b97cc72ef3fbe8a074a788ad7b638658a0a4914fb07549a8a1217d5ba043cf7f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_drift.McpBaselineApproval"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_drift.py"
+sourceHash = "sha256:dd156b24553264250e6083f90e35865ae2e8f001122e002284544195954fdeab"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_drift.McpDriftChange"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_drift.py"
+sourceHash = "sha256:e7e16931030f9466921310899659bc59cfb80ad2849f44c04d02ebcb57dc3755"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_drift.McpDriftReview"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_drift.py"
+sourceHash = "sha256:2cee7b3d9a45e0d52f8846a44b95a1b6a7c10feac1f87eec971da45a84e073ca"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_drift.McpDriftUnknown"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_drift.py"
+sourceHash = "sha256:9f7699f06583ad992a60bcb35243c5aaddb226d80588c1dbba110ffd6821875a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_drift.ReviewMcpDrift"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_drift.py"
+sourceHash = "sha256:717285b48e7a831e21f5ab62deb34353ef0bbac93eebaa79a13fb5c966d15abc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
