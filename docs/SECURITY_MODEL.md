@@ -80,6 +80,10 @@ Robotics/CPS objects and graph analysis are not implemented by this foundation.
 New object/relation kinds require an explicit schema/compatibility decision.
 Unknown kind values are rejected rather than silently stored as extensions.
 
+[Offline MCP inventory](MCP_INVENTORY.md) uses the existing Service and Asset
+identity families. Its versioned descriptor metadata and snapshot observations
+retain section completeness and verified redacted source context.
+
 ## Portable persistence
 
 `LocalModelStore` operates on an existing `LocalWorkspaceStore` root. Constructing

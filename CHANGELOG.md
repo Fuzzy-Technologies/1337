@@ -8,6 +8,24 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 67 — v0.4.67 — 2026-11-26
+
+#### Digest
+
+- Import owned offline MCP metadata into the shared Workbench model.
+
+#### Added
+
+- Define a version-one inventory for servers, capabilities, tool schemas and
+  annotations, resource and prompt descriptors, and optional instructions.
+- Preserve explicit section completeness, canonical identities, attributable
+  snapshots, and idempotent exact replay through the local import API.
+
+#### Security
+
+- Bound local input and retain verified redacted evidence for each acquisition.
+  Keep declaration text, schemas and resource locators inert.
+
 ### Patch 66 — v0.4.66 — 2026-11-25
 
 #### Digest

@@ -1125,3 +1125,10 @@ module = "fuzzy1337.bridge_commands"
 source = "src/fuzzy1337/bridge_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.bridge_commands.md"
+
+[[surfaces]]
+# Experimental version-one local MCP inventory importer.
+module = "fuzzy1337.mcp_inventory"
+source = "src/fuzzy1337/mcp_inventory.py"
+mode = "authored"
+page = "api/fuzzy1337.mcp_inventory.md"

@@ -29190,3 +29190,47 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.mcp-inventory"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.mcp_inventory.md"
+sourceHash = "sha256:0a70950da6e15a8f98355072323ab9cc20c7d4d49b5b07b5cca70535fb5e183a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_inventory.ImportMcpInventory"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_inventory.py"
+sourceHash = "sha256:564234ef5a673d274574973a89fffe2e281ef2c309363155c3c9d50543df70f1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_inventory.McpInventoryImport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_inventory.py"
+sourceHash = "sha256:19dfa10d393b2a879b799796e220c36b74fb43d6f01e0f6dbb9c44f1d5b48e17"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.mcp_inventory.ParseMcpInventory"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/mcp_inventory.py"
+sourceHash = "sha256:9ea78935db102c89b6397d2f73a21f20e30946c94eb840b3beb51f4cd6b90b83"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
