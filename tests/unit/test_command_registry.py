@@ -126,13 +126,14 @@ def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
     )
 
 
-def test_BridgeDiscoveryDescribesOnlySavedReportImportAndInspection():
-    """The new namespace must expose its actual local operation without an execution capability."""
+def test_BridgeDiscoveryDescribesSavedSarifAndOfflineMcpReview():
+    """Discover both owned bridge profiles without adding an execution capability."""
 
     bridge = COMMAND_REGISTRY.Resolve("bridge")
     assert bridge is not None and bridge.usage == (
-        "1337 bridge sarif <import|inspect> <workspace>"
-    ), "Discovery must name the available source-report operations"
-    assert bridge in COMMAND_REGISTRY.Search("sarif") and bridge.capabilities == (), (
-        "Saved report intake must be discoverable without manufacturing an execution registration"
+        "1337 bridge <sarif|mcp> ..."
+    ), "Discovery must name both available offline bridge profiles"
+    assert all(bridge in COMMAND_REGISTRY.Search(name) for name in ("sarif", "mcp")), (
+        "The operator can discover saved report intake and offline MCP review"
     )
+    assert bridge.capabilities == (), "Bridge discovery must not grant an execution capability"

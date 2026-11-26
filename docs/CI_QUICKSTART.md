@@ -7,6 +7,10 @@ workspace, original evidence and reports. No model API or paid LLM is involved.
 This verifies a selected local recipe; production target selection requires its
 own explicit scope, consent, policy and limits.
 
+The [offline MCP catalog example](MCP_CLI_WORKFLOW.md#ci-outcomes) runs from
+the reviewed development wheel with local files. Keep its versioned review
+receipt and exact exit code with the standard JSON and SARIF exports.
+
 ## Copy the platform template
 
 - [GitHub Actions YAML](examples/ci/github-actions.yml): copy to `.github/workflows/1337-demo.yml` in the invoking repository; start with `workflow_dispatch`.
