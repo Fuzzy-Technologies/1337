@@ -250,8 +250,9 @@ pre { margin: 0; }
   min-width: 0;
 }
 
-.hero-secondary {
-  padding-top: 0.05rem;
+.hero-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
 }
 
 .eyebrow {
@@ -271,6 +272,14 @@ pre { margin: 0; }
 }
 
 .hero-hook strong { color: var(--green); }
+
+.hero-secondary .hero-hook {
+  padding: 0;
+  border: 0;
+  font-size: clamp(1.65rem, 3.15vw, 2.25rem);
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
 
 .status {
   display: inline-block;
@@ -299,6 +308,7 @@ pre { margin: 0; }
 
 .hero-actions {
   flex-wrap: wrap;
+  margin-bottom: 0;
 }
 
 .links a {
@@ -318,6 +328,17 @@ pre { margin: 0; }
 .links a:hover {
   border-color: #ff7ae4aa;
   box-shadow: 0 0 14px #ff5bd82b, inset 0 1px 0 #ffffff0a;
+}
+
+.links .primary-action {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: var(--bg);
+}
+
+.links .primary-action:hover {
+  box-shadow: 0 0 14px #00eaff55;
+  text-shadow: none;
 }
 
 .grid,
@@ -374,6 +395,56 @@ pre { margin: 0; }
   margin: 0.45rem 0 0.65rem;
   padding-bottom: 0.42rem;
   border-bottom: 1px solid var(--border-soft);
+}
+
+.model-panel {
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 50% 0%, #00eaff1c, transparent 65%),
+    linear-gradient(145deg, #0a1016, #11141e);
+  box-shadow: 0 12px 30px #00000055, inset 0 1px 0 #ffffff09;
+}
+
+.model-summary {
+  max-width: 76ch;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.model-summary h3 {
+  margin: 0;
+  color: var(--green);
+  font-size: clamp(1.16rem, 2.5vw, 1.5rem);
+  text-shadow: 0 0 12px #5dff8d44;
+}
+
+.model-roles {
+  position: relative;
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.model-roles .card { position: relative; }
+
+.model-roles::before,
+.model-roles .card::before {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 1px;
+  height: calc(1rem + 1px);
+  background: var(--border);
+  content: "";
+}
+
+.model-handoff {
+  margin: 1.25rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-strong);
 }
 
 .card-label {
@@ -675,6 +746,9 @@ body::before {
   .case-grid {
     grid-template-columns: 1fr;
   }
+
+  .model-roles::before,
+  .model-roles .card::before { display: none; }
 
   .hero-actions {
     flex-wrap: wrap;
