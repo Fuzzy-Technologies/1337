@@ -8,6 +8,24 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 68 — v0.4.68 — 2026-11-26
+
+#### Digest
+
+- Review saved MCP declarations against a human-approved inventory.
+
+#### Added
+
+- Record explicit approvals and review declared changes to tools, schemas,
+  side-effect hints, resources, and server instructions in the shared model.
+- Publish attributable findings and evidence for confirmed changes.
+  Incomplete sections preserve unknown membership.
+
+#### Security
+
+- Verify scoped snapshots and historical review evidence before approval replay.
+  Apply evidence size and digest checks before loading acquisition bytes.
+
 ### Patch 67 — v0.4.67 — 2026-11-26
 
 #### Digest

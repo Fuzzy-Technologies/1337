@@ -1208,3 +1208,62 @@ reason = "Internal inventory implementation excluded from module __all__."
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.Tool"
 reason = "Internal inventory implementation excluded from module __all__."
+
+[[surfaces]]
+# Experimental offline MCP baseline approval and declaration review.
+module = "fuzzy1337.mcp_drift"
+source = "src/fuzzy1337/mcp_drift.py"
+mode = "authored"
+page = "api/fuzzy1337.mcp_drift.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.BaselineDecisions"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.BuildDriftReview"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.DiffDeclarations"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.Digest"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.DriftServer"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.LoadDriftSnapshot"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.OpenDriftState"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.SchemaChanges"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.SnapshotSource"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.VerifiedMcpSnapshot"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.ReadDriftManifest"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.VerifyApprovalReview"
+reason = "Internal declaration review implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_drift.VerifyDriftEvidence"
+reason = "Internal declaration review implementation excluded from module __all__."
