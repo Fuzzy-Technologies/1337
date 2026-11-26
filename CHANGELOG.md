@@ -8,6 +8,17 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 69 — v0.4.69 — 2026-11-27
+
+#### Digest
+
+- Update the optional offline page renderer to Playwright 1.65.2 and Chromium 159.0.8154.6.
+
+#### Changed
+
+- Require the new exact engine pair for acquisition and keep released version-one
+  browser evidence readable with its original pair.
+
 ### Patch 68 — v0.4.68 — 2026-11-26
 
 #### Digest

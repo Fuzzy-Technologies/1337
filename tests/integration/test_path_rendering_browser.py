@@ -46,7 +46,7 @@ def test_RequiredActualChromiumUsesOfflineArtifactControlsDownloadsAndCsp(tmp_pa
     if os.environ.get("FUZZY1337_RUN_PLAYWRIGHT_ACCEPTANCE") != "1":
         pytest.skip("Optional actual graph Chromium acceptance is disabled; not acceptance")
 
-    assert metadata.version("playwright") == "1.64.1", "Required browser differs from explicit pin"
+    assert metadata.version("playwright") == "1.65.2", "Required browser differs from explicit pin"
     from playwright.sync_api import sync_playwright
 
     context = SmallGraph(tmp_path)

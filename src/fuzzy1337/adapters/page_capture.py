@@ -41,8 +41,8 @@ PAGE_CAPTURE_PROVIDER_ID = "native.loopback-page"
 PAGE_CAPTURE_CAPABILITY = "http.synthetic-page-capture"
 PAGE_BROWSER_CAPABILITY = "http.synthetic-page-browser"
 PAGE_BROWSER_PROFILE = "playwright-chromium-offline.v1"
-PLAYWRIGHT_VERSION = "1.64.1"
-CHROMIUM_VERSION = "156.0.8078.4"
+PLAYWRIGHT_VERSION = "1.65.2"
+CHROMIUM_VERSION = "159.0.8154.6"
 BROWSER_FIXTURE_ID = "owned-browser-dom.v1"
 MAX_RECORD_BYTES = 98304
 MAX_BODY_BYTES = 65536
@@ -655,16 +655,19 @@ class NativeLoopbackPageAdapter:
                 raise ValueError("stdout evidence differs from its exact reference")
 
             parameters = invocation.request.parameters
-            parser = ParseRecord
+            url = cast(str, parameters["url"])
+            body = KnownSyntheticHtmlBody(cast(str, parameters["fixture_id"]))
+            maxBodyBytes = cast(int, parameters["max_body_bytes"])
 
             if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE:
                 from fuzzy1337.adapters.browser_page import ParseBrowserRecord
 
-                parser = ParseBrowserRecord
+                record = ParseBrowserRecord(
+                    raw, url, body, maxBodyBytes, allowHistoricalEngine=True,
+                )
 
-            record = parser(raw, cast(str, parameters["url"]),
-                KnownSyntheticHtmlBody(cast(str, parameters["fixture_id"])),
-                cast(int, parameters["max_body_bytes"]))
+            else:
+                record = ParseRecord(raw, url, body, maxBodyBytes)
 
             if "error" in record:
                 raise ValueError("failure record cannot become a successful page")
