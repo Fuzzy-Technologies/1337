@@ -92,52 +92,93 @@ _SCHEMA_OPAQUE_TEXT = {
 _SCHEMA_LITERALS = {"const", "default"}
 
 
-def _Invalid(location: str, message: str) -> ValueError:
-    """Build an actionable error using only source coordinates and fixed diagnostic text."""
+def Invalid(location: str, message: str) -> ValueError:
+    """Build an actionable error using only source coordinates and fixed diagnostic text.
+
+    Args:
+        location: Fixed field path in the inventory.
+        message: Safe diagnostic with no source values.
+
+    Returns:
+        A bounded inventory validation error.
+    """
 
     return ValueError(f"MCP inventory {location}: {message}")
 
 
-def _ReadObject(
+def ReadObject(
     value: object, location: str, required: set[str], optional: set[str],
 ) -> dict[str, object]:
-    """Validate a closed object without displaying attacker-controlled field names."""
+    """Validate a closed object without displaying attacker-controlled field names.
+
+    Args:
+        value: Candidate JSON object.
+        location: Field path for validation errors.
+        required: Member names required by the profile.
+        optional: Additional member names accepted by the profile.
+
+    Returns:
+        The validated JSON mapping.
+    """
 
     if not isinstance(value, dict):
-        raise _Invalid(location, "expected an object")
+        raise Invalid(location, "expected an object")
 
     record = cast(dict[str, object], value)
     missing = sorted(required - record.keys())
 
     if missing:
-        raise _Invalid(location, "missing " + ", ".join(missing))
+        raise Invalid(location, "missing " + ", ".join(missing))
 
     if record.keys() - required - optional:
-        raise _Invalid(location, "contains unsupported fields")
+        raise Invalid(location, "contains unsupported fields")
 
     return record
 
 
-def _ReadArray(value: object, location: str) -> list[object]:
-    """Require a bounded declaration array."""
+def ReadArray(value: object, location: str) -> list[object]:
+    """Require a bounded declaration array.
+
+    Args:
+        value: Candidate JSON array.
+        location: Field path for validation errors.
+
+    Returns:
+        The array within the inventory item bound.
+    """
 
     if not isinstance(value, list) or len(value) > _MAX_ITEMS:
-        raise _Invalid(location, f"expected an array with at most {_MAX_ITEMS} items")
+        raise Invalid(location, f"expected an array with at most {_MAX_ITEMS} items")
 
     return cast(list[object], value)
 
 
-def _ReadText(value: object, location: str) -> str:
-    """Require text that already passed the whole-document UTF-8 bound."""
+def ReadText(value: object, location: str) -> str:
+    """Require text that already passed the whole-document UTF-8 bound.
+
+    Args:
+        value: Candidate JSON string.
+        location: Field path for validation errors.
+
+    Returns:
+        A string already covered by the document bounds.
+    """
 
     if not isinstance(value, str):
-        raise _Invalid(location, "expected a string")
+        raise Invalid(location, "expected a string")
 
     return value
 
 
-def _RedactedText(value: str) -> str:
-    """Strip credential assignments, auth tokens and URI userinfo before hashing."""
+def RedactedText(value: str) -> str:
+    """Strip credential assignments, auth tokens and URI userinfo before hashing.
+
+    Args:
+        value: Bounded text containing possible credential-like data.
+
+    Returns:
+        Text after recognized credential spellings are removed.
+    """
 
     value = _INLINE_CREDENTIAL.sub("[redacted]", value)
     value = _AUTH_TOKEN.sub("[redacted]", value)
@@ -145,39 +186,70 @@ def _RedactedText(value: str) -> str:
     return _USERINFO.sub(r"\1", value)
 
 
-def _TextFingerprint(value: object, location: str) -> str:
-    """Retain a change signal for opaque text without keeping its original contents."""
+def TextFingerprint(value: object, location: str) -> str:
+    """Retain a change signal for opaque text without keeping its original contents.
 
-    text = _RedactedText(_ReadText(value, location))
+    Args:
+        value: Candidate text to fingerprint.
+        location: Field path for validation errors.
+
+    Returns:
+        A SHA-256 reference to the redacted text.
+    """
+
+    text = RedactedText(ReadText(value, location))
 
     return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _ReadLabel(value: object, location: str) -> str:
-    """Accept a bounded declaration identifier while refusing recognized credentials."""
+def ReadLabel(value: object, location: str) -> str:
+    """Accept a bounded declaration identifier while refusing recognized credentials.
 
-    text = _ReadText(value, location)
+    Args:
+        value: Candidate declaration identifier.
+        location: Field path for validation errors.
 
-    if not _LABEL.fullmatch(text) or _RedactedText(text) != text:
-        raise _Invalid(location, "expected a non-secret identifier of at most 128 ASCII characters")
+    Returns:
+        An allowed non-secret declaration name.
+    """
+
+    text = ReadText(value, location)
+
+    if not _LABEL.fullmatch(text) or RedactedText(text) != text:
+        raise Invalid(location, "expected a non-secret identifier of at most 128 ASCII characters")
 
     return text
 
 
-def _Flag(value: object, location: str) -> bool:
-    """Validate an explicit JSON boolean without applying protocol defaults."""
+def Flag(value: object, location: str) -> bool:
+    """Validate an explicit JSON boolean without applying protocol defaults.
+
+    Args:
+        value: Candidate JSON boolean.
+        location: Field path for validation errors.
+
+    Returns:
+        The declared boolean.
+    """
 
     if not isinstance(value, bool):
-        raise _Invalid(location, "expected a boolean")
+        raise Invalid(location, "expected a boolean")
 
     return value
 
 
-def _DecodeInventory(value: bytes) -> object:
-    """Read strict UTF-8 JSON under byte, node, depth and string limits."""
+def DecodeInventory(value: bytes) -> object:
+    """Read strict UTF-8 JSON under byte, node, depth and string limits.
+
+    Args:
+        value: Original UTF-8 snapshot bytes.
+
+    Returns:
+        A decoded JSON value validated against the inventory resource limits.
+    """
 
     if not isinstance(value, bytes) or not value or len(value) > _MAX_BYTES:
-        raise _Invalid("#", f"expected nonempty UTF-8 JSON of at most {_MAX_BYTES} bytes")
+        raise Invalid("#", f"expected nonempty UTF-8 JSON of at most {_MAX_BYTES} bytes")
 
     try:
         document: object = json.loads(
@@ -186,13 +258,13 @@ def _DecodeInventory(value: bytes) -> object:
         )
 
     except json.JSONDecodeError as error:
-        raise _Invalid("#", f"invalid JSON at line {error.lineno}, column {error.colno}") from None
+        raise Invalid("#", f"invalid JSON at line {error.lineno}, column {error.colno}") from None
 
     except (UnicodeError, RecursionError):
-        raise _Invalid("#", "JSON must have valid UTF-8 and bounded nesting") from None
+        raise Invalid("#", "JSON must have valid UTF-8 and bounded nesting") from None
 
     except ValueError:
-        raise _Invalid("#", "JSON has a duplicate key or invalid numeric literal") from None
+        raise Invalid("#", "JSON has a duplicate key or invalid numeric literal") from None
 
     pending = [(document, 0)]
     count = 0
@@ -202,7 +274,7 @@ def _DecodeInventory(value: bytes) -> object:
         count += 1
 
         if count > _MAX_NODES or depth > _MAX_DEPTH:
-            raise _Invalid("#", "JSON exceeds its node or depth limit")
+            raise Invalid("#", "JSON exceeds its node or depth limit")
 
         if isinstance(item, dict):
             pending.extend((key, depth + 1) for key in item)
@@ -216,107 +288,132 @@ def _DecodeInventory(value: bytes) -> object:
                 byteCount = len(item.encode("utf-8"))
 
             except UnicodeError:
-                raise _Invalid("#", "JSON strings must be valid UTF-8") from None
+                raise Invalid("#", "JSON strings must be valid UTF-8") from None
 
             if byteCount > _MAX_TEXT_BYTES:
-                raise _Invalid("#", "a JSON string exceeds its byte limit")
+                raise Invalid("#", "a JSON string exceeds its byte limit")
 
         elif isinstance(item, float) and not math.isfinite(item):
-            raise _Invalid("#", "JSON numbers must be finite")
+            raise Invalid("#", "JSON numbers must be finite")
 
     return document
 
 
-def _SchemaType(value: object, location: str) -> str:
-    """Validate a declared JSON Schema type name."""
+def SchemaType(value: object, location: str) -> str:
+    """Validate a declared JSON Schema type name.
+
+    Args:
+        value: Candidate JSON Schema type string.
+        location: Field path for validation errors.
+
+    Returns:
+        A recognized JSON Schema type name.
+    """
 
     if not isinstance(value, str) or value not in _TYPES:
-        raise _Invalid(location, "expected a JSON Schema type name")
+        raise Invalid(location, "expected a JSON Schema type name")
 
     return value
 
 
-def _SchemaName(value: str, location: str) -> str:
-    """Keep recognizable field names and fingerprint arbitrary or sensitive spellings."""
+def SchemaName(value: str, location: str) -> str:
+    """Keep recognizable field names and fingerprint arbitrary or sensitive spellings.
 
-    if _LABEL.fullmatch(value) and _RedactedText(value) == value:
+    Args:
+        value: Schema member name supplied in the source.
+        location: Field path for validation errors.
+
+    Returns:
+        The safe name or its redacted fingerprint.
+    """
+
+    if _LABEL.fullmatch(value) and RedactedText(value) == value:
         return value
 
-    return _TextFingerprint(value, location)
+    return TextFingerprint(value, location)
 
 
-def _ProjectSchema(value: object, location: str, *, root: bool = False) -> object:
-    """Project bounded schema structure without interpreting schema branches or literals."""
+def ProjectSchema(value: object, location: str, *, root: bool = False) -> object:
+    """Project bounded schema structure without interpreting schema branches or literals.
+
+    Args:
+        value: Candidate schema declaration.
+        location: Field path for validation errors.
+        root: Require an object root for a tool input or output.
+
+    Returns:
+        Retained structure and markers for omitted schema data.
+    """
 
     if isinstance(value, bool) and not root:
         return value
 
     if not isinstance(value, dict) or (root and value.get("type") != "object"):
-        raise _Invalid(location, "expected an object-root schema" if root else "expected a schema")
+        raise Invalid(location, "expected an object-root schema" if root else "expected a schema")
 
     result: dict[str, object] = {}
 
     for keyword, field in value.items():
         if keyword == "type":
             if isinstance(field, list):
-                types = [_SchemaType(item, location) for item in _ReadArray(field, location)]
+                types = [SchemaType(item, location) for item in ReadArray(field, location)]
 
                 if not types or len(set(types)) != len(types):
-                    raise _Invalid(location, "type array must contain unique schema types")
+                    raise Invalid(location, "type array must contain unique schema types")
 
                 result[keyword] = sorted(types)
 
             else:
-                result[keyword] = _SchemaType(field, location)
+                result[keyword] = SchemaType(field, location)
 
         elif keyword == "required":
-            names = [_SchemaName(_ReadText(item, location), location)
-                     for item in _ReadArray(field, location)]
+            names = [SchemaName(ReadText(item, location), location)
+                     for item in ReadArray(field, location)]
 
             if len(set(names)) != len(names):
-                raise _Invalid(location, "required contains colliding redacted keys")
+                raise Invalid(location, "required contains colliding redacted keys")
 
             result[keyword] = sorted(names)
 
         elif keyword in _SCHEMA_MAPS:
             if not isinstance(field, dict):
-                raise _Invalid(location, f"{keyword} must contain an object of schemas")
+                raise Invalid(location, f"{keyword} must contain an object of schemas")
 
             entries: dict[str, object] = {}
 
             for key, child in field.items():
-                name = _SchemaName(key, location)
+                name = SchemaName(key, location)
 
                 if name in entries:
-                    raise _Invalid(location, f"{keyword} contains colliding redacted keys")
+                    raise Invalid(location, f"{keyword} contains colliding redacted keys")
 
-                entries[name] = _ProjectSchema(child, location)
+                entries[name] = ProjectSchema(child, location)
 
             result[keyword] = entries
 
         elif keyword in _SCHEMA_LISTS:
-            branches = [_ProjectSchema(item, location) for item in _ReadArray(field, location)]
+            branches = [ProjectSchema(item, location) for item in ReadArray(field, location)]
             result[keyword] = branches if keyword == "prefixItems" else sorted(
                 branches, key=CanonicalModelJson,
             )
 
         elif keyword in _SCHEMA_NODES:
-            result[keyword] = _ProjectSchema(field, location)
+            result[keyword] = ProjectSchema(field, location)
 
         elif keyword in _SCHEMA_BOOLEANS:
-            result[keyword] = _Flag(field, location)
+            result[keyword] = Flag(field, location)
 
         elif keyword in _SCHEMA_NUMBERS:
             if isinstance(field, bool) or not isinstance(field, (int, float)):
-                raise _Invalid(location, f"{keyword} must be a number")
+                raise Invalid(location, f"{keyword} must be a number")
 
             result[keyword] = field
 
         elif keyword in _SCHEMA_OPAQUE_TEXT:
-            result[keyword] = _TextFingerprint(field, location)
+            result[keyword] = TextFingerprint(field, location)
 
         elif keyword in {"enum", "examples"}:
-            _ReadArray(field, location + "/" + keyword)
+            ReadArray(field, location + "/" + keyword)
             result[keyword] = "redacted"
 
         elif keyword in _SCHEMA_LITERALS:
@@ -328,33 +425,50 @@ def _ProjectSchema(value: object, location: str, *, root: bool = False) -> objec
     return result
 
 
-def _OpaqueFields(record: dict[str, object], location: str,
+def OpaqueFields(record: dict[str, object], location: str,
                  fields: tuple[str, ...]) -> dict[str, object]:
-    """Fingerprint declared optional prose and preserve omission."""
+    """Fingerprint declared optional prose and preserve omission.
 
-    return {key + "_fingerprint": _TextFingerprint(record[key], location + "/" + key)
+    Args:
+        record: Already validated descriptor mapping.
+        location: Field path for validation errors.
+        fields: Optional text fields to fingerprint.
+
+    Returns:
+        Fingerprints of the supplied fields, keyed by their profile names.
+    """
+
+    return {key + "_fingerprint": TextFingerprint(record[key], location + "/" + key)
             for key in fields if key in record}
 
 
-def _Tool(value: object, location: str) -> tuple[str, dict[str, object]]:
-    """Validate a tool declaration, keeping hints literal and descriptor text opaque."""
+def Tool(value: object, location: str) -> tuple[str, dict[str, object]]:
+    """Validate a tool declaration, keeping hints literal and descriptor text opaque.
 
-    record = _ReadObject(value, location, {"name", "inputSchema"}, {
+    Args:
+        value: Candidate tool descriptor.
+        location: Field path for validation errors.
+
+    Returns:
+        The tool name and normalized metadata.
+    """
+
+    record = ReadObject(value, location, {"name", "inputSchema"}, {
         "outputSchema", "annotations", "description", "title", "_meta", "icons", "execution",
     })
-    name = _ReadLabel(record["name"], location + "/name")
-    hints = _ReadObject(record.get("annotations", {}), location + "/annotations",
+    name = ReadLabel(record["name"], location + "/name")
+    hints = ReadObject(record.get("annotations", {}), location + "/annotations",
                        set(), {*_HINTS, "title"})
-    data = _OpaqueFields(record, location, ("description", "title"))
+    data = OpaqueFields(record, location, ("description", "title"))
     data.update({
         "name": name,
-        "input_schema": _ProjectSchema(record["inputSchema"], location + "/inputSchema", root=True),
-        "output_schema": _ProjectSchema(
+        "input_schema": ProjectSchema(record["inputSchema"], location + "/inputSchema", root=True),
+        "output_schema": ProjectSchema(
             record["outputSchema"], location + "/outputSchema", root=True,
         ) if "outputSchema" in record else None,
         "annotations": {
-            **_OpaqueFields(hints, location + "/annotations", ("title",)),
-            **{key: _Flag(hints[key], location + "/annotations/" + key) if key in hints else None
+            **OpaqueFields(hints, location + "/annotations", ("title",)),
+            **{key: Flag(hints[key], location + "/annotations/" + key) if key in hints else None
                for key in _HINTS},
         },
     })
@@ -362,22 +476,31 @@ def _Tool(value: object, location: str) -> tuple[str, dict[str, object]]:
     return name, data
 
 
-def _Resource(value: object, location: str, identifier: str) -> tuple[str, dict[str, object]]:
-    """Describe declared resource reach without exposing, expanding or fetching locators."""
+def Resource(value: object, location: str, identifier: str) -> tuple[str, dict[str, object]]:
+    """Describe declared resource reach without exposing, expanding or fetching locators.
 
-    record = _ReadObject(value, location, {"name", identifier}, {
+    Args:
+        value: Candidate resource or template descriptor.
+        location: Field path for validation errors.
+        identifier: Name of the locator field for this descriptor kind.
+
+    Returns:
+        The redacted locator identity and normalized metadata.
+    """
+
+    record = ReadObject(value, location, {"name", identifier}, {
         "title", "description", "mimeType", "size", "_meta", "icons", "annotations",
     })
-    uri = _ReadText(record[identifier], location + "/" + identifier)
+    uri = ReadText(record[identifier], location + "/" + identifier)
     match = _URI.fullmatch(uri)
 
     if match is None:
-        raise _Invalid(location + "/" + identifier, "expected an absolute URI or URI template")
+        raise Invalid(location + "/" + identifier, "expected an absolute URI or URI template")
 
     scheme = match[1].lower()
 
-    if _RedactedText(scheme) != scheme:
-        raise _Invalid(location + "/" + identifier, "URI scheme contains credential-shaped text")
+    if RedactedText(scheme) != scheme:
+        raise Invalid(location + "/" + identifier, "URI scheme contains credential-shaped text")
 
     locator = _USERINFO.sub(r"\1", scheme + ":" + match[2])
 
@@ -385,17 +508,17 @@ def _Resource(value: object, location: str, identifier: str) -> tuple[str, dict[
         locator = _URI_QUERY_EXPRESSION.sub("", locator)
 
     locator = re.split(r"[?#]", locator, maxsplit=1)[0]
-    fingerprint = _TextFingerprint(locator, location + "/" + identifier)
-    data = _OpaqueFields(record, location, ("name", "title", "description"))
+    fingerprint = TextFingerprint(locator, location + "/" + identifier)
+    data = OpaqueFields(record, location, ("name", "title", "description"))
     data.update({"scheme": scheme, "locator_fingerprint": fingerprint})
 
     if "mimeType" in record:
-        mimeType = _ReadText(record["mimeType"], location + "/mimeType")
+        mimeType = ReadText(record["mimeType"], location + "/mimeType")
 
         if len(mimeType) > 128 or not _MIME.fullmatch(mimeType):
-            raise _Invalid(location + "/mimeType", "expected a media type with no parameters")
+            raise Invalid(location + "/mimeType", "expected a media type with no parameters")
 
-        data["mime_type_fingerprint"] = _TextFingerprint(mimeType.lower(), location + "/mimeType")
+        data["mime_type_fingerprint"] = TextFingerprint(mimeType.lower(), location + "/mimeType")
 
     if "size" in record:
         data["size"] = RequireWorkspaceInteger(record["size"], location + "/size")
@@ -403,29 +526,37 @@ def _Resource(value: object, location: str, identifier: str) -> tuple[str, dict[
     return fingerprint, data
 
 
-def _Prompt(value: object, location: str) -> tuple[str, dict[str, object]]:
-    """Project one prompt descriptor and declared argument names without rendering the prompt."""
+def Prompt(value: object, location: str) -> tuple[str, dict[str, object]]:
+    """Project one prompt descriptor and declared argument names without rendering the prompt.
 
-    record = _ReadObject(value, location, {"name"},
+    Args:
+        value: Candidate prompt descriptor.
+        location: Field path for validation errors.
+
+    Returns:
+        The prompt name and normalized metadata.
+    """
+
+    record = ReadObject(value, location, {"name"},
                         {"title", "description", "arguments", "_meta", "icons"})
-    name = _ReadLabel(record["name"], location + "/name")
-    data = _OpaqueFields(record, location, ("title", "description"))
+    name = ReadLabel(record["name"], location + "/name")
+    data = OpaqueFields(record, location, ("title", "description"))
     data.update({"name": name, "arguments": None})
 
     if "arguments" in record:
         arguments: dict[str, dict[str, object]] = {}
 
-        for index, argument in enumerate(_ReadArray(record["arguments"], location + "/arguments")):
+        for index, argument in enumerate(ReadArray(record["arguments"], location + "/arguments")):
             pointer = f"{location}/arguments/{index}"
-            declared = _ReadObject(argument, pointer, {"name"}, {"description", "required"})
-            argumentName = _ReadLabel(declared["name"], pointer + "/name")
+            declared = ReadObject(argument, pointer, {"name"}, {"description", "required"})
+            argumentName = ReadLabel(declared["name"], pointer + "/name")
 
             if argumentName in arguments:
-                raise _Invalid(pointer + "/name", "duplicate prompt argument name")
+                raise Invalid(pointer + "/name", "duplicate prompt argument name")
 
             arguments[argumentName] = {
-                **_OpaqueFields(declared, pointer, ("description",)), "name": argumentName,
-                "required": _Flag(declared["required"], pointer + "/required")
+                **OpaqueFields(declared, pointer, ("description",)), "name": argumentName,
+                "required": Flag(declared["required"], pointer + "/required")
                 if "required" in declared else None,
             }
 
@@ -434,21 +565,29 @@ def _Prompt(value: object, location: str) -> tuple[str, dict[str, object]]:
     return name, data
 
 
-def _Capability(value: object, location: str) -> tuple[str, dict[str, object]]:
-    """Record capability names and known flags, omitting extension payloads."""
+def Capability(value: object, location: str) -> tuple[str, dict[str, object]]:
+    """Record capability names and known flags, omitting extension payloads.
 
-    record = _ReadObject(value, location, {"name"}, {"declaration"})
-    name = _ReadLabel(record["name"], location + "/name")
+    Args:
+        value: Candidate capability descriptor.
+        location: Field path for validation errors.
+
+    Returns:
+        The capability name and retained declaration flags.
+    """
+
+    record = ReadObject(value, location, {"name"}, {"declaration"})
+    name = ReadLabel(record["name"], location + "/name")
     declaration = record.get("declaration", {})
 
     if not isinstance(declaration, dict):
-        raise _Invalid(location + "/declaration", "expected an object")
+        raise Invalid(location + "/declaration", "expected an object")
 
     flags = ("listChanged", "subscribe") if name == "resources" else (
         ("listChanged",) if name in ("tools", "prompts") else ()
     )
     data = {
-        key: _Flag(declaration[key], location + "/declaration/" + key)
+        key: Flag(declaration[key], location + "/declaration/" + key)
         if key in declaration else None for key in flags
     }
 
@@ -458,19 +597,27 @@ def _Capability(value: object, location: str) -> tuple[str, dict[str, object]]:
     }
 
 
-def _Section(value: object, section: str) -> dict[str, object]:
-    """Normalize one bounded section and preserve the exact enumeration state."""
+def Section(value: object, section: str) -> dict[str, object]:
+    """Normalize one bounded section and preserve the exact enumeration state.
+
+    Args:
+        value: Candidate section with its status and items.
+        section: Recognized section name controlling descriptor interpretation.
+
+    Returns:
+        The enumeration status and sorted normalized declarations.
+    """
 
     location = "#/" + section
-    record = _ReadObject(value, location, {"status", "items"}, set())
+    record = ReadObject(value, location, {"status", "items"}, set())
     status = record["status"]
-    items = _ReadArray(record["items"], location + "/items")
+    items = ReadArray(record["items"], location + "/items")
 
     if status not in _STATUS:
-        raise _Invalid(location + "/status", "expected one of " + ", ".join(_STATUS))
+        raise Invalid(location + "/status", "expected one of " + ", ".join(_STATUS))
 
     if status in ("unknown", "unsupported") and items:
-        raise _Invalid(location + "/items", "unknown and unsupported require an empty array")
+        raise Invalid(location + "/items", "unknown and unsupported require an empty array")
 
     result: dict[str, dict[str, object]] = {}
 
@@ -478,20 +625,20 @@ def _Section(value: object, section: str) -> dict[str, object]:
         pointer = f"{location}/items/{index}"
 
         if section == "tools":
-            key, data = _Tool(item, pointer)
+            key, data = Tool(item, pointer)
 
         elif section == "prompts":
-            key, data = _Prompt(item, pointer)
+            key, data = Prompt(item, pointer)
 
         elif section == "capabilities":
-            key, data = _Capability(item, pointer)
+            key, data = Capability(item, pointer)
 
         else:
             identifier = "uri" if section == "resources" else "uriTemplate"
-            key, data = _Resource(item, pointer, identifier)
+            key, data = Resource(item, pointer, identifier)
 
         if key in result:
-            raise _Invalid(pointer, "duplicate declaration identity after redaction")
+            raise Invalid(pointer, "duplicate declaration identity after redaction")
 
         result[key] = {"key": key, **data}
 
@@ -511,31 +658,31 @@ def ParseMcpInventory(value: bytes) -> dict[str, object]:
         ValueError: Syntax, profile version, structure or bounds are invalid.
     """
 
-    record = _ReadObject(_DecodeInventory(value), "#", {"schema_version", "server"},
+    record = ReadObject(DecodeInventory(value), "#", {"schema_version", "server"},
                         {"instructions", *_SECTIONS})
 
     if type(record["schema_version"]) is not int or record["schema_version"] != _MCP_VERSION:
-        raise _Invalid("#/schema_version", "expected version 1")
+        raise Invalid("#/schema_version", "expected version 1")
 
-    server = _ReadObject(record["server"], "#/server", {"name", "version"},
+    server = ReadObject(record["server"], "#/server", {"name", "version"},
                         {"protocolVersion", "title", "description", "_meta", "icons"})
     protocol = server.get("protocolVersion")
 
     if "protocolVersion" in server and (
         not isinstance(protocol, str) or not _PROTOCOL_VERSION.fullmatch(protocol)
     ):
-        raise _Invalid("#/server/protocolVersion", "expected a YYYY-MM-DD protocol revision")
+        raise Invalid("#/server/protocolVersion", "expected a YYYY-MM-DD protocol revision")
 
     return {
         "schema_version": _MCP_VERSION,
         "server": {
-            **_OpaqueFields(server, "#/server", ("name", "version", "title", "description")),
+            **OpaqueFields(server, "#/server", ("name", "version", "title", "description")),
             "protocol_version": protocol,
         },
-        "instructions_fingerprint": _TextFingerprint(record["instructions"], "#/instructions")
+        "instructions_fingerprint": TextFingerprint(record["instructions"], "#/instructions")
         if "instructions" in record else None,
         "sections": {
-            name: _Section(record[name], name) if name in record
+            name: Section(record[name], name) if name in record
             else {"status": "unknown", "items": []}
             for name in _SECTIONS
         },
@@ -553,11 +700,22 @@ class McpInventoryImport:
     snapshotReference: str
 
 
-def _ProjectInventory(
+def ProjectInventory(
     state: ModelState, serverIdentity: ObjectIdentity, inventory: dict[str, object],
     digest: str, provenance: ModelProvenance,
 ) -> tuple[ModelState, ModelDelta, str]:
-    """Prepare one canonical patch plus an immutable snapshot-membership observation."""
+    """Prepare one canonical patch plus an immutable snapshot-membership observation.
+
+    Args:
+        state: Current shared model snapshot.
+        serverIdentity: Workplace-local stable identity for this server.
+        inventory: Validated redacted inventory.
+        digest: Digest of the normalized inventory.
+        provenance: Attribution bound to the redacted evidence record.
+
+    Returns:
+        The proposed model, its delta, and the immutable observation reference.
+    """
 
     serverReference = serverIdentity.Reference()
     sections = cast(dict[str, dict[str, object]], inventory["sections"])
@@ -644,7 +802,7 @@ def ImportMcpInventory(
     if not isinstance(consent, ArtifactReadConsent):
         raise ValueError("MCP inventory requires explicit artifact read consent")
 
-    if any(_RedactedText(value) != value for value in (
+    if any(RedactedText(value) != value for value in (
         serverKey, scopeId, consent.actor_ref, consent.record_ref,
     )):
         raise ValueError("MCP server, scope and consent selections must be non-secret references")
@@ -674,7 +832,7 @@ def ImportMcpInventory(
     })
 
     if len(content) > _MAX_BYTES:
-        raise _Invalid("#", "redacted evidence exceeds its byte limit")
+        raise Invalid("#", "redacted evidence exceeds its byte limit")
 
     evidenceHash = hashlib.sha256(content).hexdigest()
     evidence = EvidenceRecord(EvidenceReference(
@@ -686,7 +844,7 @@ def ImportMcpInventory(
         _SOURCE_ID, evidence.evidence_id, collection.finished_at, collection.scope_reference,
         serverIdentity.Reference(), _SOURCE_VERSION, (evidence.reference,),
     )
-    proposal, delta, snapshotReference = _ProjectInventory(
+    proposal, delta, snapshotReference = ProjectInventory(
         state, serverIdentity, inventory, digest, provenance,
     )
     PrepareModelState(proposal)
