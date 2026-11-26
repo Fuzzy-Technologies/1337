@@ -1,7 +1,9 @@
-# Offline MCP declaration review
+# MCP declaration review
 
-The Experimental review API compares an explicitly selected [offline MCP inventory](MCP_INVENTORY.md)
+The Experimental review API compares an explicitly selected [MCP inventory](MCP_INVENTORY.md)
 with the current operator-approved snapshot for the same workspace and server.
+The selected snapshot and baseline can originate from separately verified
+offline imports or approved HTTP metadata acquisitions.
 Every review verifies the original redacted evidence manifests, their content
 addresses and the historical observations that bind their declaration digest
 and membership. It reads independent acquisitions of the same server from

@@ -8,6 +8,26 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 71 — v0.4.71 — 2026-11-27
+
+#### Digest
+
+- Collect declarations from one approved MCP server and retain the result in
+  the shared Workbench model.
+
+#### Added
+
+- Negotiate MCP Streamable HTTP and enumerate tool, resource, template and prompt
+  metadata within explicit time, byte and page limits.
+- Record the approved source, scope revision, protocol and collection completeness
+  alongside the redacted evidence. Compare live acquisitions with saved baselines.
+
+#### Security
+
+- Bind requests to an explicitly allowed literal endpoint and SAFE capability.
+  Verify TLS and keep bearer values, session identifiers and pagination cursors
+  transient.
+
 ### Patch 70 — v0.4.70 — 2026-11-27
 
 #### Digest

@@ -1127,7 +1127,7 @@ mode = "authored"
 page = "api/fuzzy1337.bridge_commands.md"
 
 [[surfaces]]
-# Experimental version-one local MCP inventory importer.
+# Experimental version-one MCP inventory publication over approved sources.
 module = "fuzzy1337.mcp_inventory"
 source = "src/fuzzy1337/mcp_inventory.py"
 mode = "authored"
@@ -1136,6 +1136,14 @@ page = "api/fuzzy1337.mcp_inventory.md"
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.Capability"
 reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.CheckMetadataServerBinding"
+reason = "Internal HTTP acquisition identity guard excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.CommitInventory"
+reason = "Internal publication path for the admitted offline and reviewed HTTP sources."
 
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.DecodeInventory"
@@ -1152,6 +1160,10 @@ reason = "Internal inventory implementation excluded from module __all__."
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.OpaqueFields"
 reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.OperatorReceipt"
+reason = "Internal receipt validation excluded from module __all__."
 
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.ProjectInventory"
@@ -1208,6 +1220,10 @@ reason = "Internal inventory implementation excluded from module __all__."
 [[exclusions]]
 symbol = "fuzzy1337.mcp_inventory.Tool"
 reason = "Internal inventory implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_inventory.ValidateMetadataAcquisition"
+reason = "Internal HTTP receipt validation shared with historical drift review."
 
 [[surfaces]]
 # Experimental offline MCP baseline approval and declaration review.
@@ -1267,6 +1283,136 @@ reason = "Internal declaration review implementation excluded from module __all_
 [[exclusions]]
 symbol = "fuzzy1337.mcp_drift.VerifyDriftEvidence"
 reason = "Internal declaration review implementation excluded from module __all__."
+
+[[surfaces]]
+# Experimental MCP metadata protocol. No registered live transport or operator surface.
+module = "fuzzy1337.mcp_metadata"
+source = "src/fuzzy1337/mcp_metadata.py"
+mode = "authored"
+page = "api/fuzzy1337.mcp_metadata.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.EventStreamResult"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.InitialInventory"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.McpMetadataFailure"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.NormalizeDeclaration"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.ParseReply"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.ReadScope"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.RpcObject"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.RpcResult"
+reason = "Internal collection implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata.CollectScopedMetadata"
+reason = "Internal session-owning implementation excluded from module __all__."
+
+[[surfaces]]
+# Experimental first-party governed MCP metadata wire SDK.
+module = "fuzzy1337.mcp_metadata_http"
+source = "src/fuzzy1337/mcp_metadata_http.py"
+mode = "authored"
+page = "api/fuzzy1337.mcp_metadata_http.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.policy.AuthorizedPermission"
+reason = "Internal shared policy check used by the existing planning and SAFE boundaries."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.CheckPost"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.CollectOwnedHttpMetadata"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.CurrentAuthority"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpExchange"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpExchange.CheckAuthority"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpExchange.Post"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpExchange.ReadCredential"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader.ReadBody"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader.ReadChunks"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader.ReadData"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader.ReadFixed"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader.ReadUntil"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpReader.Receive"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.McpHttpWireError"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.ReadEventPayload"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.ReadHeaders"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.ReadReply"
+reason = "Internal governed exchange implementation excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_metadata_http.VerifiedTls"
+reason = "Internal governed exchange implementation excluded from module __all__."
 
 [[surfaces]]
 # Internal offline MCP bridge transport; the versioned receipt is a CLI contract.

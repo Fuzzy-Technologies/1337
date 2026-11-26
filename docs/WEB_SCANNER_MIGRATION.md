@@ -69,7 +69,7 @@ need their own governed producer, independent positive/fixed/decoy targets and
 actual detector acceptance. Neither an injection coordinate nor a target-only
 mechanism establishes that coverage.
 
-## Offline MCP declaration review
+## MCP declaration inventory and review
 
 The [MCP bridge workflow](MCP_CLI_WORKFLOW.md) accepts explicitly selected
 owned [version-one inventory JSON](MCP_INVENTORY.md). It compares tools,
@@ -80,6 +80,11 @@ remain visible when coverage is incomplete. Baseline advancement requires
 an explicit operator decision tied to the exact saved review. The CLI
 returns a machine receipt for CI and uses the standard model report
 exporters for JSON and SARIF.
+
+The [governed MCP SDK](MCP_METADATA.md) collects the same declarations from
+one explicitly approved Streamable HTTP endpoint. It records the acquisition
+and any incomplete sections in the shared model for review against the same
+baseline.
 
 ## Current taxonomy references
 

@@ -322,8 +322,102 @@ class PolicyGrant:
             RequireReference(self.confirmation_reference, "confirmation_reference")
 
 
+def AuthorizedPermission(
+    capability: CapabilityDescriptor, context: PolicyContext, *, at: datetime,
+    adapterId: str, capabilityId: str, impact: ImpactLevel,
+) -> CapabilityPermission:
+    """Check scope, destination, exact provider identity, impact, and privileges.
+
+    Args:
+        capability: Trusted description of the requested capability.
+        context: Current policy, exact target and actual pinned destinations.
+        at: Validated timezone-aware decision time.
+        adapterId: Exact requested provider identity.
+        capabilityId: Exact requested capability identity.
+        impact: Requested impact requiring authorization.
+
+    Returns:
+        The matching permission after all shared checks pass.
+
+    Raises:
+        PolicyDeniedError: Current authority does not allow the operation.
+    """
+
+    if context.target.kind == TargetKind.ARTIFACT:
+        raise PolicyDeniedError(PolicyDenialReason.TARGET_MISMATCH)
+
+    decision = context.scope.Check(context.target, at=at)
+
+    if not decision.Allowed():
+        raise PolicyDeniedError(PolicyDenialReason.SCOPE_DENIED, scope_reason=decision.reason)
+
+    for destination in context.destinations:
+        decision = context.scope.Check(destination, at=at)
+
+        if not decision.Allowed():
+            raise PolicyDeniedError(
+                PolicyDenialReason.DESTINATION_DENIED, scope_reason=decision.reason
+            )
+
+    if (
+        adapterId != capability.adapter_id or capabilityId != capability.identifier
+    ):
+        raise PolicyDeniedError(PolicyDenialReason.PROVIDER_DENIED)
+
+    permission = next((item for item in context.policy.permissions if (
+        item.capability_id == capability.identifier and item.adapter_id == capability.adapter_id
+    )), None)
+
+    if permission is None:
+        raise PolicyDeniedError(PolicyDenialReason.PROVIDER_DENIED)
+
+    if any(_IMPACT_ORDER[impact] > _IMPACT_ORDER[ceiling] for ceiling in (
+        context.policy.maximum_impact, permission.maximum_impact, capability.maximum_impact
+    )):
+        raise PolicyDeniedError(PolicyDenialReason.IMPACT_DENIED)
+
+    if not set(capability.required_privileges).issubset(permission.granted_privileges):
+        raise PolicyDeniedError(PolicyDenialReason.PRIVILEGE_DENIED)
+
+    return permission
+
+
 class PolicyEngine:
     """Deterministic policy checks shared by human, AI-agent and CI operators."""
+
+    def CheckSafeCapability(
+        self, capability: CapabilityDescriptor, context: PolicyContext, *, at: datetime,
+    ) -> None:
+        """Check a trusted first-party in-process SAFE capability against current authority.
+
+        The caller owns operation binding and the final dispatch boundary. This check
+        creates no grant, launches nothing, and cannot authorize a higher impact.
+
+        Args:
+            capability: Trusted provider descriptor whose maximum impact is SAFE.
+            context: Current literal scope, policy and actual pinned destination.
+            at: Explicit timezone-aware decision time.
+
+        Raises:
+            ValueError: The capability, context, or decision time is untyped.
+            PolicyDeniedError: The capability or current authority fails closed.
+        """
+
+        RequireTime(at)
+
+        if (
+            not isinstance(capability, CapabilityDescriptor)
+            or not isinstance(context, PolicyContext)
+        ):
+            raise ValueError("SAFE checks require a CapabilityDescriptor and PolicyContext")
+
+        if capability.maximum_impact is not ImpactLevel.SAFE:
+            raise PolicyDeniedError(PolicyDenialReason.IMPACT_DENIED)
+
+        AuthorizedPermission(
+            capability, context, at=at, adapterId=capability.adapter_id,
+            capabilityId=capability.identifier, impact=ImpactLevel.SAFE,
+        )
 
     def Plan(
         self,
@@ -363,44 +457,11 @@ class PolicyEngine:
         if invocation.request.target_reference != context.target.Reference():
             raise PolicyDeniedError(PolicyDenialReason.TARGET_MISMATCH)
 
-        if context.target.kind == TargetKind.ARTIFACT:
-            raise PolicyDeniedError(PolicyDenialReason.TARGET_MISMATCH)
-
-        decision = context.scope.Check(context.target, at=at)
-
-        if not decision.Allowed():
-            raise PolicyDeniedError(PolicyDenialReason.SCOPE_DENIED, scope_reason=decision.reason)
-
-        for destination in context.destinations:
-            decision = context.scope.Check(destination, at=at)
-
-            if not decision.Allowed():
-                raise PolicyDeniedError(
-                    PolicyDenialReason.DESTINATION_DENIED, scope_reason=decision.reason
-                )
-
-        if (
-            invocation.adapter_id != capability.adapter_id
-            or invocation.request.capability != capability.identifier
-        ):
-            raise PolicyDeniedError(PolicyDenialReason.PROVIDER_DENIED)
-
-        permission = next((item for item in context.policy.permissions if (
-            item.capability_id == capability.identifier and item.adapter_id == capability.adapter_id
-        )), None)
-
-        if permission is None:
-            raise PolicyDeniedError(PolicyDenialReason.PROVIDER_DENIED)
-
         impact = invocation.request.impact
-
-        if any(_IMPACT_ORDER[impact] > _IMPACT_ORDER[ceiling] for ceiling in (
-            context.policy.maximum_impact, permission.maximum_impact, capability.maximum_impact
-        )):
-            raise PolicyDeniedError(PolicyDenialReason.IMPACT_DENIED)
-
-        if not set(capability.required_privileges).issubset(permission.granted_privileges):
-            raise PolicyDeniedError(PolicyDenialReason.PRIVILEGE_DENIED)
+        permission = AuthorizedPermission(
+            capability, context, at=at, adapterId=invocation.adapter_id,
+            capabilityId=invocation.request.capability, impact=impact,
+        )
 
         return PolicyPlan(
             invocation_sha256=InvocationDigest(invocation), capability_sha256=Digest(capability),

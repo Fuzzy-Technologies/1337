@@ -7,21 +7,43 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from fuzzy1337 import mcp_metadata_http
 from fuzzy1337.artifact_inputs import ArtifactReadConsent
-from fuzzy1337.evidence import LocalEvidenceStore
-from fuzzy1337.mcp_inventory import ImportMcpInventory, ParseMcpInventory
+from fuzzy1337.evidence import EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
+from fuzzy1337.mcp_inventory import (
+    CollectAndImportMcpMetadata,
+    ImportMcpInventory,
+    ParseMcpInventory,
+)
+from fuzzy1337.mcp_metadata import (
+    MCP_PROTOCOL_VERSION,
+    McpMetadataDenied,
+    McpMetadataIssue,
+    McpMetadataResult,
+)
 from fuzzy1337.model import LocalModelStore
-from fuzzy1337.scope import LocalScopeStore, ScopeSnapshot
+from fuzzy1337.policy import ImpactPolicy
+from fuzzy1337.scope import (
+    AuthorizationState,
+    LocalScopeStore,
+    ScopeAuthorization,
+    ScopeSnapshot,
+    Target,
+    TargetKind,
+)
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration, WorkspaceConflictError
 
 _CANARY = "synthetic-value-never-retained"
 _OBSERVED = "2026-11-26T12:00:00+00:00"
 _SOURCE = Path(__file__).parents[1] / "contract" / "fixtures" / "mcp.inventory.v1.json"
+_LIVE_SOURCE = Target(TargetKind.URL, "http://127.0.0.1:4819/catalog")
+_LIVE_ADDRESS = Target(TargetKind.IP, "127.0.0.1")
 
 
 def Sample() -> Any:
@@ -285,3 +307,214 @@ def test_PublishedEvidenceAndNewAcquisitionStayAttributable(tmp_path: Path) -> N
     assert evidence.Get(second.evidence.evidence_id) == second.evidence, "Evidence failed replay"
     assert first.snapshotReference != second.snapshotReference, "Observation history was lost"
     assert second.delta.revision == 2, "A separately attributed acquisition must advance once"
+
+
+def ApprovedMetadataScope(model: LocalModelStore, scopeId: str = "live") -> ScopeSnapshot:
+    """Register the synthetic literal endpoint and receipt in the selected owner."""
+
+    targets = (_LIVE_SOURCE, _LIVE_ADDRESS)
+
+    return LocalScopeStore(model.root).Create(ScopeSnapshot(
+        scopeId, model.Open().workspace_id,
+        ScopeAuthorization(AuthorizationState.GRANTED, "actor:operator", "consent:local-peer"),
+        targets=targets, allow=targets,
+    ))
+
+
+def RunMetadataImport(
+    model: LocalModelStore, *, scopeId: str = "live", revision: int = 0,
+    endpoint: str = _LIVE_SOURCE.value, approved: bool = True,
+) -> Any:
+    """Select the real owner workflow with a policy that cannot send any request by itself."""
+
+    return CollectAndImportMcpMetadata(
+        model, endpoint, serverKey="sample", scopeId=scopeId, approved=approved,
+        expectedRevision=revision, policyProvider=lambda: ImpactPolicy("fixture-policy"),
+    )
+
+
+def FakeMetadata(scope: ScopeSnapshot, **changes: Any) -> McpMetadataResult:
+    """Return a synthetic result for the narrow reviewed collector boundary in owner tests."""
+
+    complete = McpMetadataResult(
+        _LIVE_SOURCE.Reference(), scope.Reference(), scope.revision, MCP_PROTOCOL_VERSION,
+        ParseMcpInventory(_SOURCE.read_bytes()), (),
+    )
+
+    return replace(complete, **changes)
+
+
+def test_FailedMetadataInitializationLeavesExistingOwnersUnchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Return fixed initialization diagnostics without publishing any model or evidence."""
+
+    model = CreateModel(tmp_path / "workspace")
+    scope = ApprovedMetadataScope(model)
+    failure = FakeMetadata(
+        scope, protocolVersion=None, inventory=None,
+        issues=(McpMetadataIssue("initialize", "timeout"),),
+    )
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", lambda *a, **k: failure)
+    outcome, imported = RunMetadataImport(model)
+
+    assert outcome == failure and imported is None, "Failed initialization created an inventory"
+    assert model.Open().revision == 0, "Failed initialization advanced shared model state"
+    assert list((model.root / "evidence").iterdir()) == [], "Failure published evidence"
+
+
+@pytest.mark.parametrize(("changes", "exception", "diagnostic"), [
+    ({"scopeReference": "scope:other"}, McpMetadataDenied, "exact scope"),
+    ({"scopeRevision": 1}, McpMetadataDenied, "exact scope"),
+    ({"sourceReference": "target:" + "a" * 64}, McpMetadataDenied, "exact scope"),
+    ({"protocolVersion": None}, ValueError, "negotiated protocol disagrees"),
+    ({"issues": (McpMetadataIssue("tools", "synthetic-secret-diagnostic"),)}, ValueError,
+     "fixed unique collection diagnostics"),
+])
+def test_MetadataAttributionMismatchDoesNotPublish(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changes: dict[str, Any],
+    exception: type[Exception], diagnostic: str,
+) -> None:
+    """Fail before evidence creation when the approved collector's facts do not bind."""
+
+    model = CreateModel(tmp_path / "workspace")
+    scope = ApprovedMetadataScope(model)
+    result = FakeMetadata(scope, **changes)
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", lambda *a, **k: result)
+
+    with pytest.raises(exception, match=diagnostic):
+        RunMetadataImport(model)
+
+    assert model.Open().revision == 0, "Inconsistent source attribution changed shared state"
+    assert list((model.root / "evidence").iterdir()) == [], "Inconsistent attribution was retained"
+
+
+def test_CollectedMetadataCannotRebindServerOrUseAnUnselectedBasis(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Refuse unapproved, stale, malformed and cross-scope selections before calling HTTP."""
+
+    model = CreateModel(tmp_path / "workspace")
+    scope = ApprovedMetadataScope(model)
+    result = FakeMetadata(scope, issues=(McpMetadataIssue("prompts", "timeout"),))
+    result.inventory["sections"]["prompts"]["status"] = "incomplete"
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", lambda *a, **k: result)
+    _, imported = RunMetadataImport(model)
+    assert imported is not None and imported.state.revision == 1, "Partial evidence was lost"
+    ApprovedMetadataScope(model, "other")
+    evidence = LocalEvidenceStore(model.root / "evidence")
+    acquisition = json.loads(evidence.Read(imported.evidence.reference))["acquisition"]
+    assert acquisition["issues"] == [{"stage": "prompts", "reason": "timeout"}], (
+        "The fixed incompleteness reason was not retained with the snapshot"
+    )
+
+    def DenyExchange(*args: object, **kwargs: object) -> None:
+        """Prove a rejected selection never reaches the transport boundary."""
+
+        pytest.fail("An unauthorized owner selection reached the HTTP collector")
+
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", DenyExchange)
+
+    with pytest.raises(McpMetadataDenied, match="explicit approval"):
+        RunMetadataImport(model, revision=1, approved=False)
+
+    with pytest.raises(WorkspaceConflictError, match="model revision changed"):
+        RunMetadataImport(model)
+
+    with pytest.raises(ValueError, match="endpoint selection is invalid"):
+        RunMetadataImport(model, revision=1, endpoint=_LIVE_SOURCE.value + "?secret=canary")
+
+    with pytest.raises(ValueError, match="already bound"):
+        RunMetadataImport(model, revision=1, scopeId="other")
+
+    assert model.Open() == imported.state, "A rejected selection changed the collected model"
+    assert len(list((model.root / "evidence" / "records").iterdir())) == 1, (
+        "A rejected selection created extra evidence"
+    )
+
+
+def test_MetadataScopeChangesAfterCollectionBeforeCommit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reopen the same scope after the final reply and refuse a changed owner basis."""
+
+    model = CreateModel(tmp_path / "workspace")
+    scope = ApprovedMetadataScope(model)
+    result = FakeMetadata(scope)
+
+    def ChangeScope(*args: object, **kwargs: object) -> McpMetadataResult:
+        """Simulate an approved receipt update after the last network boundary."""
+
+        LocalScopeStore(model.root).Save(replace(scope, authorization=ScopeAuthorization(
+            AuthorizationState.GRANTED, "actor:operator", "consent:new-receipt",
+        )))
+
+        return result
+
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", ChangeScope)
+
+    with pytest.raises(McpMetadataDenied, match="exact scope"):
+        RunMetadataImport(model)
+
+    assert model.Open().revision == 0, "A stale scope allowed a model update"
+    assert list((model.root / "evidence").iterdir()) == [], "A stale scope created evidence"
+
+
+def test_ModelChangeDuringMetadataCollectionStopsNewEvidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve a competing local import when collection outlives its model CAS basis."""
+
+    model = CreateModel(tmp_path / "workspace")
+    scope = ApprovedMetadataScope(model)
+    result = FakeMetadata(scope)
+
+    def ChangeModel(*args: object, **kwargs: object) -> McpMetadataResult:
+        """Commit an independent offline import before returning accepted metadata."""
+
+        Import(_SOURCE, model, 0)
+
+        return result
+
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", ChangeModel)
+
+    with pytest.raises(WorkspaceConflictError, match="model changed during"):
+        RunMetadataImport(model)
+
+    assert model.Open().revision == 1, "Collection overwrote the competing model transition"
+    assert len(list((model.root / "evidence" / "records").iterdir())) == 1, (
+        "Collection published evidence after discovering a stale model basis"
+    )
+
+
+def test_RevocationAfterEvidencePublicationLeavesTheModelUnchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Recheck publication authority after evidence Put and before model CAS."""
+
+    model = CreateModel(tmp_path / "workspace")
+    scope = ApprovedMetadataScope(model)
+    result = FakeMetadata(scope)
+    publish = LocalEvidenceStore.Put
+
+    def PutThenRevoke(
+        store: LocalEvidenceStore, data: bytes, role: str, mediaType: str,
+        provenance: EvidenceProvenance,
+    ) -> EvidenceRecord:
+        """Revoke the exact scope once evidence publication has acknowledged."""
+
+        record = publish(store, data, role, mediaType, provenance)
+        LocalScopeStore(model.root).Save(replace(scope, authorization=ScopeAuthorization()))
+
+        return record
+
+    monkeypatch.setattr(mcp_metadata_http, "CollectMcpMetadataHttp", lambda *a, **k: result)
+    monkeypatch.setattr(LocalEvidenceStore, "Put", PutThenRevoke)
+
+    with pytest.raises(McpMetadataDenied, match="scope denied"):
+        RunMetadataImport(model)
+
+    assert model.Open().revision == 0, "Revoked scope still published a model transition"
+    assert len(list((model.root / "evidence" / "records").iterdir())) == 1, (
+        "Revocation erased independently published redacted evidence"
+    )

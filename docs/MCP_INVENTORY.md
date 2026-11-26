@@ -137,5 +137,36 @@ the immutable observation. The report reader verifies model-linked evidence
 bytes through the existing reporting path. This import does not separately
 update the workspace's manifest index.
 
+## Retain an approved HTTP metadata acquisition
+
+`CollectAndImportMcpMetadata` takes an existing model, a stable server key,
+an exact endpoint and scope, explicit opt-in, the expected model revision,
+and the current policy provider. Its optional credential provider supplies
+in-memory authorization material to the reviewed [HTTP collector](MCP_METADATA.md).
+The collector normalizes the declared metadata before passing it to the
+shared evidence and model owners.
+
+The returned pair holds the redacted collection result and an optional
+`McpInventoryImport`. When initialization fails, the caller receives the
+fixed failure diagnostic and no durable snapshot. After a successful
+initialization, accepted pages can form an incomplete inventory. The
+receipt and matching `mcp-inventory-snapshot` observation bind the exact
+endpoint reference, scope reference and revision, negotiated protocol,
+scope authority and consent record, observed time, and fixed incompleteness
+diagnostics. The receipt profile is `metadata-http-v1`. The scope must
+still match its original state after collection, before publishing evidence,
+and before the model CAS. An existing collected server key stays bound to
+its endpoint and scope. The two storage owners acknowledge independently.
+Revocation or a model CAS failure after evidence publication can leave a
+redacted acquisition without a model link.
+
+The offline `offline-v1` receipt keeps its original bytes and identity.
+Both profiles bind the same normalized declaration digest and use the
+same model identities. Historical review reopens each receipt through
+the existing evidence owner, independently of the server's latest
+declarations. The workspace retains redacted declarations and attribution.
+HTTP response bytes, cursors, session identifiers and credentials stay
+inside the collection boundary.
+
 See [ADR 0158](adr/0158-owned-offline-mcp-inventory.md) for identity, storage
 sequencing, and compatibility details.
