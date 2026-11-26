@@ -54,6 +54,11 @@ After the basic recipe, use the [guided development assessment](GUIDED_ASSESSMEN
 to connect a real Finding, explicitly synthetic Intel, the five-level scale and
 readable offline HTML. It requires the reviewed development wheel above.
 
+For an entirely offline metadata review, use the
+[MCP catalog example](MCP_CLI_WORKFLOW.md) with the same development wheel.
+Approve a selected baseline, review the checked-in change and export the
+resulting finding as standard JSON and SARIF.
+
 ## Preview, approve and run
 
 Create an artifact parent and display the actual plan:

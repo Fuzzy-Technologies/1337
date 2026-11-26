@@ -293,7 +293,7 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="bridge",
-            summary="Import owned saved SARIF source assertions or inspect their original custody.",
+            summary="Import or inspect SARIF. Review offline declarations with 1337 bridge mcp.",
             usage="1337 bridge sarif <import|inspect> <workspace>",
         ),
         CommandDescriptor(

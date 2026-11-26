@@ -8,6 +8,19 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 70 — v0.4.70 — 2026-11-27
+
+#### Digest
+
+- Review saved MCP declarations from the bridge CLI.
+
+#### Added
+
+- Import an offline inventory, record an explicit baseline approval, and review
+  an immutable snapshot from the shell or CI.
+- Return distinct statuses for confirmed changes, incomplete reviews, and
+  operational failures. Export retained findings through the existing reports.
+
 ### Patch 69 — v0.4.69 — 2026-11-27
 
 #### Digest

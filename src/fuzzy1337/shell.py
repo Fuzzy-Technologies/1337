@@ -578,7 +578,7 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         helpText = {
             "": (
-                "api import graphql-introspection, bridge sarif <import|inspect>, "
+                "api import graphql-introspection, bridge <sarif|mcp>, "
                 "business inspect, ci scan, commands, "
                 "context, demo local, "
                 "history [query], image export-local, extension validate, "
@@ -656,7 +656,8 @@ class InteractiveShell(cmd.Cmd):
             ),
             "bridge": (
                 "bridge sarif <import|inspect> <workspace>: retain an explicit saved file or "
-                "verify original/receipt/SHA pins; source URI/path strings are never opened."
+                "verify original/receipt/SHA pins. "
+                "bridge mcp <import|approve|review> <workspace>: review saved declarations."
             ),
             "trace": (
                 "trace ioc <import|inspect|export-bundle|verify-bundle>: import selected "
@@ -883,10 +884,10 @@ class InteractiveShell(cmd.Cmd):
         self.RunLocalCommand("report", argument)
 
     def do_bridge(self, argument: str) -> None:
-        """Import or inspect saved external reports without deriving source or execution authority.
+        """Import or inspect saved SARIF and review owned offline MCP declarations.
 
         Args:
-            argument: Explicit saved-report action, file or original custody and SHA selections.
+            argument: Explicit bridge profile, action and owned file or immutable selections.
         """
 
         self.RunLocalCommand("bridge", argument)

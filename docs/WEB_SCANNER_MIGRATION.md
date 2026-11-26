@@ -69,6 +69,18 @@ need their own governed producer, independent positive/fixed/decoy targets and
 actual detector acceptance. Neither an injection coordinate nor a target-only
 mechanism establishes that coverage.
 
+## Offline MCP declaration review
+
+The [MCP bridge workflow](MCP_CLI_WORKFLOW.md) accepts explicitly selected
+owned [version-one inventory JSON](MCP_INVENTORY.md). It compares tools,
+input schemas, declared side-effect hints, resource and template membership,
+and opaque server instruction fingerprints against an approved snapshot.
+Partial sections leave unlisted membership unknown, and confirmed changes
+remain visible when coverage is incomplete. Baseline advancement requires
+an explicit operator decision tied to the exact saved review. The CLI
+returns a machine receipt for CI and uses the standard model report
+exporters for JSON and SARIF.
+
 ## Current taxonomy references
 
 Reference check on 2026-10-15: [OWASP Top 10 2025](https://top10.owasp.org/2025/),

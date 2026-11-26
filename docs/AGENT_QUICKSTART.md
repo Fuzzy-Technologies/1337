@@ -25,6 +25,11 @@ from fictional training CVE assertions, preserves candidate-only associations an
 verifies readable HTML after the owned target stops. Use Python 3.13+ and install
 the development wheel with its required pinned FuzzyRoutines dependency.
 
+For an offline declaration review, use the
+[shared MCP catalog example](MCP_CLI_WORKFLOW.md). Ask the operator to approve
+the exact baseline and any later advancement. Retain the bridge receipt,
+its exit status and the JSON and SARIF reports from the same saved model.
+
 ## Give an agent the bounded task
 
 Read the prompt for [English](i18n/agent-onboarding/en.md),

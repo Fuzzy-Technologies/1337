@@ -1120,7 +1120,7 @@ mode = "authored"
 page = "api/fuzzy1337.bridge_sarif.md"
 
 [[surfaces]]
-# Internal IMPORT-only file/retained operator facade; no public Python SDK.
+# Internal saved SARIF custody and offline MCP review command facade.
 module = "fuzzy1337.bridge_commands"
 source = "src/fuzzy1337/bridge_commands.py"
 mode = "authored"
@@ -1267,3 +1267,30 @@ reason = "Internal declaration review implementation excluded from module __all_
 [[exclusions]]
 symbol = "fuzzy1337.mcp_drift.VerifyDriftEvidence"
 reason = "Internal declaration review implementation excluded from module __all__."
+
+[[surfaces]]
+# Internal offline MCP bridge transport; the versioned receipt is a CLI contract.
+module = "fuzzy1337.mcp_commands"
+source = "src/fuzzy1337/mcp_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.mcp_commands.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.bridge_commands.ParseBridgeArguments"
+reason = "Internal bridge transport helper excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_commands.AddMcpBridgeActions"
+reason = "Internal bridge transport helper excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_commands.McpChangeFields"
+reason = "Internal bridge transport helper excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_commands.RunMcpBridge"
+reason = "Internal bridge transport helper excluded from module __all__."
+
+[[exclusions]]
+symbol = "fuzzy1337.mcp_commands.WriteMcpReceipt"
+reason = "Internal bridge transport helper excluded from module __all__."

@@ -1,6 +1,6 @@
 # fuzzy1337.bridge_commands
 
-Internal IMPORT-only operator facade over existing physical-file and evidence
+Internal operator facade over existing physical-file, evidence, and model
 owners. `bridge sarif import` requires an explicit existing file, SHA, workspace,
 scope and actor/read-consent descriptions; `inspect` requires independently
 selected original/receipt/SHA pins. It starts no provider and changes no
@@ -17,6 +17,11 @@ an action. Failed/short writes are not retried; inspection uses retained origina
 without an input file, provider, clock or owner write.
 
 See the [operator guide](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/BRIDGE_SARIF_IMPORT.md).
-All helpers remain Internal; the terminal profile is Experimental version one.
+
+`bridge mcp` accepts a selected offline inventory and exact model revision,
+records operator approvals, and reviews verified declarations. The
+[MCP command transport](fuzzy1337.mcp_commands.md) returns versioned
+outcomes for humans and CI. Helpers are Internal and the terminal
+profiles are Experimental version one.
 
 ::: fuzzy1337.bridge_commands

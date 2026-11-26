@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal IMPORT-only saved SARIF command over existing physical-file and evidence owners."""
+"""Route owned saved SARIF custody and offline MCP review through existing stores."""
 
 from __future__ import annotations
 
@@ -36,6 +36,7 @@ from fuzzy1337.evidence import (
     RequireEvidenceDigest,
 )
 from fuzzy1337.intelligence_commands import IntelArgumentParser, IntelFailure, IntelPath
+from fuzzy1337.mcp_commands import AddMcpBridgeActions, RunMcpBridge
 from fuzzy1337.policy import UtcNow
 from fuzzy1337.scope import LocalScopeStore
 from fuzzy1337.workspace import LocalWorkspaceStore
@@ -46,7 +47,7 @@ MAX_TERMINAL_BYTES = 2 * 1024 * 1024
 
 
 def BridgeParser(topic: tuple[str, ...] = ()) -> argparse.ArgumentParser:
-    """Declare only explicit saved-report intake and independently anchored retained inspection.
+    """Declare explicit saved SARIF custody and offline MCP review selections.
 
     Args:
         topic: Exact optional help path, without reading any source or workspace.
@@ -72,12 +73,20 @@ def BridgeParser(topic: tuple[str, ...] = ()) -> argparse.ArgumentParser:
     inspect.add_argument("--original", required=True)
     inspect.add_argument("--receipt", required=True)
     inspect.add_argument("--expected-sha256", required=True)
+    mcp = profiles.add_parser("mcp", add_help=False, allow_abbrev=False)
+    mcpActions = AddMcpBridgeActions(mcp)
 
     if topic == ("sarif",):
         return sarif
 
+    if topic == ("mcp",):
+        return mcp
+
     if len(topic) == 2 and topic[0] == "sarif" and topic[1] in actions.choices:
         return actions.choices[topic[1]]
+
+    if len(topic) == 2 and topic[0] == "mcp" and topic[1] in mcpActions:
+        return mcpActions[topic[1]]
 
     return parser
 
@@ -99,6 +108,24 @@ def BridgeArguments(arguments: Sequence[str]) -> None:
                 raise IntelFailure("configuration", 2)
 
             seen.add(name)
+
+
+def ParseBridgeArguments(arguments: Sequence[str]) -> argparse.Namespace:
+    """Apply shared exact bridge grammar before any selected local owner is opened.
+
+    Args:
+        arguments: Explicit profile, action and scalar CLI selections.
+
+    Returns:
+        Validated syntax independently of the selected workspace or evidence.
+
+    Raises:
+        IntelFailure: Command grammar rejects missing, repeated or invalid option values.
+    """
+
+    BridgeArguments(arguments)
+
+    return BridgeParser().parse_args(arguments)
 
 
 def BridgeRoot(value: str) -> None:
@@ -141,32 +168,39 @@ def RunBridgeCommands(
     arguments: Sequence[str], output: TextIO, *, jsonOutput: bool = False,
     clock: Callable[[], datetime] = UtcNow,
 ) -> int:
-    """Import one owned file or inspect exact retained SARIF custody without running an analyzer.
+    """Dispatch explicit saved SARIF or offline MCP operations to their existing owners.
 
     Args:
-        arguments: Explicit local profile/action and caller-owned source or original receipt pins.
+        arguments: Explicit local profile/action, source or immutable saved selections.
         output: Caller-owned terminal stream; no partial source projection is written.
-        jsonOutput: Emit the distinct version-one source-assertion outcome.
-        clock: Actual local file-copy observation clock, unused during retained inspection.
+        jsonOutput: Emit the selected profile's version-one outcome.
+        clock: Actual acquisition clock for the saved SARIF import profile.
 
     Returns:
-        Zero for help or complete verified custody; two for configuration, four for integrity,
-        parsing, storage or presentation refusal, and 130 for interruption.
+        Zero for help, custody, approval or unchanged review; one for verified MCP drift;
+        two for configuration, three for missing MCP baseline, four for integrity, parsing,
+        storage or presentation refusal, five for incomplete MCP review, and 130 for interruption.
     """
 
     selected = list(arguments)
 
     if selected and selected[-1] in ("--help", "-h") and tuple(selected[:-1]) in (
         (), ("sarif",), ("sarif", "import"), ("sarif", "inspect"),
+        ("mcp",), ("mcp", "import"), ("mcp", "approve"), ("mcp", "review"),
     ):
         helpOutput = StringIO()
         BridgeParser(tuple(selected[:-1])).print_help(file=helpOutput)
         text = helpOutput.getvalue()
 
         if output.write(text) != len(text):
-            raise OSError("SARIF help output was not written completely")
+            raise OSError("Bridge help output was not written completely")
 
         return 0
+
+    if selected and selected[0] == "mcp":
+        return RunMcpBridge(
+            arguments, output, parseArguments=ParseBridgeArguments, jsonOutput=jsonOutput,
+        )
 
     outcome: dict[str, object] = {
         "schema_version": 1, "profile": "bridge-sarif-source-cli-v1", "command": "bridge.sarif",
@@ -181,8 +215,7 @@ def RunBridgeCommands(
     phase = "configuration"
 
     try:
-        BridgeArguments(arguments)
-        options = BridgeParser().parse_args(arguments)
+        options = ParseBridgeArguments(arguments)
         RequireEvidenceDigest(options.expected_sha256)
         outcome["command"] = "bridge.sarif." + options.action
 
