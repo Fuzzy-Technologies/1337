@@ -175,17 +175,21 @@ shared integration profiles once through CI. Return it to draft before
 intermediate follow-up work; this cancels any running integration gate. A new head on an already ready
 PR reruns full CI so changed code cannot inherit earlier green evidence.
 
-Ordinary Ready PRs and stable/master routes retain the complete native and
-container checks. An independently admitted passive batch to `develop` runs all
-units once on Ubuntu Python 3.13, then appends the reviewed offline boundaries.
-Its explicit changed-production-module gate requires strictly >80% combined
-statement/branch coverage; installed CLI children use the passive-only subprocess
-measurement configuration. Python 3.14 and Windows exercise runner, report and workspace compatibility;
-Windows also exercises the actual owned TLS cleanup boundary. macOS uses the
-offline runner/progress portability selection. The container exercises real
-clean-wheel installation and process/coverage integration. These compatibility
-checks retain actual JUnit reports and do not claim complete repository coverage.
-The authoritative unit job, macOS and container retain static/performance/build
+Ready PRs to `master` and pushes to `master` run the complete native and container
+checks. Ordinary Ready PRs to `develop` run the complete checks on Ubuntu,
+Windows and the container. The required macOS job for Ready PRs to `develop`
+runs naming, compile, lint, typecheck, performance, offline runner/progress and
+workspace relocation tests, and a package build.
+
+An independently admitted passive batch to `develop` runs all units once on
+Ubuntu Python 3.13, then appends the reviewed offline boundaries. Its explicit
+changed-production-module gate requires strictly >80% combined statement/branch
+coverage; installed CLI children use the passive-only subprocess measurement
+configuration. Python 3.14 and Windows exercise runner, report and workspace
+compatibility; Windows also exercises the actual owned TLS cleanup boundary.
+The container exercises real clean-wheel installation and process/coverage
+integration. Focused compatibility jobs retain actual JUnit reports. The
+authoritative unit job, macOS and container retain static/performance/build
 phases. See [ADR 0150](adr/0150-development-test-profiles.md).
 
 A passive branch name requests verification against the separately reviewed exact

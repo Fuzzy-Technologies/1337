@@ -280,8 +280,9 @@ jobs:
           --junitxml=functional-evidence/passive-windows-tls.xml
       - name: Run macOS quality checks before pytest
         if: >-
-          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
-          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          (needs.saved-report-acceptance.outputs.integration_profile == 'passive' ||
+          needs.saved-report-acceptance.outputs.integration_profile == 'full')
+          && github.event_name == 'pull_request' && github.event.pull_request.draft == false
           && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
         run: |
           uv run --locked --extra dev 1337-dev compile
@@ -290,19 +291,22 @@ jobs:
           uv run --locked --extra dev 1337-dev performance
       - name: Run focused macOS portability tests
         if: >-
-          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
-          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          (needs.saved-report-acceptance.outputs.integration_profile == 'passive' ||
+          needs.saved-report-acceptance.outputs.integration_profile == 'full')
+          && github.event_name == 'pull_request' && github.event.pull_request.draft == false
           && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
         timeout-minutes: 5
         run: |
           uv run --locked --extra dev pytest -q -x -n 0 --timeout=15 \
             --timeout-method=thread -o addopts='' --strict-config --strict-markers --no-cov \
             tests/unit/test_test_runner.py tests/unit/test_test_progress.py \
+            tests/integration/test_workspace_lifecycle.py::test_WorkspaceLifecycleSurvivesReopenDerivedStateRemovalAndRelocation \
             --junitxml=functional-evidence/macos-portability.xml
       - name: Run macOS package build
         if: >-
-          needs.saved-report-acceptance.outputs.integration_profile == 'passive' &&
-          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          (needs.saved-report-acceptance.outputs.integration_profile == 'passive' ||
+          needs.saved-report-acceptance.outputs.integration_profile == 'full')
+          && github.event_name == 'pull_request' && github.event.pull_request.draft == false
           && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
         run: uv run --locked --extra dev 1337-dev build
       - name: Run repository quality gate
@@ -310,6 +314,8 @@ jobs:
           needs.saved-report-acceptance.outputs.integration_profile == 'full' && (
           github.event_name == 'push' || (github.event_name == 'pull_request'
           && github.event.pull_request.draft == false))
+          && !(github.event_name == 'pull_request'
+          && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS')
         env:
           FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
           FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}

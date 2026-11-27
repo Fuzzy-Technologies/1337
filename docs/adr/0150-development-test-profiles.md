@@ -19,16 +19,19 @@ only the changed feature and its regressions.
 ## Decision
 
 Keep existing required job names, readiness and draft cancellation semantics.
-Ordinary integration and stable/master routes retain their complete native and
-container gates. Only an independently admitted Ready passive batch to `develop`
-uses these profiles:
+Ready PRs and pushes to `master` retain their complete native and container gates.
+For ordinary Ready PRs to `develop`, Ubuntu, Windows and the container retain the
+complete gate. macOS uses its focused profile for all admitted Ready PRs to
+`develop`, including the existing offline workspace relocation case that reopens
+persisted workspace data and verifies original evidence bytes after the move.
+An independently admitted Ready passive batch to `develop` uses these profiles:
 
 | Job                           | Test responsibility                                           |
 | ----------------------------- | ------------------------------------------------------------- |
 | Ubuntu / Python 3.13          | Units/boundaries or verified test-only files; scoped coverage |
 | Ubuntu / Python 3.14          | Runner, report, and workspace compatibility units             |
 | Windows / Python 3.13         | Compatibility units and actual owned TLS lifecycle boundary   |
-| macOS / Python 3.13           | Offline runner/progress portability selection from #512       |
+| macOS / Python 3.13           | Offline runner, progress and workspace relocation cases       |
 | Linux container / Python 3.13 | Clean wheel/runtime installation and actual worker execution  |
 
 The authoritative Linux unit job retains compile, lint, typing, performance and
@@ -57,8 +60,8 @@ inventory reuses the existing coverage validator without changing any measured
 counts or its strict combined statement/branch >80% threshold. Raw whole-source
 coverage and the scoped receipt are retained; the receipt explicitly declines a
 global all-module claim. Removed/aliased modules and missing branch measurements
-refuse acceptance. Ordinary full checkpoints and master retain their complete
-all-layer, all-module coverage gate.
+refuse acceptance. Ubuntu and Windows ordinary full checkpoints and all native
+master checks retain their complete all-layer, all-module coverage gate.
 
 The required Python workflow verifies the complete batch against a separately
 reviewed manifest in a captured immutable registry commit. A branch prefix requests passive verification and
@@ -166,8 +169,9 @@ batch cannot.
 ## Validation
 
 Workflow tests interpret the actual profile conditions across 128 combinations
-of event, base branch, draft state, matrix cell and admitted profile. Each admitted route must execute
-exactly one real profile. Draft routes execute neither.
+of event, base branch, draft state, matrix cell and admitted profile. They check
+that each admitted route selects one profile, including all three macOS
+portability phases together. Draft and held routes select no integration profile.
 
 A real runner regression uses two independent synthetic modules and a bounded
 rendezvous to require two simultaneously active OS worker processes. Eight
