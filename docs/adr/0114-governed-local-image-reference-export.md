@@ -78,6 +78,20 @@ archive without overwrite beneath the selected owning workspace only after
 all acceptance checks. Preserve preexisting workspace/model/evidence facts and
 report actual acknowledgement uncertainty if any persistence step fails.
 
+## Retained export completion
+
+An explicit SDK request can retain a version-one completion receipt through the
+existing evidence owner after the job reaches `COMPLETED` and the workspace save
+and readback acknowledge the exact expected revision. The separate receipt
+binds that revision, the selected job and target, the ordered original records,
+and the archive hash, byte count and config identity. A reader selects the
+returned evidence ID and verifies the original records and archive bytes in the
+current workspace. Successful offline verification works after relocation.
+
+Failed jobs may leave original operation records through cleanup. Those records
+and an archive file establish acquisition facts. The completion receipt is the
+export owner's separate record of terminal acceptance.
+
 ## Acceptance
 
 Focused deterministic tests cover reference grammar, fixed argv, exact authority,

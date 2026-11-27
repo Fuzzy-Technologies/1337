@@ -5,6 +5,7 @@
 
 import asyncio
 import json
+import shutil
 from dataclasses import replace
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import pytest
 
 from fuzzy1337 import local_image_workflow as product
 from fuzzy1337.adapters import ExecutionState
-from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.jobs import JobFailureCode, JobState
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.scope import AuthorizationState, LocalScopeStore
@@ -108,6 +109,10 @@ def test_ExportPublishesSeparateArchivePinPreservingModelAndEvidence(export_runn
         "Each actual command must retain original stdout, stderr and receipt before acceptance."
     )
     store = LocalEvidenceStore(root / "evidence")
+    assert summary.completion_record_reference is None and len(
+        tuple((store.root / "records").glob("*.json"))
+    ) == 9, "The default SDK invocation must retain only the nine original acquisition records."
+
     for artifact in summary.snapshot.artifacts:
         assert store.Get(artifact.evidence.evidence_id) == artifact.evidence, (
             "Every original job artifact must reopen with its unchanged canonical evidence ID."
@@ -122,12 +127,212 @@ def test_ExportPublishesSeparateArchivePinPreservingModelAndEvidence(export_runn
     ), "Archive byte identity and selected config identity must remain separate."
 
 
+def test_ReplayVerifiesAcceptedExportAfterRelocation(export_runner, export_case, tmp_path):
+    """Offline replay uses retained evidence after original paths and archive are removed."""
+
+    selection, _, _, _ = export_case
+    root = selection.workspace_root
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
+    reference = summary.completion_record_reference
+    assert reference is not None and reference not in (
+        summary.ToDict()["evidence_record_references"]
+    ), "The optional SDK completion ID is separate from the original acquisition list."
+    assert "completion_record_reference" not in summary.ToDict(), (
+        "The legacy JSON summary must keep its exact field contract."
+    )
+    (root / summary.archive_relative_path).unlink()
+    relocated = tmp_path / "relocated"
+    shutil.move(root, relocated)
+    workspace = LocalWorkspaceStore(relocated)
+    original = workspace.Open()
+    workspace.Save(original)
+    saved = workspace.Open()
+    model = LocalModelStore(relocated).Open()
+    replay = product.VerifyLocalImageExportCompletion(relocated, reference)
+    assert replay.pin == summary.archive_pin and replay.archive_stdout == OriginalArchive(), (
+        "Relocated replay must reconstruct the exact acknowledged archive and config pin."
+    )
+    assert replay.job_reference == summary.snapshot.spec.job_id, (
+        "Replay must reopen only the original job."
+    )
+    assert replay.target_reference == selection.Target().Reference(), (
+        "Replay must preserve the exact selected source target."
+    )
+    assert replay.operation_records == tuple(
+        artifact.evidence for artifact in summary.snapshot.artifacts
+    ), "Replay must return all nine originals in operation and role order."
+    assert replay.workspace_revision == original.revision, (
+        "Replay must report the original acknowledged revision."
+    )
+    assert workspace.Open() == saved and LocalModelStore(relocated).Open() == model, (
+        "Offline verification must preserve saved workspace and model state."
+    )
+
+
+@pytest.mark.parametrize("tamper", (
+    "proof", "archive", "cross-run", "cross-job", "reordered", "unlinked", "wrong-pin",
+))
+def test_ReplayRefusesChangedCompletionOrAcquisitions(
+    export_runner, export_case, tamper,
+):
+    """Replay refuses corruption and newly addressed receipts with inconsistent ownership."""
+
+    selection, _, _, _ = export_case
+    root = selection.workspace_root
+    first = RunExport(export_runner, export_case, retainCompletion=True)
+    reference = first.completion_record_reference
+    assert reference is not None, (
+        "Only the explicitly retained completion ID can select replay."
+    )
+    store = LocalEvidenceStore(root / "evidence")
+    receipt = store.Get(reference)
+
+    if tamper in ("proof", "archive"):
+        archive = first.snapshot.artifacts[3].evidence.reference
+        raw = receipt.reference if tamper == "proof" else archive
+        (store.root / raw.locator).write_bytes(b"changed")
+
+    elif tamper == "unlinked":
+        workspace = LocalWorkspaceStore(root)
+        state = workspace.Open()
+        workspace.Save(replace(state, evidence_record_references=()))
+
+    else:
+        statement = json.loads(store.Read(receipt.reference))
+        original = statement["operation_record_references"]
+
+        if tamper == "cross-run":
+            other = RunExport(export_runner, export_case, retainCompletion=True)
+            original[0] = other.snapshot.artifacts[0].evidence.evidence_id
+
+        elif tamper == "cross-job":
+            other = RunExport(export_runner, export_case, retainCompletion=True)
+            statement["job_reference"] = other.snapshot.spec.job_id
+
+        elif tamper == "wrong-pin":
+            statement["pin"]["archive_sha256"] = "a" * 64
+
+        else:
+            original[:3], original[3:6] = original[3:6], original[:3]
+
+        reference = store.Put(product.SerializeContract(statement).encode(), receipt.reference.role,
+            receipt.reference.media_type, receipt.provenance).evidence_id
+
+    with pytest.raises((ValueError, EvidenceError)):
+        product.VerifyLocalImageExportCompletion(root, reference)
+
+
+@pytest.mark.parametrize("afterWrite", (False, True), ids=("refused-write", "lost-ack"))
+def test_CompletionProofStorageFailureKeepsOriginalSuccess(
+    export_runner, export_case, monkeypatch, afterWrite,
+):
+    """A separate receipt storage error cannot claim replay eligibility or undo the export."""
+
+    original = LocalEvidenceStore.Put
+    selection, _, _, _ = export_case
+
+    def Put(store, raw, role, mediaType, provenance):
+        """Refuse only the optional terminal evidence record."""
+
+        if role == "local-image-export-completion":
+            if afterWrite:
+                original(store, raw, role, mediaType, provenance)
+
+            raise EvidenceError("inert proof storage error")
+
+        return original(store, raw, role, mediaType, provenance)
+
+    monkeypatch.setattr(LocalEvidenceStore, "Put", Put)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
+    assert summary.ExitCode() == 0 and summary.archive_pin is not None, (
+        "Storage failure in the separate completion evidence must preserve export success."
+    )
+    assert summary.completion_record_reference is None, (
+        "No unconfirmed export completion is eligible for replay."
+    )
+    records = selection.workspace_root / "evidence" / "records"
+    assert len(tuple(records.glob("*.json"))) == 9 + int(afterWrite), (
+        "The evidence-write failure must exercise its intended persisted boundary."
+    )
+
+
+def test_RelocatedCompleteCapturesCannotReplaceLostWorkspaceAcknowledgement(
+    export_runner, export_case, monkeypatch, tmp_path,
+):
+    """A valid archive and durable acquisition links survive a lost ACK without a receipt."""
+
+    selection, _, _, _ = export_case
+    original = LocalWorkspaceStore.Save
+
+    def LoseAcknowledgement(store, proposal):
+        """Commit the real metadata and then lose the original return."""
+
+        original(store, proposal)
+        raise OSError("inert lost workspace acknowledgement")
+
+    monkeypatch.setattr(LocalWorkspaceStore, "Save", LoseAcknowledgement)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
+    assert summary.snapshot.state is JobState.FAILED and len(summary.snapshot.artifacts) == 9, (
+        "The full original captures do not acknowledge workspace completion."
+    )
+    assert not summary.workspace_acknowledged and summary.completion_record_reference is None, (
+        "A lost original acknowledgement must withhold the terminal completion evidence."
+    )
+    root = selection.workspace_root
+    archive = next(root.glob("local-image-export-*/image.tar"))
+    assert archive.read_bytes() == OriginalArchive(), (
+        "The failed run must have left a real complete archive for this regression."
+    )
+    archive.unlink()
+    relocated = tmp_path / "failed-relocated"
+    shutil.move(root, relocated)
+    store = LocalEvidenceStore(relocated / "evidence")
+    workspace = LocalWorkspaceStore(relocated).Open()
+    assert len(workspace.evidence_record_references) == 9, (
+        "Relocation must retain all nine linked original records of this failed run."
+    )
+    assert len(tuple((store.root / "records").glob("*.json"))) == 9, (
+        "No completion manifest may exist in the relocated failed run."
+    )
+    for identity in workspace.evidence_record_references:
+        store.Get(identity)
+
+    finalCommand = summary.snapshot.artifacts[-1].evidence.evidence_id
+    with pytest.raises(ValueError, match="role or byte budget"):
+        product.VerifyLocalImageExportCompletion(relocated, finalCommand)
+
+
+def test_CancelledExportAfterAcknowledgementCannotPublishCompletion(
+    export_runner, export_case, monkeypatch,
+):
+    """Terminal cancellation prevents a receipt even after archive and workspace publication."""
+
+    original = product.LocalImageExportWorkflow.Persist
+
+    def Persist(workflow, context, validate=None):
+        """Set the owning cancellation signal after the actual successful metadata readback."""
+
+        original(workflow, context, validate)
+
+        if validate is not None:
+            context.Cancellation.set()
+
+    monkeypatch.setattr(product.LocalImageExportWorkflow, "Persist", Persist)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
+    assert summary.snapshot.state is JobState.CANCELLED and summary.workspace_acknowledged, (
+        "The test requires cancellation after the actual successful workspace readback."
+    )
+    assert summary.archive_pin is None and summary.completion_record_reference is None, (
+        "An acknowledged workspace alone cannot turn a cancelled job into a completed export."
+    )
+
+
 @pytest.mark.parametrize("selected_material", [True], indirect=True, ids=["portable-posix-model"])
 def test_PortableLogicalExportPreservesOriginalStateAndAuthority(export_runner, export_case):
     """Declared mode/fsync projections exercise orchestration without a socket or process claim."""
 
     selection, _, commands, _ = export_case
-    summary = RunExport(export_runner, export_case)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
     assert summary.ExitCode() == 0 and commands == ["inspect", "export", "recheck"], (
         "Portable logical projections must still traverse the actual original authority owner."
     )
@@ -152,7 +357,7 @@ def test_FailedExportRetainsOriginalEvidenceWithoutAcceptedArchive(
     selection, _, calls, control = export_case
     control["failure"] = failure
     before = LocalModelStore(selection.workspace_root).Open()
-    summary = RunExport(export_runner, export_case)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
     assert summary.snapshot.state in {JobState.FAILED, JobState.CANCELLED}, (
         "A refused phase must not become a completed local export."
     )
@@ -163,6 +368,9 @@ def test_FailedExportRetainsOriginalEvidenceWithoutAcceptedArchive(
         LocalModelStore(selection.workspace_root).Open() == before
     ), "Actual failed-command evidence must survive without any model mutation."
     assert summary.workspace_acknowledged, "Failed-job evidence CAS must report its actual result."
+    assert summary.completion_record_reference is None, (
+        "No unconfirmed export completion is eligible for replay."
+    )
 
 
 def test_ExportApprovalRefusesBeforeSelectedReads(export_runner, export_case, monkeypatch):
@@ -203,7 +411,7 @@ def test_ArchiveNoClobberPreservesPreexistingBytes(export_runner, export_case, m
         return stream
 
     monkeypatch.setattr(Path, "open", Open)
-    summary = RunExport(export_runner, export_case)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
     archives = tuple(selection.workspace_root.glob("local-image-export-*/image.tar"))
     assert summary.snapshot.state is JobState.FAILED and summary.archive_pin is None, (
         "An existing archive destination must deny accepted publication."
@@ -252,7 +460,7 @@ def test_FinalPublicationRefusalsDoNotExposeAcceptedPins(
 
     monkeypatch.setattr(product, "ValidateCompletedLocalExport", Validate)
     monkeypatch.setattr(LocalWorkspaceStore, "Save", Save)
-    summary = RunExport(export_runner, export_case)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
     assert calls == ["inspect", "export", "recheck"] and (
         summary.snapshot.state is JobState.FAILED
     ), (
@@ -261,6 +469,9 @@ def test_FinalPublicationRefusalsDoNotExposeAcceptedPins(
     assert summary.archive_pin is None and summary.archive_relative_path is None and (
         len(summary.snapshot.artifacts) == 9
     ), "A final refusal must preserve original evidence while withholding accepted archive claims."
+    assert summary.completion_record_reference is None, (
+        "No unconfirmed export completion is eligible for replay."
+    )
     if boundary == "acknowledgement":
         assert not summary.workspace_acknowledged, (
             "An uncertain save response must never be upgraded to a confirmed acknowledgement."
@@ -315,7 +526,7 @@ def test_ExactWorkspaceAcknowledgementRequiresTheOriginalProposalAndRevision(
         return EqualityImpostor()
 
     monkeypatch.setattr(LocalWorkspaceStore, "Save", Save)
-    summary = RunExport(export_runner, export_case)
+    summary = RunExport(export_runner, export_case, retainCompletion=True)
     assert summary.snapshot.state is JobState.FAILED and summary.snapshot.failure.code is (
         JobFailureCode.STORAGE
     ), "Only the exact original typed proposal at the next revision may acknowledge publication."
@@ -325,6 +536,9 @@ def test_ExactWorkspaceAcknowledgementRequiresTheOriginalProposalAndRevision(
     assert not summary.workspace_acknowledged and summary.archive_pin is None and (
         summary.archive_relative_path is None
     ), "Unacknowledged storage must withhold every accepted archive/pin publication."
+    assert summary.completion_record_reference is None, (
+        "No unconfirmed export completion is eligible for replay."
+    )
     after = LocalWorkspaceStore(root).Open()
     assert after.revision == before.revision + int(failure != "suppressed"), (
         "Actual partial writes remain visible even when their acknowledgement is refused."

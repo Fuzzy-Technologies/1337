@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 74 — v0.4.74 — 2026-11-27
+
+#### Digest
+
+- Retain verifiable evidence that a selected image export completed.
+
+#### Added
+
+- Let SDK callers request a completion receipt for the acknowledged export.
+  Reopen its original inspect, save, and recheck records after relocating
+  the workspace.
+
 ### Patch 73 — v0.4.73 — 2026-11-27
 
 #### Digest

@@ -91,6 +91,26 @@ unknown cleanup or uncertain persistence never returns an accepted archive pin;
 original acquisitions may remain as failed-job evidence. A generated archive
 file surviving a later failed acknowledgement is not proof of accepted export.
 
+## Reopen retained export evidence in the SDK
+
+Pass `retainCompletion=True` to `ExportLocalImage` to request an optional
+`completion_record_reference` on its typed summary. This separately retained,
+schema-one evidence record follows final export validation, the exact workspace
+acknowledgement and readback, and terminal job completion. Retain the ID
+returned by the export alongside the copied workspace for offline verification.
+Default SDK and CLI calls retain the original acquisition records and expose
+the existing JSON summary.
+
+The Internal `VerifyLocalImageExportCompletion` reader accepts that explicit ID
+and the owning workspace root. It verifies the current ownership of the
+original ordered inspect, save and recheck acquisitions and their common run,
+source target, archive bytes and config ID. The reader works after relocating
+the workspace and removing the standalone archive and original selected paths.
+An absent ID, including older exports and runs without a retained completion
+record, leaves offline completion unknown. Raw acquisitions and a surviving
+archive alone are insufficient. Evidence integrity follows
+[ADR 0020](adr/0020-immutable-local-evidence-store.md).
+
 ## Independently approve and scan the archive
 
 Review the accepted archive target, byte hash and config ID. Register the returned
