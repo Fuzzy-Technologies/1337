@@ -8,6 +8,17 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 72 — v0.4.72 — 2026-11-27
+
+#### Digest
+
+- Synchronize the locked developer and documentation tooling updates.
+
+#### Changed
+
+- Update Coverage to 7.17.5, Ruff to 0.17.6, and MkDocs Material to 9.8.2
+  with verified distribution hashes.
+
 ### Patch 71 — v0.4.71 — 2026-11-27
 
 #### Digest
