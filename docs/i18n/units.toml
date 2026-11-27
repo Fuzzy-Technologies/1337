@@ -24133,7 +24133,7 @@ state = "missing"
 id = "page:api.fuzzy1337.local-image-workflow"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.local_image_workflow.md"
-sourceHash = "sha256:edcccb23da969418f6e122d4b29efff3a1177cdba5a837053b5d9b96abea1b40"
+sourceHash = "sha256:7bc1f3a599134be2508cdbdc3e964dcb47c9706246d122ee2116a1a9256fd63f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -24713,10 +24713,43 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "symbol:fuzzy1337.local_image_workflow.ExportAttempt"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:215a6cd559ca7da14e8888851f22ff86b18ce349d28ddd748f122cbeec076a3d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.local_image_workflow.ExportLocalImage"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/local_image_workflow.py"
-sourceHash = "sha256:efb8b447dd4cc094d7d778d7239a9068f1447269ce5c1756060f77b9b1f4915e"
+sourceHash = "sha256:078aeffe9815b2d1bb047b0042873b62ffac566432bdc60dc610ddde431b95f9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.local_image_workflow.LocalExportEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:1b145170c74c36ae6a3f2f366b442ebf10041cb8e2c70998cafb17dc47c5b8ff"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.local_image_workflow.LocalExportEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:efd4e951ebb0ae9f0346d5b80b69d7b80866a756124c45963240d5d7c1d8b02a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -24746,10 +24779,21 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "symbol:fuzzy1337.local_image_workflow.LocalImageExportReplay"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:507318df99510eefc5f8dea9adbe045bb147892f1ad4aef0beef6ae7ef9e9cdc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.local_image_workflow.LocalImageExportSummary"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/local_image_workflow.py"
-sourceHash = "sha256:91cd6c4829e50edc4984a472ef6bd2b33fab250a7d96196c909e5dd0ac21fbaa"
+sourceHash = "sha256:f187d9643f2bcbb00b980315a8c5b9afae11028ad17d188c80c63159384e574c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -24827,6 +24871,39 @@ id = "symbol:fuzzy1337.local_image_workflow.PlanLocalImageExport"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/local_image_workflow.py"
 sourceHash = "sha256:00c127decae97c4227a51414563833bc5b9cb3d223747552c75e229e69b8d88f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.local_image_workflow.ReadCompletedOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:c7feec7da3b593cffdc35019fb0284b76f6bde0c565330e3c0d7abd3cd47854d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.local_image_workflow.RetainCompletion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:21505a03f01d207b98ef7f081f9bceb19f190bf2522f4d6a48105b6023232414"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.local_image_workflow.VerifyLocalImageExportCompletion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/local_image_workflow.py"
+sourceHash = "sha256:8ac4003cc056c31ee53791ac1a974238482ccb4236d57298a432544fe79abd3c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

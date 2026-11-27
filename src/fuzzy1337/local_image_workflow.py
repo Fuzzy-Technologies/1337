@@ -9,19 +9,21 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
-from fuzzy1337.adapters import ExecutionState, SerializeContract
+from fuzzy1337.adapters import EvidenceReference, ExecutionState, SerializeContract
 from fuzzy1337.artifact_inputs import ArtifactPathInfo, PhysicalIdentity, ReadArtifactFile
 from fuzzy1337.artifact_policy import (
     ArtifactDeniedError,
     ArtifactPolicyContext,
     ArtifactPolicyEngine,
 )
-from fuzzy1337.evidence import EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
+from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
 from fuzzy1337.executors import (
     ExecutionTermination,
     InvocationDigest,
@@ -39,7 +41,12 @@ from fuzzy1337.jobs import (
     JobState,
     ScanJob,
 )
-from fuzzy1337.local_image_archive import LocalImageArchivePin
+from fuzzy1337.local_image_archive import (
+    InspectConfigId,
+    JsonDocument,
+    LocalImageArchivePin,
+    VerifyDockerSave,
+)
 from fuzzy1337.local_image_material import LocalImageMaterialObserver
 from fuzzy1337.local_image_policy import (
     LocalImageExecutionClaim,
@@ -48,18 +55,43 @@ from fuzzy1337.local_image_policy import (
     ValidateCompletedLocalExport,
 )
 from fuzzy1337.local_image_reference import (
+    LOCAL_IMAGE_ARCHIVE_BYTES,
+    LOCAL_IMAGE_INSPECT_BYTES,
+    LOCAL_IMAGE_PROFILE,
     LOCAL_IMAGE_SOURCE,
+    LOCAL_IMAGE_STDERR_BYTES,
     LocalImageOperation,
     LocalImageSelection,
 )
 from fuzzy1337.model import LocalModelStore, ModelState
 from fuzzy1337.native_image_policy import PrivateDirectory
 from fuzzy1337.native_image_workflow import SettleNativeImageCleanup
-from fuzzy1337.policy import ImpactPolicy, UtcNow
+from fuzzy1337.policy import Digest, ImpactPolicy, UtcNow
 from fuzzy1337.quickscan import VerifyWorkspaceEvidence
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
-from fuzzy1337.scope import LocalScopeStore
-from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceState
+from fuzzy1337.scope import LocalScopeStore, Target, TargetKind
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields, WorkspaceState
+
+_COMPLETION_ROLE = "local-image-export-completion"
+_COMPLETION_BYTES = 4 * 1024
+_OPERATION_RECEIPT_BYTES = 256 * 1024
+_JOB_PREFIX = "job:local-image-export-"
+_OPERATION_PREFIX = "operation:local-export-"
+_RUN_PREFIX = "local-image-export-"
+_STREAM_ROLES = ("stdout", "stderr", "receipt")
+_JSON_MEDIA = "application/json"
+_STREAM_MEDIA = "application/octet-stream"
+_EVIDENCE_LIMITS = {
+    **{f"local-image-{operation.value}-{role}": (maximum, media)
+       for operation in LocalImageOperation
+       for role, maximum, media in (
+           ("stdout", LOCAL_IMAGE_ARCHIVE_BYTES if operation is LocalImageOperation.EXPORT
+            else LOCAL_IMAGE_INSPECT_BYTES, _STREAM_MEDIA),
+           ("stderr", LOCAL_IMAGE_STDERR_BYTES, _STREAM_MEDIA),
+           ("receipt", _OPERATION_RECEIPT_BYTES, _JSON_MEDIA),
+       )},
+    _COMPLETION_ROLE: (_COMPLETION_BYTES, _JSON_MEDIA),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,12 +131,18 @@ def PlanLocalImageExport(selection: LocalImageSelection) -> LocalImageExportPlan
 
 @dataclass(frozen=True, slots=True)
 class LocalImageExportSummary:
-    """Actual job outcome; archive pins are exposed only after confirmed workspace persistence."""
+    """Actual job outcome; archive pins require confirmed workspace persistence.
+
+    The optional SDK receipt ID identifies separate offline completion evidence.
+    It is absent unless retention is requested and publication is confirmed. The legacy job
+    snapshot and JSON receipt contain the original acquisition records.
+    """
 
     snapshot: JobSnapshot
     archive_relative_path: str | None
     archive_pin: LocalImageArchivePin | None
     workspace_acknowledged: bool
+    completion_record_reference: str | None = None
 
     def ExitCode(self) -> int:
         """Return zero only for an acknowledged completed export.
@@ -237,10 +275,11 @@ class LocalImageExportWorkflow:
         phase = JobFailureCode.AUTHORIZATION
         try:
             context.CheckCancellation()
+            attempt = ExportAttempt(context.Spec.job_id)
             observer = LocalImageMaterialObserver(self.selection, self.owner_reference,
-                "operation:local-export-" + uuid4().hex)
+                _OPERATION_PREFIX + attempt)
             proof = observer.Observe()
-            run = root / ("local-image-export-" + uuid4().hex)
+            run = root / (_RUN_PREFIX + attempt)
             run.mkdir(mode=0o700)
             scratch = run / "scratch"
             scratch.mkdir(mode=0o700)
@@ -373,9 +412,307 @@ class LocalImageExportWorkflow:
                         "Local image export evidence references were not acknowledged")) from None
 
 
+@dataclass(frozen=True, slots=True)
+class LocalImageExportReplay:
+    """Internal replay of the acknowledged export and its complete original archive stdout."""
+
+    workspace_id: str
+    workspace_revision: int
+    job_reference: str
+    scope_reference: str
+    target_reference: str
+    pin: LocalImageArchivePin
+    operation_records: tuple[EvidenceRecord, ...]
+    archive_stdout: bytes
+
+
+class LocalExportEvidenceStore(LocalEvidenceStore):
+    """Bound each selected raw acquisition before the immutable owner's eager read."""
+
+    def __init__(self, root: Path, role: str) -> None:
+        """Select one expected role and bound before opening the caller-supplied evidence ID."""
+
+        super().__init__(root)
+        self._role = role
+
+    def Read(self, reference: EvidenceReference) -> bytes:
+        """Read a selected export record within its exact role, media and size budget.
+
+        Args:
+            reference: Exact stored reference for the role selected by this reader.
+
+        Returns:
+            Original bytes verified by the evidence owner.
+        """
+
+        maximum, media = _EVIDENCE_LIMITS[self._role]
+
+        if reference.role != self._role or (
+            reference.size_bytes > maximum or reference.media_type != media
+        ):
+            raise ValueError("local image export evidence differs from its role or byte budget")
+
+        return super().Read(reference)
+
+
+def ExportAttempt(jobReference: str) -> str:
+    """Derive the single original run identity shared by the job, receipts and scratch.
+
+    Args:
+        jobReference: Original job identifier issued by the export workflow.
+
+    Returns:
+        Canonical lowercase hexadecimal attempt identifier.
+    """
+
+    if type(jobReference) is not str or not jobReference.startswith(_JOB_PREFIX):
+        raise ValueError("local image export requires its original job reference")
+
+    attempt = jobReference.removeprefix(_JOB_PREFIX)
+
+    if re.fullmatch(r"[0-9a-f]{32}", attempt) is None:
+        raise ValueError("local image export requires a canonical attempt identity")
+
+    return attempt
+
+
+def ReadCompletedOperation(evidenceRoot: Path, workspace: WorkspaceState,
+    proof: dict[str, object], operation: LocalImageOperation, ids: tuple[str, ...],
+) -> tuple[tuple[EvidenceRecord, ...], dict[str, object], bytes]:
+    """Verify ownership, role order, invocation and stream bindings of one original command.
+
+    Args:
+        evidenceRoot: Local evidence directory in the current workspace.
+        workspace: Current saved workspace with the selected original references.
+        proof: Validated terminal export receipt.
+        operation: Original inspect, save or recheck operation.
+        ids: Three evidence IDs in stdout, stderr and receipt order.
+
+    Returns:
+        Verified ordered records, selected material and the original stdout bytes.
+    """
+
+    stores = tuple(LocalExportEvidenceStore(evidenceRoot, f"local-image-{operation.value}-{role}")
+                   for role in _STREAM_ROLES)
+    records = tuple(store.Get(identity) for store, identity in zip(stores, ids, strict=True))
+    stdout, stderr, receipt = records
+    source = receipt.provenance
+
+    if any(item.reference not in workspace.evidence_references or item.provenance != source
+           for item in records) or (
+        source.workspace_id != workspace.workspace_id
+        or source.scope_reference != proof["scope_reference"]
+        or source.source_id != LOCAL_IMAGE_SOURCE or source.source_version != "1"
+        or source.tool_version is not None or source.execution is None
+        or source.execution.state is not ExecutionState.SUCCEEDED
+    ):
+        raise ValueError("local image export original records differ from their selected operation")
+
+    receiptRaw = stores[2].Read(receipt.reference)
+    original = WorkspaceFields(JsonDocument(receiptRaw, _OPERATION_RECEIPT_BYTES),
+        {"schema_version", "operation", "operation_reference", "request", "execution",
+         "termination", "stdout_sha256", "stderr_sha256", "stdout_size", "stderr_size",
+         "event_count", "plan", "selected_material"}, "local image export original receipt")
+    request = WorkspaceFields(original["request"],
+        {"invocation", "capability", "authorization", "workspace", "environment", "resources"},
+        "local image export original request")
+    invocation = WorkspaceFields(request["invocation"],
+        {"adapter_id", "request", "argv", "timeout_seconds", "provider_version"},
+        "local image export original invocation")
+    requested = WorkspaceFields(invocation["request"],
+        {"capability", "target_reference", "impact", "parameters", "credential_references"},
+        "local image export original adapter request")
+    material = WorkspaceFields(original["selected_material"],
+        {"family", "operation_id", "operation", "operation_reference", "workspace_root",
+         "workspace_id", "owner_reference", "read_consent", "descriptor", "material", "invocation",
+         "scratch", "scratch_identities", "config_identity", "environment", "resources",
+         "resolution"}, "local image export selected material")
+    plan = WorkspaceFields(original["plan"],
+        {"prepared_sha256", "scope_sha256", "policy_sha256", "scope_reference", "policy_reference",
+         "workspace_id", "owner_reference", "target_reference", "invocation_sha256"},
+        "local image export original plan")
+    descriptor = WorkspaceFields(material["descriptor"],
+        {"schema_version", "profile", "reference", "docker_executable", "endpoint"},
+        "local image export original descriptor")
+    target = Target(TargetKind.ARTIFACT, "manifest-sha256:" + Digest(descriptor))
+    resolution = material["resolution"]
+    exportId = resolution.get("image_config_id") if type(resolution) is dict else None
+    parameters = {"operation": operation.value, "reference": descriptor["reference"],
+                  "image_id": exportId if operation is LocalImageOperation.EXPORT else None}
+
+    if type(original["schema_version"]) is not int or original["schema_version"] != 1 or (
+        original["operation"] != operation.value or material["operation"] != operation.value
+        or original["operation_reference"] != proof["operation_reference"]
+        or material["operation_reference"] != proof["operation_reference"]
+        or material["workspace_id"] != workspace.workspace_id
+        or plan["workspace_id"] != workspace.workspace_id
+        or plan["scope_reference"] != source.scope_reference
+        or plan["prepared_sha256"] != Digest(material)
+        or plan["invocation_sha256"] != source.invocation_sha256
+        or material["invocation"] != invocation or Digest(invocation) != source.invocation_sha256
+        or invocation["adapter_id"] != LOCAL_IMAGE_SOURCE
+        or descriptor["profile"] != LOCAL_IMAGE_PROFILE or requested["parameters"] != parameters
+        or requested["target_reference"] != proof["target_reference"]
+        or plan["target_reference"] != proof["target_reference"]
+        or target.Reference() != proof["target_reference"]
+        or request["workspace"] != proof["scratch"]
+        or original["termination"] != ExecutionTermination.PROCESS_EXIT.value
+        or SerializeContract(original["execution"]) != SerializeContract(source.execution)
+        or original["stdout_sha256"] != stdout.reference.sha256
+        or original["stderr_sha256"] != stderr.reference.sha256
+        or type(original["stdout_size"]) is not int or type(original["stderr_size"]) is not int
+        or original["stdout_size"] != stdout.reference.size_bytes
+        or original["stderr_size"] != stderr.reference.size_bytes
+    ):
+        raise ValueError("local image export receipt differs from original acquisition facts")
+
+    return records, material, stores[0].Read(stdout.reference)
+
+
+def VerifyLocalImageExportCompletion(workspaceRoot: Path,
+                                     completionRecordReference: str) -> LocalImageExportReplay:
+    """Reopen an explicitly selected successful export without old paths, Docker or writes.
+
+    Args:
+        workspaceRoot: Existing or relocated workspace owning all selected records.
+        completionRecordReference: Independently retained terminal evidence manifest ID.
+
+    Returns:
+        Verified ordered original records and complete archive bytes bound to the config ID.
+
+    Raises:
+        ValueError: The selected proof, workspace or captures conflict with original acceptance.
+        EvidenceError: Required proof or retained original bytes are absent or corrupt.
+        OSError: Owning workspace state cannot be opened.
+    """
+
+    owner = LocalWorkspaceStore(workspaceRoot)
+    workspace = owner.Open()
+    evidenceRoot = owner.root / "evidence"
+    store = LocalExportEvidenceStore(evidenceRoot, _COMPLETION_ROLE)
+    receipt = store.Get(completionRecordReference)
+    raw = store.Read(receipt.reference)
+    proof = WorkspaceFields(JsonDocument(raw, _COMPLETION_BYTES),
+        {"schema_version", "workspace_id", "workspace_revision", "scope_reference",
+         "job_reference", "operation_reference", "target_reference", "scratch", "pin",
+         "operation_record_references"}, "local image export completion")
+    revision, job = proof["workspace_revision"], proof["job_reference"]
+    scope, operationRef = proof["scope_reference"], proof["operation_reference"]
+    targetRef, ids = proof["target_reference"], proof["operation_record_references"]
+    provenance = receipt.provenance
+
+    if type(job) is not str:
+        raise ValueError("local image export completion requires its original job reference")
+
+    attempt = ExportAttempt(job)
+
+    if (
+        raw != SerializeContract(proof).encode("utf-8") or type(proof["schema_version"]) is not int
+        or proof["schema_version"] != 1 or proof["workspace_id"] != workspace.workspace_id
+        or type(revision) is not int or not 1 <= revision <= workspace.revision
+        or job not in workspace.job_references
+        or type(scope) is not str or scope not in workspace.scope_references
+        or operationRef != _OPERATION_PREFIX + attempt
+        or proof["scratch"] != _RUN_PREFIX + attempt + "/scratch"
+        or type(targetRef) is not str or re.fullmatch(r"target:[0-9a-f]{64}", targetRef) is None
+        or provenance.workspace_id != workspace.workspace_id or provenance.scope_reference != scope
+        or provenance.source_id != LOCAL_IMAGE_SOURCE or provenance.source_version != "1"
+        or provenance.tool_version is not None or provenance.invocation_sha256 is not None
+        or provenance.execution is not None or provenance.started_at != provenance.finished_at
+        or type(ids) is not list or len(ids) != 9
+        or any(type(identity) is not str or identity not in workspace.evidence_record_references
+               for identity in ids)
+        or len(set(ids)) != len(ids)
+    ):
+        raise ValueError("local image export completion differs from the selected workspace")
+
+    originals = tuple(
+        ReadCompletedOperation(evidenceRoot, workspace, proof, operation,
+                                tuple(ids[index:index + 3]))
+        for index, operation in zip(range(0, 9, 3), LocalImageOperation, strict=True)
+    )
+    (inspections, inspect, inspectRaw), (exports, export, archive), (
+        rechecks, recheck, recheckRaw
+    ) = originals
+    configId = InspectConfigId(inspectRaw)
+    expectedResolution = LocalImageResolution(configId, inspections[0].reference.sha256,
+                                               _OPERATION_PREFIX + attempt)
+    pin = VerifyDockerSave(archive, configId)
+
+    if inspect["resolution"] is not None or any(
+        SerializeContract(material["resolution"]) != SerializeContract(expectedResolution)
+        or any(material[key] != inspect[key] for key in (
+            "descriptor", "workspace_root", "owner_reference", "read_consent", "material",
+            "scratch",
+        ))
+        for material in (export, recheck)
+    ) or (
+        InspectConfigId(recheckRaw) != configId
+        or SerializeContract(proof["pin"]) != SerializeContract(pin)
+        or inspections[0].provenance.finished_at > exports[0].provenance.started_at
+        or exports[0].provenance.finished_at > rechecks[0].provenance.started_at
+        or rechecks[0].provenance.finished_at > provenance.started_at or owner.Open() != workspace
+    ):
+        raise ValueError("local image export completion differs from its original sequence")
+
+    return LocalImageExportReplay(workspace.workspace_id, revision, job, scope, targetRef, pin,
+                                  (*inspections, *exports, *rechecks), archive)
+
+
+def RetainCompletion(workflow: LocalImageExportWorkflow, snapshot: JobSnapshot) -> str | None:
+    """Publish a separate receipt only after terminal success and exact workspace readback.
+
+    Args:
+        workflow: Owning export workflow with its acknowledged workspace and originals.
+        snapshot: Terminal snapshot of the same export job.
+
+    Returns:
+        Verified completion evidence ID when publication is acknowledged, otherwise None.
+    """
+
+    if snapshot.state is not JobState.COMPLETED or not workflow.acknowledged:
+        return None
+
+    if workflow.pin is None:
+        return None
+
+    attempt = ExportAttempt(snapshot.spec.job_id)
+    statement = {"schema_version": 1, "workspace_id": snapshot.spec.workspace_id,
+        "workspace_revision": workflow.initial_workspace.revision + 1,
+        "scope_reference": snapshot.spec.scope_reference, "job_reference": snapshot.spec.job_id,
+        "operation_reference": _OPERATION_PREFIX + attempt,
+        "target_reference": workflow.selection.Target().Reference(),
+        "scratch": _RUN_PREFIX + attempt + "/scratch", "pin": workflow.pin,
+        "operation_record_references": [record.evidence_id for record in workflow.records]}
+    raw = SerializeContract(statement).encode("utf-8")
+    timestamp = datetime.now(UTC).isoformat()
+    provenance = EvidenceProvenance(snapshot.spec.workspace_id, snapshot.spec.scope_reference,
+        LOCAL_IMAGE_SOURCE, "1", None, timestamp, timestamp)
+    evidenceRoot = workflow.selection.workspace_root / "evidence"
+    store = LocalExportEvidenceStore(evidenceRoot, _COMPLETION_ROLE)
+
+    if len(raw) > _COMPLETION_BYTES:
+        return None
+
+    try:
+        result = store.Put(raw, _COMPLETION_ROLE, _JSON_MEDIA, provenance)
+
+        if type(result) is EvidenceRecord and result.provenance == provenance and (
+            result.reference.role == _COMPLETION_ROLE and store.Get(result.evidence_id) == result
+            and store.Read(result.reference) == raw
+        ):
+            return result.evidence_id
+
+    except (EvidenceError, OSError, ValueError):
+        pass
+
+    return None
+
+
 async def ExportLocalImage(selection: LocalImageSelection, scope_id: str, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy], *, approve_local_image: bool = False,
     on_event: Callable[[JobEvent], None] | None = None, clock: Callable[[], datetime] = UtcNow,
+    retainCompletion: bool = False,
 ) -> LocalImageExportSummary:
     """Run an explicitly approved local export without authorizing the generated archive scan.
 
@@ -387,12 +724,18 @@ async def ExportLocalImage(selection: LocalImageSelection, scope_id: str, owner_
         approve_local_image: Exact explicit SAFE workflow approval, independent of policy.
         on_event: Optional fast unchanged canonical event consumer.
         clock: Trusted aware authority clock.
+        retainCompletion: Opt in to separate evidence for offline completion replay.
 
     Returns:
-        Actual terminal job and accepted archive only after confirmed workspace persistence.
+        Actual terminal job, accepted archive after confirmed workspace persistence, and
+        optional separately retained completion evidence for offline replay.
     """
 
     PlanLocalImageExport(selection)
+
+    if type(retainCompletion) is not bool:
+        raise ValueError("local image export requires an explicit boolean completion option")
+
     if approve_local_image is not True or not callable(policy_provider) or (
         owner_reference != selection.read_consent.actor_ref
     ):
@@ -404,7 +747,7 @@ async def ExportLocalImage(selection: LocalImageSelection, scope_id: str, owner_
     VerifyWorkspaceEvidence(workspace, evidence)
     VerifyReportEvidence(ReportSnapshot(model), root)
     scope = LocalScopeStore(root).Open(scope_id)
-    spec = JobSpec("job:local-image-export-" + uuid4().hex, workspace.workspace_id,
+    spec = JobSpec(_JOB_PREFIX + uuid4().hex, workspace.workspace_id,
         scope.Reference(), owner_reference, LOCAL_IMAGE_SOURCE, timeout_seconds=65)
     workflow = LocalImageExportWorkflow(selection, scope_id, owner_reference, policy_provider,
                                         workspace, model, clock)
@@ -426,4 +769,5 @@ async def ExportLocalImage(selection: LocalImageSelection, scope_id: str, owner_
     snapshot = job.Snapshot()
     accepted = snapshot.state is JobState.COMPLETED and workflow.acknowledged
     return LocalImageExportSummary(snapshot, workflow.archive_path if accepted else None,
-        workflow.pin if accepted else None, workflow.acknowledged)
+        workflow.pin if accepted else None, workflow.acknowledged,
+        RetainCompletion(workflow, snapshot) if retainCompletion else None)

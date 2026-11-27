@@ -1139,9 +1139,18 @@ or promise an extension compatibility boundary.
 
 An accepted summary requires exact typed workspace acknowledgement and readback
 of the proposed state at the next revision. Unknown persistence exposes no
-accepted archive pin. Export retains evidence but does not mutate Findings. The
-optional native archive `expected_image_identity` argument defaults to `None`;
-`scan image --expected-config-id` binds the fresh verified Trivy report's config
+accepted archive pin. The keyword-only `retainCompletion` option defaults to
+`False`. When enabled, the SDK summary's optional `completion_record_reference`
+identifies an independent schema-one evidence record published after terminal
+success. Its absence leaves offline completion unknown while preserving the
+original export outcome. Default SDK and CLI acquisition records retain their
+existing shape, as do the JSON and workspace state schemas.
+`LocalImageExportReplay` and `VerifyLocalImageExportCompletion` are Internal
+members of the existing local-export owner. Export retains evidence and preserves
+the saved Findings.
+
+The optional native archive `expected_image_identity` argument defaults to
+`None`. `scan image --expected-config-id` binds the fresh verified Trivy report's config
 identity before candidate projection and model Save. Existing archive-only and
 synthetic profiles retain their prior behavior when the pin is absent. This does
 not add runtime container discovery or a registry/image mutation API. See
