@@ -8,6 +8,17 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 73 — v0.4.73 — 2026-11-27
+
+#### Digest
+
+- Apply focused macOS compatibility checks to ready development pull requests.
+
+#### Changed
+
+- Exercise runner portability, persisted workspace relocation, and package
+  building in the macOS job.
+
 ### Patch 72 — v0.4.72 — 2026-11-27
 
 #### Digest
